@@ -201,6 +201,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           // Si la base de datos de Supabase no tiene facturas aun, arrancar limpio
           setInvoices([]);
         }
+
+        // 5. Fetch Purchases (Compras)
+        const { data: cloudPurchases } = await client.from('purchases').select('*').order('created_at', { ascending: false });
+        if (cloudPurchases && cloudPurchases.length > 0) {
+          const mappedPurchases: PurchaseDocument[] = cloudPurchases.map(pur => ({
+            id: pur.id,
+            companyId: pur.company_id,
+            docType: pur.dte_type === '03' ? 'CCF' : 'FACTURA',
+            docNumber: pur.control_number,
+            generationCode: pur.generation_code,
+            emissionDate: pur.date,
+            supplierName: pur.supplier_name,
+            supplierNit: pur.supplier_nit,
+            supplierNrc: pur.supplier_nrc || '',
+            concept: 'Compra de inventario / servicios',
+            purchasesGravadas: Number(pur.subtotal_gravado || 0),
+            purchasesExentas: Number(pur.subtotal_exento || 0),
+            creditoFiscal: Number(pur.iva13 || 0),
+            retencion1: Number(pur.retencion1 || 0),
+            totalPagar: Number(pur.total || 0),
+            paymentMethod: '01'
+          }));
+          setPurchases(mappedPurchases);
+        } else {
+          // Si no hay compras registradas en Supabase, arrancar limpio en 0
+          setPurchases([]);
+        }
       } catch (err) {
         console.error('Error loading data from Supabase:', err);
       }
