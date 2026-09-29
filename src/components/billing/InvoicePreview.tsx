@@ -227,7 +227,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
 
         {/* Modal Body */}
         {showJson ? (
-          <div className="p-6 bg-slate-950 text-cyan-300 font-mono text-xs overflow-x-auto max-h-[75vh]">
+          <div className="p-6 bg-slate-900 text-slate-200 font-mono text-xs overflow-x-auto max-h-[75vh]">
             <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-2">
               <span className="text-slate-400">Payload JSON transmitido a la API del Ministerio de Hacienda (DGII)</span>
               <div className="flex items-center gap-2">

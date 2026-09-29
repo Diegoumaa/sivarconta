@@ -105,7 +105,7 @@ export const CatalogView: React.FC = () => {
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-8 sm:p-12 text-center space-y-4 shadow-sm">
           <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-600 mx-auto flex items-center justify-center border border-slate-200">
-            {searchTerm ? <Search className="w-6 h-6 text-slate-400" /> : <Package className="w-7 h-7 text-cyan-600" />}
+            {searchTerm ? <Search className="w-6 h-6 text-slate-400" /> : <Package className="w-7 h-7 text-brand-600" />}
           </div>
           <div className="space-y-1">
             <h3 className="font-extrabold text-slate-900 text-base sm:text-lg">

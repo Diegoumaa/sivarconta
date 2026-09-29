@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Building2, ChevronDown, ShieldCheck, Plus, Sparkles, Search } from 'lucide-react';
+import { Building2, ChevronDown, ShieldCheck, Plus, Sparkles, Search, Zap } from 'lucide-react';
 import { NewCompanyModal } from '../companies/NewCompanyModal';
 
 interface HeaderProps {
@@ -46,8 +46,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCommand, onOpenNewCompany 
           onClick={() => setCurrentView('dashboard')}
           className="flex items-center gap-2 sm:gap-3 cursor-pointer shrink-0"
         >
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center font-bold text-base sm:text-xl text-white shadow-xs">
-            ⚡
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white shadow-xs">
+            <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white fill-white" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">

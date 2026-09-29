@@ -147,7 +147,7 @@ export const SettingsView: React.FC = () => {
               <span className="text-slate-400 block font-semibold">Certificado de Firma Electrónica:</span>
               <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 mt-0.5">
                 <div className="flex items-center gap-2">
-                  <KeyRound className="w-4 h-4 text-cyan-600" />
+                  <KeyRound className="w-4 h-4 text-brand-600" />
                   <span className="font-mono text-slate-700">FirmaSV_2026.crt</span>
                 </div>
                 <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">

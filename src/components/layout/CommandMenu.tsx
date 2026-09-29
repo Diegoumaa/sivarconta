@@ -189,30 +189,28 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose, onOpe
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left text-xs transition-colors cursor-pointer ${
                     isSelected 
-                      ? 'bg-slate-900 text-white shadow-sm' 
-                      : 'hover:bg-slate-100 text-slate-700'
+                      ? 'bg-slate-100 text-slate-900 shadow-2xs font-medium' 
+                      : 'hover:bg-slate-50 text-slate-700'
                   }`}
                 >
                   <div className="flex items-center gap-3 truncate mr-2">
-                    <span className={`p-1.5 rounded-lg ${
-                      isSelected ? 'bg-slate-800 text-cyan-300' : 'bg-slate-100 text-slate-600'
+                    <span className={`p-1.5 rounded-lg border ${
+                      isSelected ? 'bg-white text-brand-600 border-slate-200/80 shadow-2xs' : 'bg-slate-100 text-slate-500 border-slate-200/50'
                     }`}>
                       <Icon className="w-4 h-4" />
                     </span>
                     <div className="truncate">
-                      <p className={`font-semibold truncate ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                      <p className={`font-semibold truncate ${isSelected ? 'text-slate-900' : 'text-slate-800'}`}>
                         {item.label}
                       </p>
-                      <span className={`text-[10px] uppercase font-bold tracking-wider ${
-                        isSelected ? 'text-slate-300' : 'text-slate-400'
-                      }`}>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
                         {item.category}
                       </span>
                     </div>
                   </div>
 
                   {isSelected && (
-                    <span className="hidden sm:flex items-center gap-1 text-[10px] text-cyan-300 font-mono">
+                    <span className="hidden sm:flex items-center gap-1 text-[10px] text-brand-600 font-mono font-medium">
                       <span>Seleccionar</span>
                       <CornerDownLeft className="w-3 h-3" />
                     </span>

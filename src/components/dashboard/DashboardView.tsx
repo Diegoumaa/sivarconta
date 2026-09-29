@@ -112,10 +112,9 @@ export const DashboardView: React.FC = () => {
       </div>
 
       {/* Onboarding Widget: "Camino al Éxito Fiscal" (Linear Style) */}
-      {/* Onboarding Widget: "Camino al Éxito Fiscal" (Linear Style) */}
       {!dismissOnboarding && (
         <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80 relative overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-brand-600 via-indigo-600 to-cyan-500 absolute top-0 left-0 right-0" />
+          <div className="h-1 bg-gradient-to-r from-brand-600 via-indigo-600 to-indigo-400 absolute top-0 left-0 right-0" />
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -218,22 +217,20 @@ export const DashboardView: React.FC = () => {
         </div>
       )}
 
-      {/* Main KPI Cards (Tremor Style) */}
+      {/* Main KPI Cards (Tremor / Stripe Style) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Ventas Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all group">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-sm transition-all group">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Ventas Facturadas</span>
-            <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100/60">
-              <TrendingUp className="w-4 h-4" />
-            </div>
+            <TrendingUp className="w-4 h-4 text-slate-400 group-hover:text-brand-600 transition-colors" />
           </div>
           <div className="mt-3">
             <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
               ${totalVentas.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="text-xs text-slate-500 mt-2 flex items-center gap-1.5">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200/60">
+            <div className="text-xs text-slate-500 mt-2.5 flex items-center gap-1.5">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80">
                 {filteredInvoices.length} DTEs
               </span>
               <span>documentos DTE emitidos</span>
@@ -242,19 +239,17 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {/* Compras Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all group">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-sm transition-all group">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Compras Registradas</span>
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100/60">
-              <TrendingDown className="w-4 h-4" />
-            </div>
+            <TrendingDown className="w-4 h-4 text-slate-400 group-hover:text-purple-600 transition-colors" />
           </div>
           <div className="mt-3">
             <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
               ${totalCompras.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="text-xs text-slate-500 mt-2 flex items-center gap-1.5">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200/60">
+            <div className="text-xs text-slate-500 mt-2.5 flex items-center gap-1.5">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80">
                 {filteredPurchases.length} docs
               </span>
               <span>comprobantes recibidos</span>
@@ -263,34 +258,40 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {/* Débito Fiscal Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all group">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-sm transition-all group">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Débito Fiscal (IVA 13%)</span>
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100/60">
-              <Receipt className="w-4 h-4" />
-            </div>
+            <Receipt className="w-4 h-4 text-slate-400 group-hover:text-amber-600 transition-colors" />
           </div>
           <div className="mt-3">
-            <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 font-mono tabular-nums tracking-tight">
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
               ${debitoFiscalTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-slate-500 mt-2">IVA generado en tus ventas</p>
+            <div className="text-xs text-slate-500 mt-2.5 flex items-center gap-1.5">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60">
+                13% Débito
+              </span>
+              <span>IVA generado en tus ventas</span>
+            </div>
           </div>
         </div>
 
         {/* Crédito Fiscal Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all group">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-sm transition-all group">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Crédito Fiscal (Compras)</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100/60">
-              <FileText className="w-4 h-4" />
-            </div>
+            <FileText className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 transition-colors" />
           </div>
           <div className="mt-3">
-            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 font-mono tabular-nums tracking-tight">
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
               ${creditoFiscalTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-slate-500 mt-2">IVA deducible de tus compras</p>
+            <div className="text-xs text-slate-500 mt-2.5 flex items-center gap-1.5">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                13% Crédito
+              </span>
+              <span>IVA deducible de tus compras</span>
+            </div>
           </div>
         </div>
       </div>

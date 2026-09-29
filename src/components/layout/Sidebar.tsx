@@ -39,19 +39,19 @@ export const Sidebar: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setCurrentView(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 active:scale-[0.98] cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 active:scale-[0.98] cursor-pointer group ${
                     isActive
-                      ? 'bg-brand-50/90 text-brand-700 font-semibold border border-brand-200/70 shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                      ? 'bg-slate-100 text-slate-900 font-semibold border-l-2 border-brand-600 rounded-l-none pl-2.5 shadow-2xs'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-brand-600' : 'text-slate-400'}`} />
+                    <Icon className={`w-[18px] h-[18px] shrink-0 transition-colors ${isActive ? 'text-brand-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
                     <span>{item.label}</span>
                   </div>
                   {item.badge && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${
-                      isActive ? 'bg-brand-100/80 text-brand-700 border border-brand-200/60' : 'bg-slate-100 text-slate-600 border border-slate-200/80'
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium transition-colors ${
+                      isActive ? 'bg-white text-slate-800 border border-slate-200/80 shadow-2xs' : 'bg-slate-100 text-slate-500 border border-slate-200/60'
                     }`}>
                       {item.badge}
                     </span>
@@ -63,9 +63,9 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* Informative card about MH DTE */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-50 to-indigo-50/40 border border-slate-200/80 text-slate-600 text-xs">
+        <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/70 text-slate-600 text-xs">
           <div className="flex items-center gap-2 text-brand-600 font-semibold mb-1">
-            <FileCheck2 className="w-4 h-4" />
+            <FileCheck2 className="w-[18px] h-[18px]" />
             <span>Normativa DGII El Salvador</span>
           </div>
           <p className="text-[11px] text-slate-500 leading-relaxed">

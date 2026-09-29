@@ -756,7 +756,7 @@ export const InvoiceBuilder: React.FC = () => {
                       onClick={() => setCondition('CONTADO')}
                       className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         condition === 'CONTADO'
-                          ? 'bg-slate-900 text-white shadow-sm'
+                          ? 'bg-brand-600 text-white shadow-xs'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
@@ -767,7 +767,7 @@ export const InvoiceBuilder: React.FC = () => {
                       onClick={() => setCondition('CREDITO')}
                       className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         condition === 'CREDITO'
-                          ? 'bg-brand-600 text-white shadow-sm'
+                          ? 'bg-brand-600 text-white shadow-xs'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
@@ -829,10 +829,10 @@ export const InvoiceBuilder: React.FC = () => {
               </div>
 
               {/* TUTOR FISCAL SIVARCONTA */}
-              <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-slate-50 to-cyan-50/50 border border-indigo-200/80 shadow-sm space-y-3">
+              <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-slate-50 to-brand-50/40 border border-indigo-200/70 shadow-2xs space-y-3">
                 <div className="flex items-center justify-between border-b border-indigo-100 pb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-tr from-brand-600 to-cyan-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-tr from-brand-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
                       <Sparkles className="w-3.5 h-3.5" />
                     </div>
                     <div>
