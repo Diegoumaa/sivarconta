@@ -1,20 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Settings, ShieldCheck, KeyRound, Building2, Store, CheckCircle2 } from 'lucide-react';
+import { NewCompanyModal } from '../companies/NewCompanyModal';
 
 export const SettingsView: React.FC = () => {
   const { currentCompany } = useApp();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20 md:pb-8">
       {/* Header */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-          Configuración Fiscal & Ministerio de Hacienda
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-          Parámetros de conexión DTE, firma digital y sucursales para {currentCompany.tradeName || currentCompany.name}
-        </p>
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            Configuración Fiscal & Ministerio de Hacienda
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Parámetros de conexión DTE, firma digital y sucursales para {currentCompany.tradeName || currentCompany.name}
+          </p>
+        </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-brand-500/20 active:scale-95 transition-all shrink-0"
+        >
+          <Building2 className="w-4 h-4" />
+          <span>+ Registrar Otra Empresa</span>
+        </button>
       </div>
 
       {/* Grid */}
@@ -146,6 +157,12 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal to register a new company */}
+      <NewCompanyModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
     </div>
   );
 };

@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Building2, ChevronDown, ShieldCheck, Plus, Sparkles } from 'lucide-react';
+import { NewCompanyModal } from '../companies/NewCompanyModal';
 
 export const Header: React.FC = () => {
   const { companies, currentCompany, currentCompanyId, setCurrentCompanyId, setCurrentView, isCloudSyncActive } = useApp();
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-30 bg-slate-900 border-b border-slate-800 text-white px-3 sm:px-6 py-2.5 sm:py-3 shadow-md">
@@ -70,10 +72,18 @@ export const Header: React.FC = () => {
                   )}
                 </button>
               ))}
-              <div className="border-t border-slate-800 mt-2 pt-2 px-2">
-                <p className="text-[10px] text-slate-400 flex items-center gap-1">
+              <div className="border-t border-slate-800 mt-2 pt-2 px-1 space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsCompanyModalOpen(true)}
+                  className="w-full flex items-center justify-center gap-1.5 p-2 rounded-xl text-xs font-bold bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/80 transition-all shadow-sm active:scale-95"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Registrar Nueva Empresa</span>
+                </button>
+                <p className="text-[10px] text-slate-400 flex items-center justify-center gap-1">
                   <Sparkles className="w-3 h-3 text-amber-400" />
-                  Modo Despacho Contable
+                  Modo Despacho Multi-Empresa
                 </p>
               </div>
             </div>
@@ -106,6 +116,12 @@ export const Header: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Modal for creating a new company */}
+      <NewCompanyModal 
+        isOpen={isCompanyModalOpen} 
+        onClose={() => setIsCompanyModalOpen(false)} 
+      />
     </header>
   );
 };

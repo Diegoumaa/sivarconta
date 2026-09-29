@@ -22,6 +22,7 @@ interface AppContextType {
   activeDtePreview: InvoiceDocument | null;
   setActiveDtePreview: (doc: InvoiceDocument | null) => void;
   createInvoice: (data: any) => Promise<InvoiceDocument>;
+  addCompany: (company: Omit<Company, 'id'>) => Promise<Company>;
   addProduct: (product: Omit<Product, 'id' | 'companyId'>) => Promise<void>;
   addClient: (client: Omit<Client, 'id' | 'companyId'>) => Promise<void>;
   addPurchase: (purchase: Omit<PurchaseDocument, 'id' | 'companyId'>) => Promise<void>;
@@ -275,6 +276,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
   };
 
+  const addCompany = async (companyData: Omit<Company, 'id'>): Promise<Company> => {
+    const newId = generateUUID();
+    const newComp: Company = {
+      ...companyData,
+      id: newId
+    };
+
+    setCompanies(prev => [newComp, ...prev]);
+    setCurrentCompanyId(newId);
+
+    // Push to Supabase if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('companies').insert([{
+          id: newId,
+          name: companyData.name,
+          trade_name: companyData.tradeName || companyData.name,
+          nit: companyData.nit,
+          nrc: companyData.nrc,
+          economic_activity_code: companyData.economicActivityCode || '46510',
+          economic_activity_desc: companyData.economicActivity || 'Comercio',
+          phone: companyData.phone,
+          email: companyData.email,
+          address: companyData.address,
+          department_code: '06',
+          municipality_code: '14',
+          establishment_code: companyData.establishmentCode || 'M001',
+          pos_code: companyData.posCode || 'P001',
+          is_gran_contribuyente: companyData.taxpayerType === 'GRAN_CONTRIBUYENTE',
+          mh_environment: companyData.mhEnvironment || 'PRUEBAS'
+        }]);
+      } catch (e) {
+        console.error('Error saving company to Supabase:', e);
+      }
+    }
+
+    return newComp;
+  };
+
   const addProduct = async (productData: Omit<Product, 'id' | 'companyId'>) => {
     const effCompanyId = getEffectiveCompanyId();
     const newProd: Product = {
@@ -484,6 +524,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeDtePreview,
         setActiveDtePreview,
         createInvoice,
+        addCompany,
         addProduct,
         addClient,
         addPurchase,
