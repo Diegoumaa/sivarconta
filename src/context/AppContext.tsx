@@ -152,6 +152,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }));
           setProducts(mappedProducts);
         }
+
+        // 4. Fetch Invoices
+        const { data: cloudInvoices } = await client.from('invoices').select('*').order('created_at', { ascending: false });
+        if (cloudInvoices && cloudInvoices.length > 0) {
+          const mappedInvoices: InvoiceDocument[] = cloudInvoices.map(inv => ({
+            id: inv.id,
+            companyId: inv.company_id,
+            dteType: inv.dte_type as any,
+            generationCode: inv.generation_code,
+            controlNumber: inv.control_number,
+            emissionDate: inv.emission_date,
+            emissionTime: inv.emission_time,
+            establishmentCode: inv.establishment_code || 'M001',
+            posCode: inv.pos_code || 'P001',
+            status: 'PROCESADO_MH',
+            clientId: inv.client_id || 'cli-generic',
+            clientName: inv.client_name,
+            clientDocType: inv.client_doc_type,
+            clientDocNumber: inv.client_doc_number,
+            clientNrc: inv.client_nrc || undefined,
+            clientEmail: inv.client_email || '',
+            clientPhone: inv.client_phone || undefined,
+            clientAddress: inv.client_address || '',
+            clientMunicipality: inv.client_municipality || 'San Salvador',
+            clientDepartment: inv.client_department || 'San Salvador',
+            paymentMethod: inv.payment_method || '01',
+            condition: inv.condition as any,
+            creditTermDays: inv.credit_term_days || undefined,
+            items: [],
+            subtotalGravado: Number(inv.subtotal_gravado || 0),
+            subtotalExento: Number(inv.subtotal_exento || 0),
+            subtotalNoSujeto: Number(inv.subtotal_no_sujeto || 0),
+            descuentoTotal: Number(inv.descuento_total || 0),
+            iva13: Number(inv.iva13 || 0),
+            retencion1: Number(inv.retencion1 || 0),
+            percepcion1: Number(inv.percepcion1 || 0),
+            retencionRenta10: Number(inv.retencion_renta10 || 0),
+            totalPagar: Number(inv.total_pagar || 0),
+            totalLetras: inv.total_letras || '',
+            observations: inv.observations || undefined,
+            mhReceptionStamp: inv.mh_reception_stamp || undefined,
+            mhResponseDate: inv.created_at,
+            mhQrUrl: `https://factura.gob.sv/consultaPublica?ambiente=00&codGen=${inv.generation_code}&fechaEmi=${inv.emission_date}`
+          }));
+          setInvoices(mappedInvoices);
+        } else {
+          // Si la base de datos de Supabase no tiene facturas aun, arrancar limpio
+          setInvoices([]);
+        }
       } catch (err) {
         console.error('Error loading data from Supabase:', err);
       }

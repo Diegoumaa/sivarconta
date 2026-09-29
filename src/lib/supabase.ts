@@ -1,9 +1,8 @@
 /// <reference types="vite/client" />
 import { createClient } from '@supabase/supabase-js';
 
-const meta = import.meta as any;
-const supabaseUrl = (meta.env?.VITE_SUPABASE_URL as string) || '';
-const supabaseAnonKey = (meta.env?.VITE_SUPABASE_ANON_KEY as string) || '';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://cpbithyqxmirayubqtsk.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Bh4MIAt7r9AbbYORo-HBpg_-eQ2Ah2J';
 
 // Validates whether the Supabase project credentials have been configured
 export const isSupabaseConfigured = Boolean(
