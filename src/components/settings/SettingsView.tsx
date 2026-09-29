@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Settings, ShieldCheck, KeyRound, Building2, Store, CheckCircle2, Copy } from 'lucide-react';
 import { NewCompanyModal } from '../companies/NewCompanyModal';
+import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
 
 export const SettingsView: React.FC = () => {
@@ -39,7 +40,7 @@ export const SettingsView: React.FC = () => {
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-brand-500/20 active:scale-95 transition-all shrink-0"
+          className="btn-tactile flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-brand-500/20 shrink-0"
         >
           <Building2 className="w-4 h-4" />
           <span>+ Registrar Otra Empresa</span>
@@ -66,11 +67,9 @@ export const SettingsView: React.FC = () => {
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <p className="font-mono font-medium text-slate-800">{safeCompany.nit}</p>
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(safeCompany.nit);
-                      toast.success('NIT copiado', { description: safeCompany.nit });
-                    }}
-                    className="p-0.5 rounded text-slate-400 hover:text-slate-700 transition-colors active:scale-90"
+                    type="button"
+                    onClick={() => copyToClipboard(safeCompany.nit, 'NIT copiado', safeCompany.nit)}
+                    className="p-0.5 rounded text-slate-400 hover:text-slate-700 transition-colors btn-tactile"
                     title="Copiar NIT"
                   >
                     <Copy className="w-3 h-3" />
@@ -82,11 +81,9 @@ export const SettingsView: React.FC = () => {
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <p className="font-mono font-bold text-purple-700">{safeCompany.nrc}</p>
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(safeCompany.nrc);
-                      toast.success('NRC copiado', { description: safeCompany.nrc });
-                    }}
-                    className="p-0.5 rounded text-slate-400 hover:text-slate-700 transition-colors active:scale-90"
+                    type="button"
+                    onClick={() => copyToClipboard(safeCompany.nrc, 'NRC copiado', safeCompany.nrc)}
+                    className="p-0.5 rounded text-slate-400 hover:text-slate-700 transition-colors btn-tactile"
                     title="Copiar NRC"
                   >
                     <Copy className="w-3 h-3" />
@@ -135,11 +132,9 @@ export const SettingsView: React.FC = () => {
               <div className="flex items-center justify-between bg-slate-100 p-2 rounded-lg mt-0.5">
                 <p className="font-mono text-slate-800">{safeCompany.mhUser}</p>
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(safeCompany.mhUser);
-                    toast.success('Usuario API copiado', { description: safeCompany.mhUser });
-                  }}
-                  className="p-1 rounded text-slate-400 hover:text-slate-700 transition-colors active:scale-90"
+                  type="button"
+                  onClick={() => copyToClipboard(safeCompany.mhUser, 'Usuario API copiado', safeCompany.mhUser)}
+                  className="p-1 rounded text-slate-400 hover:text-slate-700 transition-colors btn-tactile"
                   title="Copiar usuario API"
                 >
                   <Copy className="w-3 h-3" />
@@ -181,7 +176,13 @@ export const SettingsView: React.FC = () => {
               <Store className="w-5 h-5 text-brand-600" />
               <h3 className="font-bold text-slate-900 text-sm">Establecimientos y Puntos de Venta (Cajas)</h3>
             </div>
-            <span className="text-xs text-brand-600 font-semibold cursor-pointer hover:underline">+ Agregar Sucursal</span>
+            <button 
+              type="button"
+              onClick={() => toast.info('Configuración de Sucursales y Cajas', { description: 'Los puntos de venta (M001 / P001) están vinculados a tu ambiente MH ' + safeCompany.mhEnvironment + '.' })}
+              className="text-xs text-brand-600 font-semibold cursor-pointer hover:underline btn-tactile"
+            >
+              + Agregar Sucursal
+            </button>
           </div>
 
           <div className="overflow-x-auto">

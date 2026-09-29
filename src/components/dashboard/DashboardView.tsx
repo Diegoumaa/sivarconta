@@ -19,6 +19,7 @@ import {
   Info
 } from 'lucide-react';
 import { DTE_NAMES, DteType } from '../../types';
+import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
 
 export const DashboardView: React.FC = () => {
@@ -410,11 +411,9 @@ export const DashboardView: React.FC = () => {
                               </span>
                               <span className="font-mono text-[11px] text-slate-700 font-semibold">{inv.controlNumber.split('-').slice(2).join('-')}</span>
                               <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(inv.generationCode);
-                                  toast.success('UUID copiado al portapapeles', { description: inv.generationCode });
-                                }}
-                                className="text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
+                                type="button"
+                                onClick={() => copyToClipboard(inv.generationCode, 'UUID copiado al portapapeles', inv.generationCode)}
+                                className="text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors btn-tactile"
                                 title="Copiar UUID"
                               >
                                 <Copy className="w-3 h-3" />

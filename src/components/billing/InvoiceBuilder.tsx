@@ -1039,7 +1039,7 @@ export const InvoiceBuilder: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isTransmitting || !rules.isReady}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-brand-600 via-indigo-600 to-cyan-500 hover:from-brand-500 hover:to-cyan-400 text-white py-3.5 px-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold shadow-lg shadow-brand-500/30 transition-all active:scale-[0.99] disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white py-3.5 px-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold shadow-lg shadow-brand-600/25 transition-all btn-tactile disabled:opacity-50 cursor-pointer"
                 >
                   {isTransmitting ? (
                     <>
@@ -1061,7 +1061,7 @@ export const InvoiceBuilder: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCurrentStep(3)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 shadow-sm"
+                className="btn-tactile flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 shadow-sm"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Paso Anterior</span>

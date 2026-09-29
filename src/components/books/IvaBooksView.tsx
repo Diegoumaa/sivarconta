@@ -96,15 +96,17 @@ export const IvaBooksView: React.FC = () => {
         {/* Action buttons */}
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={exportCsv}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors btn-tactile cursor-pointer"
           >
             <Download className="w-4 h-4 text-emerald-600" />
             <span>Exportar CSV (Excel)</span>
           </button>
           <button
+            type="button"
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-sm transition-colors active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-sm transition-colors btn-tactile cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Imprimir Libro</span>
@@ -212,32 +214,40 @@ export const IvaBooksView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {ventasContribuyente.map(v => {
-                  const isNC = v.dteType === '05';
-                  return (
-                    <tr key={v.id} className={`hover:bg-slate-50 font-mono text-[11px] ${isNC ? 'bg-amber-50/40 text-amber-900' : ''}`}>
-                      <td className="py-2.5 px-3 text-slate-600">{v.emissionDate}</td>
-                      <td className="py-2.5 px-3 font-semibold text-slate-800">
-                        {v.controlNumber}
-                        {isNC && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-800 font-bold rounded">NC</span>}
-                      </td>
-                      <td className="py-2.5 px-3 font-sans font-medium text-slate-800 max-w-[180px] truncate">{v.clientName}</td>
-                      <td className="py-2.5 px-3 text-purple-700">{v.clientNrc || '---'}</td>
-                      <td className={`py-2.5 px-3 text-right ${isNC ? 'text-amber-700 font-bold' : 'text-slate-700'}`}>
-                        {isNC ? `-$${v.subtotalGravado.toFixed(2)}` : `$${v.subtotalGravado.toFixed(2)}`}
-                      </td>
-                      <td className={`py-2.5 px-3 text-right font-bold ${isNC ? 'text-rose-600' : 'text-purple-700'}`}>
-                        {isNC ? `-$${v.iva13.toFixed(2)}` : `+$${v.iva13.toFixed(2)}`}
-                      </td>
-                      <td className="py-2.5 px-3 text-right text-amber-700">
-                        {v.retencion1 > 0 ? (isNC ? `+$${v.retencion1.toFixed(2)}` : `-$${v.retencion1.toFixed(2)}`) : '$0.00'}
-                      </td>
-                      <td className={`py-2.5 px-3 text-right font-bold ${isNC ? 'text-amber-800' : 'text-slate-900'}`}>
-                        {isNC ? `-$${v.totalPagar.toFixed(2)}` : `$${v.totalPagar.toFixed(2)}`}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {ventasContribuyente.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-slate-400 font-sans">
+                      No hay ventas a contribuyentes registradas en este período.
+                    </td>
+                  </tr>
+                ) : (
+                  ventasContribuyente.map(v => {
+                    const isNC = v.dteType === '05';
+                    return (
+                      <tr key={v.id} className={`hover:bg-slate-50 font-mono text-[11px] ${isNC ? 'bg-amber-50/40 text-amber-900' : ''}`}>
+                        <td className="py-2.5 px-3 text-slate-600">{v.emissionDate}</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-800">
+                          {v.controlNumber}
+                          {isNC && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-800 font-bold rounded">NC</span>}
+                        </td>
+                        <td className="py-2.5 px-3 font-sans font-medium text-slate-800 max-w-[180px] truncate">{v.clientName}</td>
+                        <td className="py-2.5 px-3 text-purple-700">{v.clientNrc || '---'}</td>
+                        <td className={`py-2.5 px-3 text-right ${isNC ? 'text-amber-700 font-bold' : 'text-slate-700'}`}>
+                          {isNC ? `-$${v.subtotalGravado.toFixed(2)}` : `$${v.subtotalGravado.toFixed(2)}`}
+                        </td>
+                        <td className={`py-2.5 px-3 text-right font-bold ${isNC ? 'text-rose-600' : 'text-purple-700'}`}>
+                          {isNC ? `-$${v.iva13.toFixed(2)}` : `+$${v.iva13.toFixed(2)}`}
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-amber-700">
+                          {v.retencion1 > 0 ? (isNC ? `+$${v.retencion1.toFixed(2)}` : `-$${v.retencion1.toFixed(2)}`) : '$0.00'}
+                        </td>
+                        <td className={`py-2.5 px-3 text-right font-bold ${isNC ? 'text-amber-800' : 'text-slate-900'}`}>
+                          {isNC ? `-$${v.totalPagar.toFixed(2)}` : `$${v.totalPagar.toFixed(2)}`}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
               <tfoot>
                 <tr className="bg-purple-50/80 font-mono font-bold text-xs border-t-2 border-purple-300">
@@ -269,16 +279,24 @@ export const IvaBooksView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {ventasConsumidor.map(v => (
-                  <tr key={v.id} className="hover:bg-slate-50 font-mono text-[11px]">
-                    <td className="py-2.5 px-3 text-slate-600">{v.emissionDate}</td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-800">{v.controlNumber}</td>
-                    <td className="py-2.5 px-3 font-sans font-medium text-slate-800">{v.clientName}</td>
-                    <td className="py-2.5 px-3 text-right text-slate-700">${v.subtotalGravado.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right text-blue-700">${v.iva13.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900">${v.totalPagar.toFixed(2)}</td>
+                {ventasConsumidor.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-400 font-sans">
+                      No hay ventas a consumidor final registradas en este período.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  ventasConsumidor.map(v => (
+                    <tr key={v.id} className="hover:bg-slate-50 font-mono text-[11px]">
+                      <td className="py-2.5 px-3 text-slate-600">{v.emissionDate}</td>
+                      <td className="py-2.5 px-3 font-semibold text-slate-800">{v.controlNumber}</td>
+                      <td className="py-2.5 px-3 font-sans font-medium text-slate-800">{v.clientName}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-700">${v.subtotalGravado.toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right text-blue-700">${v.iva13.toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-slate-900">${v.totalPagar.toFixed(2)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
               <tfoot>
                 <tr className="bg-blue-50/80 font-mono font-bold text-xs border-t-2 border-blue-300">
@@ -310,17 +328,25 @@ export const IvaBooksView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredPurchases.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50 font-mono text-[11px]">
-                    <td className="py-2.5 px-3 text-slate-600">{p.emissionDate}</td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-800">{p.docNumber}</td>
-                    <td className="py-2.5 px-3 font-sans font-medium text-slate-800 max-w-[200px] truncate">{p.supplierName}</td>
-                    <td className="py-2.5 px-3 text-emerald-700">{p.supplierNrc || '---'}</td>
-                    <td className="py-2.5 px-3 text-right text-slate-700">${p.purchasesGravadas.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-emerald-700">+${p.creditoFiscal.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900">${p.totalPagar.toFixed(2)}</td>
+                {filteredPurchases.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400 font-sans">
+                      No hay compras registradas en este período.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredPurchases.map(p => (
+                    <tr key={p.id} className="hover:bg-slate-50 font-mono text-[11px]">
+                      <td className="py-2.5 px-3 text-slate-600">{p.emissionDate}</td>
+                      <td className="py-2.5 px-3 font-semibold text-slate-800">{p.docNumber}</td>
+                      <td className="py-2.5 px-3 font-sans font-medium text-slate-800 max-w-[200px] truncate">{p.supplierName}</td>
+                      <td className="py-2.5 px-3 text-emerald-700">{p.supplierNrc || '---'}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-700">${p.purchasesGravadas.toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-emerald-700">+${p.creditoFiscal.toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-slate-900">${p.totalPagar.toFixed(2)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
               <tfoot>
                 <tr className="bg-emerald-50/80 font-mono font-bold text-xs border-t-2 border-emerald-300">

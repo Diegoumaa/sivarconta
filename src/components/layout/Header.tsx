@@ -1,13 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Building2, ChevronDown, ShieldCheck, Plus, Sparkles } from 'lucide-react';
+import { Building2, ChevronDown, ShieldCheck, Plus, Sparkles, Search } from 'lucide-react';
 import { NewCompanyModal } from '../companies/NewCompanyModal';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onOpenCommand?: () => void;
+  onOpenNewCompany?: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onOpenCommand, onOpenNewCompany }) => {
   const { companies, currentCompany, currentCompanyId, setCurrentCompanyId, setCurrentView, isCloudSyncActive } = useApp();
-  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+  const [internalCompanyModalOpen, setInternalCompanyModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const openNewCompany = () => {
+    if (onOpenNewCompany) {
+      onOpenNewCompany();
+    } else {
+      setInternalCompanyModalOpen(true);
+    }
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -49,8 +62,36 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
+        {/* Center/Middle Section: Command Palette Trigger (satnaing/shadcn-admin feature) */}
+        <div className="flex-1 max-w-md mx-2 sm:mx-4 hidden md:block">
+          <button
+            type="button"
+            onClick={onOpenCommand}
+            className="w-full flex items-center justify-between bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-slate-600 rounded-xl px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
+            title="Buscar comandos o módulos (Ctrl+K / ⌘K)"
+          >
+            <div className="flex items-center gap-2 truncate">
+              <Search className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span className="truncate">Buscar módulo, emitir DTE o comando...</span>
+            </div>
+            <kbd className="hidden lg:inline-flex items-center gap-0.5 text-[10px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700 text-slate-300 font-mono shrink-0">
+              {typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent || '') ? '⌘K' : 'Ctrl+K'}
+            </kbd>
+          </button>
+        </div>
+
         {/* Right Section: Company Switcher + MH Status + CTA */}
         <div className="flex items-center gap-2">
+          {/* Mobile Search Button */}
+          <button
+            type="button"
+            onClick={onOpenCommand}
+            aria-label="Abrir buscador"
+            className="md:hidden p-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-700/80 text-cyan-400 cursor-pointer active:scale-95"
+          >
+            <Search className="w-4 h-4" />
+          </button>
+
           {/* Company Switcher (Multi-Tenant Selector) */}
           <div className="relative" ref={dropdownRef}>
             <button
@@ -61,7 +102,7 @@ export const Header: React.FC = () => {
               className="flex items-center gap-1.5 sm:gap-2 bg-slate-850 hover:bg-slate-800 border border-slate-700/80 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs cursor-pointer transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
             >
               <Building2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-              <div className="text-left max-w-[110px] sm:max-w-[200px] truncate">
+              <div className="text-left max-w-[110px] sm:max-w-[180px] truncate">
                 <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider leading-none hidden sm:block">
                   Empresa Activa
                 </span>
@@ -95,7 +136,7 @@ export const Header: React.FC = () => {
                     >
                       <div className="truncate mr-2">
                         <p className="truncate font-medium">{c.tradeName || c.name}</p>
-                        <p className="text-[10px] text-slate-400">NRC: {c.nrc}</p>
+                        <p className="text-[10px] text-slate-400 font-mono">NRC: {c.nrc}</p>
                       </div>
                       {c.id === currentCompanyId && (
                         <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
@@ -108,7 +149,7 @@ export const Header: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setIsDropdownOpen(false);
-                      setIsCompanyModalOpen(true);
+                      openNewCompany();
                     }}
                     className="w-full flex items-center justify-center gap-1.5 p-2 rounded-xl text-xs font-bold bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/80 transition-all shadow-sm active:scale-95 cursor-pointer"
                   >
@@ -141,10 +182,10 @@ export const Header: React.FC = () => {
             <span>MH {safeCompany?.mhEnvironment || 'PRUEBAS'}</span>
           </div>
 
-          {/* Quick Create Invoice CTA (Desktop only - on mobile bottom nav handles it) */}
+          {/* Quick Create Invoice CTA */}
           <button
             onClick={() => setCurrentView('new-invoice')}
-            className="hidden sm:flex items-center gap-1.5 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-brand-600/30 transition-all active:scale-95 cursor-pointer"
+            className="hidden sm:flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-brand-600/30 transition-all active:scale-[0.98] cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Emitir DTE</span>
@@ -152,11 +193,13 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal for creating a new company */}
-      <NewCompanyModal 
-        isOpen={isCompanyModalOpen} 
-        onClose={() => setIsCompanyModalOpen(false)} 
-      />
+      {/* Internal Modal for creating a new company if not controlled externally */}
+      {!onOpenNewCompany && (
+        <NewCompanyModal 
+          isOpen={internalCompanyModalOpen} 
+          onClose={() => setInternalCompanyModalOpen(false)} 
+        />
+      )}
     </header>
   );
 };

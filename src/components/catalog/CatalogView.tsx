@@ -80,7 +80,7 @@ export const CatalogView: React.FC = () => {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-brand-600/30 transition-all active:scale-95"
+          className="btn-tactile flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-brand-600/20"
         >
           <Plus className="w-4 h-4" />
           <span>Nuevo Producto / Servicio</span>
@@ -101,42 +101,77 @@ export const CatalogView: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid of Products */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map(p => (
-          <div
-            key={p.id}
-            className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:border-brand-300 transition-all flex flex-col justify-between"
-          >
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                  {p.code}
+      {/* Empty State vs Grid of Products */}
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-8 sm:p-12 text-center space-y-4 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-600 mx-auto flex items-center justify-center border border-slate-200">
+            {searchTerm ? <Search className="w-6 h-6 text-slate-400" /> : <Package className="w-7 h-7 text-cyan-600" />}
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-extrabold text-slate-900 text-base sm:text-lg">
+              {searchTerm ? 'No se encontraron productos coincidentes' : 'Catálogo de Productos Vacío'}
+            </h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+              {searchTerm 
+                ? `No hay ningún producto o servicio que coincida con "${searchTerm}".`
+                : 'Define los bienes y servicios que comercializas con sus precios unitarios, gravamen (IVA 13%, Exento o No Sujeto) y unidades de medida.'}
+            </p>
+          </div>
+          {searchTerm ? (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="btn-tactile px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700"
+            >
+              Limpiar búsqueda
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowModal(true)}
+              className="btn-tactile px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/20 inline-flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Agregar Primer Producto</span>
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(p => (
+            <div
+              key={p.id}
+              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:border-brand-300 transition-all flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                    {p.code}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    p.taxType === 'GRAVADO'
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  }`}>
+                    {p.taxType} (IVA 13%)
+                  </span>
+                </div>
+                <h3 className="font-bold text-slate-900 text-sm">{p.name}</h3>
+                <p className="text-xs text-slate-500 mt-1 line-clamp-2">{p.description}</p>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {p.category} • {p.unitOfMeasure === '59' ? 'Unidad' : 'Servicio'}
                 </span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  p.taxType === 'GRAVADO'
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                }`}>
-                  {p.taxType} (IVA 13%)
+                <span className="text-lg font-extrabold font-mono text-slate-900 tabular-nums">
+                  ${p.unitPrice.toFixed(2)}
                 </span>
               </div>
-              <h3 className="font-bold text-slate-900 text-sm">{p.name}</h3>
-              <p className="text-xs text-slate-500 mt-1 line-clamp-2">{p.description}</p>
             </div>
-
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400 font-medium">
-                {p.category} • {p.unitOfMeasure === '59' ? 'Unidad' : 'Servicio'}
-              </span>
-              <span className="text-lg font-extrabold font-mono text-slate-900 tabular-nums">
-                ${p.unitPrice.toFixed(2)}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
+          ))}
+        </div>
+      )}
 
       {/* Modal New Product */}
       {showModal && typeof document !== 'undefined' && createPortal(
@@ -144,27 +179,42 @@ export const CatalogView: React.FC = () => {
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowModal(false);
           }}
-          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm p-3 sm:p-4 flex items-center justify-center animate-in fade-in duration-150 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-slate-200"
+            className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden my-6 animate-in zoom-in-95 duration-150"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Package className="w-5 h-5 text-brand-600" />
-                <h3 className="font-extrabold text-slate-900">Agregar al Catálogo</h3>
+            {/* Executive Dark Header */}
+            <div className="bg-slate-900 text-white p-5 sm:p-6 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shrink-0">
+                  <Package className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-base sm:text-lg text-white tracking-tight">
+                      Agregar al Catálogo
+                    </h3>
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">
+                      Ítem DTE
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Tarifas, gravámenes de IVA y códigos según normativa DGII
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto text-slate-900">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="catalog-code" className="text-xs font-semibold text-slate-700 block mb-1">Código / SKU</label>
@@ -269,7 +319,7 @@ export const CatalogView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/30"
+                  className="btn-tactile px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/30"
                 >
                   Guardar Producto
                 </button>

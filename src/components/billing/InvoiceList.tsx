@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { DteType, DTE_NAMES } from '../../types';
 import { Receipt, Search, Filter, Plus, Eye, CheckCircle2, ShieldAlert, Copy, Check } from 'lucide-react';
+import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
 
 export const InvoiceList: React.FC = () => {
@@ -33,7 +34,7 @@ export const InvoiceList: React.FC = () => {
         </div>
         <button
           onClick={() => setCurrentView('new-invoice')}
-          className="flex items-center justify-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-brand-600/30 transition-all active:scale-95"
+          className="btn-tactile flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-brand-600/20"
         >
           <Plus className="w-4 h-4" />
           <span>Emitir Nuevo DTE</span>
@@ -95,8 +96,40 @@ export const InvoiceList: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
-                    No se encontraron documentos emitidos en este filtro.
+                  <td colSpan={8} className="py-12 text-center">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 mx-auto flex items-center justify-center">
+                        <Receipt className="w-6 h-6" />
+                      </div>
+                      <h4 className="font-bold text-slate-900 text-sm">
+                        {searchTerm || selectedType !== 'ALL' 
+                          ? 'No se encontraron documentos emitidos en este filtro' 
+                          : 'Aún no se han emitido facturas en esta empresa'}
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        {searchTerm || selectedType !== 'ALL'
+                          ? 'Intenta restablecer la búsqueda o los filtros de tipo para ver todos los comprobantes emitidos.'
+                          : 'Comienza generando tu primer documento tributario electrónico certificado por el Ministerio de Hacienda.'}
+                      </p>
+                      {searchTerm || selectedType !== 'ALL' ? (
+                        <button
+                          type="button"
+                          onClick={() => { setSearchTerm(''); setSelectedType('ALL'); }}
+                          className="btn-tactile px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700"
+                        >
+                          Restablecer filtros
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setCurrentView('new-invoice')}
+                          className="btn-tactile px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/20 inline-flex items-center gap-1.5"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>+ Emitir Primer DTE</span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -111,11 +144,9 @@ export const InvoiceList: React.FC = () => {
                           </span>
                           <span className="font-mono text-slate-800 font-semibold">{inv.controlNumber}</span>
                           <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(inv.controlNumber);
-                              toast.success('Número de control copiado', { description: inv.controlNumber });
-                            }}
-                            className="p-1 rounded text-slate-400 hover:text-slate-600 transition-colors active:scale-90"
+                            type="button"
+                            onClick={() => copyToClipboard(inv.controlNumber, 'Número de control copiado', inv.controlNumber)}
+                            className="p-1 rounded text-slate-400 hover:text-slate-600 transition-colors btn-tactile"
                             title="Copiar número de control"
                           >
                             <Copy className="w-3 h-3" />
@@ -126,11 +157,9 @@ export const InvoiceList: React.FC = () => {
                             UUID: {inv.generationCode}
                           </p>
                           <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(inv.generationCode);
-                              toast.success('UUID copiado al portapapeles', { description: inv.generationCode });
-                            }}
-                            className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors active:scale-90"
+                            type="button"
+                            onClick={() => copyToClipboard(inv.generationCode, 'UUID copiado al portapapeles', inv.generationCode)}
+                            className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors btn-tactile"
                             title="Copiar código de generación"
                           >
                             <Copy className="w-2.5 h-2.5" />
