@@ -1,0 +1,151 @@
+import React from 'react';
+import { useApp } from '../../context/AppContext';
+import { Settings, ShieldCheck, KeyRound, Building2, Store, CheckCircle2 } from 'lucide-react';
+
+export const SettingsView: React.FC = () => {
+  const { currentCompany } = useApp();
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6 pb-20 md:pb-8">
+      {/* Header */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          Configuración Fiscal & Ministerio de Hacienda
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+          Parámetros de conexión DTE, firma digital y sucursales para {currentCompany.tradeName || currentCompany.name}
+        </p>
+      </div>
+
+      {/* Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Company Info */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+            <Building2 className="w-5 h-5 text-brand-600" />
+            <h3 className="font-bold text-slate-900 text-sm">Datos Fiscales Registrados</h3>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            <div>
+              <span className="text-slate-400 block font-semibold">Razón Social:</span>
+              <p className="font-bold text-slate-800">{currentCompany.name}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-slate-400 block font-semibold">NIT Homologado:</span>
+                <p className="font-mono font-medium text-slate-800">{currentCompany.nit}</p>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-semibold">NRC:</span>
+                <p className="font-mono font-bold text-purple-700">{currentCompany.nrc}</p>
+              </div>
+            </div>
+            <div>
+              <span className="text-slate-400 block font-semibold">Clasificación Tributaria:</span>
+              <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                {currentCompany.taxpayerType.replace('_', ' ')}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-400 block font-semibold">Giro / Actividad Económica:</span>
+              <p className="text-slate-700">{currentCompany.economicActivity} (Cód: {currentCompany.economicActivityCode})</p>
+            </div>
+            <div>
+              <span className="text-slate-400 block font-semibold">Dirección Matriz:</span>
+              <p className="text-slate-700">{currentCompany.address}, {currentCompany.municipality}, {currentCompany.department}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* MH Connection Settings */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+            <ShieldCheck className="w-5 h-5 text-emerald-600" />
+            <h3 className="font-bold text-slate-900 text-sm">Integración DTE (Hacienda DGII)</h3>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            <div>
+              <span className="text-slate-400 block font-semibold">Ambiente de Transmisión:</span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  {currentCompany.mhEnvironment} (Sandbox Oficial)
+                </span>
+                <span className="text-[11px] text-slate-400">api.dtes.mh.gob.sv</span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-slate-400 block font-semibold">Usuario API Asignado por Hacienda:</span>
+              <p className="font-mono text-slate-800 bg-slate-100 p-2 rounded-lg mt-0.5">{currentCompany.mhUser}</p>
+            </div>
+
+            <div>
+              <span className="text-slate-400 block font-semibold">Certificado de Firma Electrónica:</span>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 mt-0.5">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-cyan-600" />
+                  <span className="font-mono text-slate-700">FirmaSV_2026.crt</span>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Válido
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-slate-400 block font-semibold">Documentos Autorizados:</span>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {['DTE-01 (Factura)', 'DTE-03 (CCF)', 'DTE-14 (Sujeto Excluido)', 'DTE-05 (Nota Crédito)', 'DTE-06 (Nota Débito)'].map(d => (
+                  <span key={d} className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">
+                    {d}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Establishments and POS */}
+        <div className="md:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <Store className="w-5 h-5 text-brand-600" />
+              <h3 className="font-bold text-slate-900 text-sm">Establecimientos y Puntos de Venta (Cajas)</h3>
+            </div>
+            <span className="text-xs text-brand-600 font-semibold cursor-pointer hover:underline">+ Agregar Sucursal</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 text-slate-400 font-semibold">
+                  <th className="pb-2">Cód. Establecimiento</th>
+                  <th className="pb-2">Punto de Venta</th>
+                  <th className="pb-2">Nombre / Ubicación</th>
+                  <th className="pb-2">Tipo</th>
+                  <th className="pb-2 text-center">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr>
+                  <td className="py-2.5 font-mono font-bold text-slate-800">{currentCompany.establishmentCode}</td>
+                  <td className="py-2.5 font-mono text-slate-700">{currentCompany.posCode}</td>
+                  <td className="py-2.5 text-slate-700">Casa Matriz / Oficina Central</td>
+                  <td className="py-2.5 text-slate-500">Principal</td>
+                  <td className="py-2.5 text-center">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      Activo
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
