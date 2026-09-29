@@ -4,10 +4,28 @@
 
 @layer base {
   body {
-    @apply font-sans;
+    @apply font-sans bg-slate-50 text-slate-900;
     -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Financial numbers use tabular nums for precision alignment */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }
+
+/* Tactile micro-interactions */
+.btn-tactile {
+  @apply transition-all duration-150 ease-out active:scale-[0.98] cursor-pointer;
+}
+
+.card-subtle {
+  @apply bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] rounded-2xl;
+}
+
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {

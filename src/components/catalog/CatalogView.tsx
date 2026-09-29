@@ -129,13 +129,14 @@ export const CatalogView: React.FC = () => {
               <span className="text-[11px] text-slate-400 font-medium">
                 {p.category} • {p.unitOfMeasure === '59' ? 'Unidad' : 'Servicio'}
               </span>
-              <span className="text-lg font-extrabold font-mono text-slate-900">
+              <span className="text-lg font-extrabold font-mono text-slate-900 tabular-nums">
                 ${p.unitPrice.toFixed(2)}
               </span>
             </div>
           </div>
         ))}
       </div>
+
 
       {/* Modal New Product */}
       {showModal && typeof document !== 'undefined' && createPortal(

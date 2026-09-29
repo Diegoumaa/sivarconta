@@ -39,7 +39,7 @@ export const Sidebar: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setCurrentView(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 active:scale-[0.98] cursor-pointer ${
                     isActive
                       ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30'
                       : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'

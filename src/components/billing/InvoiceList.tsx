@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { DteType, DTE_NAMES } from '../../types';
-import { Receipt, Search, Filter, Plus, Eye, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Receipt, Search, Filter, Plus, Eye, CheckCircle2, ShieldAlert, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const InvoiceList: React.FC = () => {
   const { filteredInvoices, setCurrentView, setActiveDtePreview } = useApp();
@@ -108,11 +109,33 @@ export const InvoiceList: React.FC = () => {
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${meta.badgeColor}`}>
                             {inv.dteType}
                           </span>
-                          <span className="font-mono text-slate-700 font-semibold">{inv.controlNumber}</span>
+                          <span className="font-mono text-slate-800 font-semibold">{inv.controlNumber}</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(inv.controlNumber);
+                              toast.success('Número de control copiado', { description: inv.controlNumber });
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-slate-600 transition-colors active:scale-90"
+                            title="Copiar número de control"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
                         </div>
-                        <p className="text-[10px] text-slate-400 font-mono truncate max-w-[200px]">
-                          UUID: {inv.generationCode}
-                        </p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <p className="text-[10px] text-slate-400 font-mono truncate max-w-[200px]">
+                            UUID: {inv.generationCode}
+                          </p>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(inv.generationCode);
+                              toast.success('UUID copiado al portapapeles', { description: inv.generationCode });
+                            }}
+                            className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors active:scale-90"
+                            title="Copiar código de generación"
+                          >
+                            <Copy className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
                       </td>
                       <td className="py-3 px-4">
                         <p className="font-bold text-slate-800">{inv.clientName}</p>
@@ -123,13 +146,13 @@ export const InvoiceList: React.FC = () => {
                       <td className="py-3 px-4 font-mono text-slate-600 whitespace-nowrap">
                         {inv.emissionDate} <span className="text-[10px] text-slate-400">{inv.emissionTime}</span>
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-medium text-slate-700">
+                      <td className="py-3 px-4 text-right font-mono font-medium text-slate-700 tabular-nums">
                         ${inv.subtotalGravado.toFixed(2)}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-medium text-purple-700">
+                      <td className="py-3 px-4 text-right font-mono font-medium text-purple-700 tabular-nums">
                         ${inv.iva13.toFixed(2)}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 text-sm">
+                      <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 text-sm tabular-nums">
                         ${inv.totalPagar.toFixed(2)}
                       </td>
                       <td className="py-3 px-4 text-center">
@@ -141,7 +164,7 @@ export const InvoiceList: React.FC = () => {
                       <td className="py-3 px-4 text-center">
                         <button
                           onClick={() => setActiveDtePreview(inv)}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-brand-50 hover:text-brand-600 text-slate-600 font-semibold text-xs transition-colors inline-flex items-center gap-1"
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-brand-50 hover:text-brand-600 text-slate-600 font-semibold text-xs transition-colors inline-flex items-center gap-1 active:scale-95 cursor-pointer"
                         >
                           <Eye className="w-3.5 h-3.5" />
                           <span>Ver</span>

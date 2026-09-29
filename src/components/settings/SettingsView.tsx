@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Settings, ShieldCheck, KeyRound, Building2, Store, CheckCircle2 } from 'lucide-react';
+import { Settings, ShieldCheck, KeyRound, Building2, Store, CheckCircle2, Copy } from 'lucide-react';
 import { NewCompanyModal } from '../companies/NewCompanyModal';
+import { toast } from 'sonner';
 
 export const SettingsView: React.FC = () => {
   const { currentCompany } = useApp();
@@ -62,11 +63,35 @@ export const SettingsView: React.FC = () => {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <span className="text-slate-400 block font-semibold">NIT Homologado:</span>
-                <p className="font-mono font-medium text-slate-800">{safeCompany.nit}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <p className="font-mono font-medium text-slate-800">{safeCompany.nit}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(safeCompany.nit);
+                      toast.success('NIT copiado', { description: safeCompany.nit });
+                    }}
+                    className="p-0.5 rounded text-slate-400 hover:text-slate-700 transition-colors active:scale-90"
+                    title="Copiar NIT"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
               <div>
                 <span className="text-slate-400 block font-semibold">NRC:</span>
-                <p className="font-mono font-bold text-purple-700">{safeCompany.nrc}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <p className="font-mono font-bold text-purple-700">{safeCompany.nrc}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(safeCompany.nrc);
+                      toast.success('NRC copiado', { description: safeCompany.nrc });
+                    }}
+                    className="p-0.5 rounded text-slate-400 hover:text-slate-700 transition-colors active:scale-90"
+                    title="Copiar NRC"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             </div>
             <div>
@@ -107,8 +132,21 @@ export const SettingsView: React.FC = () => {
 
             <div>
               <span className="text-slate-400 block font-semibold">Usuario API Asignado por Hacienda:</span>
-              <p className="font-mono text-slate-800 bg-slate-100 p-2 rounded-lg mt-0.5">{safeCompany.mhUser}</p>
+              <div className="flex items-center justify-between bg-slate-100 p-2 rounded-lg mt-0.5">
+                <p className="font-mono text-slate-800">{safeCompany.mhUser}</p>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(safeCompany.mhUser);
+                    toast.success('Usuario API copiado', { description: safeCompany.mhUser });
+                  }}
+                  className="p-1 rounded text-slate-400 hover:text-slate-700 transition-colors active:scale-90"
+                  title="Copiar usuario API"
+                >
+                  <Copy className="w-3 h-3" />
+                </button>
+              </div>
             </div>
+
 
             <div>
               <span className="text-slate-400 block font-semibold">Certificado de Firma Electrónica:</span>

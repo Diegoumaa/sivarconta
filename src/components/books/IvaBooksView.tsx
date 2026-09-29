@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { BookOpen, Download, Printer, Filter, Calendar, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const IvaBooksView: React.FC = () => {
   const { currentCompany, filteredInvoices, filteredPurchases } = useApp();
@@ -59,13 +60,19 @@ export const IvaBooksView: React.FC = () => {
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
+    const filename = `Libro_IVA_${activeTab}_${selectedMonth}_${selectedYear}.csv`;
     const link = document.createElement("a");
-    link.href = url;
-    link.download = `Libro_IVA_${activeTab}_${selectedMonth}_${selectedYear}.csv`;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    toast.success('Libro de IVA exportado a CSV exitosamente', { description: filename });
+  };
+
+  const handlePrint = () => {
+    toast.info('Abriendo vista de impresión de libros oficiales...');
+    window.print();
   };
 
   return (
@@ -90,20 +97,21 @@ export const IvaBooksView: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={exportCsv}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors active:scale-95 cursor-pointer"
           >
             <Download className="w-4 h-4 text-emerald-600" />
             <span>Exportar CSV (Excel)</span>
           </button>
           <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-sm transition-colors"
+            onClick={handlePrint}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold shadow-sm transition-colors active:scale-95 cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Imprimir Libro</span>
           </button>
         </div>
       </div>
+
 
       {/* F07 Liquidación Summary Card */}
       <div className="p-5 rounded-2xl bg-slate-900 text-white border border-slate-800 shadow-md no-print">

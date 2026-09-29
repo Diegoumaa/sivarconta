@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { InvoiceDocument, DTE_NAMES } from '../../types';
-import { Printer, Download, X, Code2, QrCode, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
+import { Printer, Download, X, Code2, QrCode, CheckCircle2, ShieldCheck, Loader2, Copy } from 'lucide-react';
 import { exportElementToPdf } from '../../utils/pdfExport';
+import { toast } from 'sonner';
 
 interface InvoicePreviewProps {
   invoice: InvoiceDocument;
@@ -113,19 +114,23 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
   const handleDownloadPdf = async () => {
     if (showJson) setShowJson(false);
     setIsGeneratingPdf(true);
+    toast.info('Generando documento PDF...', { description: `${invoice.controlNumber}.pdf` });
     try {
       setTimeout(async () => {
         await exportElementToPdf('printable-dte-area', `${invoice.controlNumber}.pdf`);
         setIsGeneratingPdf(false);
+        toast.success('PDF descargado exitosamente', { description: 'Listo para imprimir o enviar por correo.' });
       }, 150);
     } catch (err) {
       console.error('PDF export error:', err);
       setIsGeneratingPdf(false);
+      toast.error('Error al generar PDF');
     }
   };
 
   // Native Browser Print (Protected by print:hidden on main layout & custom print media CSS)
   const handlePrint = () => {
+    toast.info('Abriendo diálogo de impresión...');
     if (showJson) {
       setShowJson(false);
       setTimeout(() => window.print(), 150);
@@ -133,6 +138,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
       window.print();
     }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm p-2 sm:p-6 flex items-center justify-center print-modal-wrapper">
@@ -204,7 +210,19 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
           <div className="p-6 bg-slate-950 text-cyan-300 font-mono text-xs overflow-x-auto max-h-[75vh]">
             <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-2">
               <span className="text-slate-400">Payload JSON transmitido a la API del Ministerio de Hacienda (DGII)</span>
-              <span className="text-emerald-400 font-bold">Estado: FIRMADO_JWS</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(JSON.stringify(mhJsonPayload, null, 2));
+                    toast.success('Payload JSON copiado al portapapeles');
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copiar JSON</span>
+                </button>
+                <span className="text-emerald-400 font-bold">Estado: FIRMADO_JWS</span>
+              </div>
             </div>
             <pre>{JSON.stringify(mhJsonPayload, null, 2)}</pre>
           </div>

@@ -12,6 +12,7 @@ import { ClientsView } from './components/clients/ClientsView';
 import { PurchasesView } from './components/purchases/PurchasesView';
 import { IvaBooksView } from './components/books/IvaBooksView';
 import { SettingsView } from './components/settings/SettingsView';
+import { Toaster } from 'sonner';
 
 const MainLayout: React.FC = () => {
   const { currentView, activeDtePreview, setActiveDtePreview } = useApp();
@@ -62,9 +63,24 @@ const MainLayout: React.FC = () => {
           onClose={() => setActiveDtePreview(null)}
         />
       )}
+
+      {/* Toast notifications container */}
+      <Toaster 
+        position="top-right" 
+        richColors 
+        closeButton 
+        toastOptions={{
+          style: {
+            borderRadius: '16px',
+            fontSize: '13px',
+            fontFamily: 'inherit'
+          }
+        }} 
+      />
     </div>
   );
 };
+
 
 export function App() {
   return (

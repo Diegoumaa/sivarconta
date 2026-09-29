@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { Client } from '../../types';
 import { SALVADOR_DEPARTMENTS } from '../../data/mockData';
-import { Users, Plus, Search, Building, Phone, Mail, MapPin, X, AlertCircle } from 'lucide-react';
+import { Users, Plus, Search, Building, Phone, Mail, MapPin, X, AlertCircle, Copy } from 'lucide-react';
 import { validateDui, validateNit, validateNrc } from '../../utils/svTaxValidators';
+import { toast } from 'sonner';
 
 export const ClientsView: React.FC = () => {
   const { filteredClients, addClient } = useApp();
@@ -173,15 +174,40 @@ export const ClientsView: React.FC = () => {
               </div>
 
               <div className="pt-2 text-xs space-y-1 font-mono text-slate-600">
-                <p>
-                  <span className="text-slate-400 font-sans">{c.docType}:</span> {c.docNumber}
-                </p>
-                {c.nrc && (
+                <div className="flex items-center justify-between">
                   <p>
-                    <span className="text-slate-400 font-sans">NRC:</span> <span className="text-purple-700 font-bold">{c.nrc}</span>
+                    <span className="text-slate-400 font-sans">{c.docType}:</span> {c.docNumber}
                   </p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(c.docNumber);
+                      toast.success(`${c.docType} copiado`, { description: c.docNumber });
+                    }}
+                    className="p-1 rounded text-slate-400 hover:text-slate-700 transition-colors active:scale-90"
+                    title={`Copiar ${c.docType}`}
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
+                </div>
+                {c.nrc && (
+                  <div className="flex items-center justify-between">
+                    <p>
+                      <span className="text-slate-400 font-sans">NRC:</span> <span className="text-purple-700 font-bold">{c.nrc}</span>
+                    </p>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(c.nrc || '');
+                        toast.success('NRC copiado', { description: c.nrc });
+                      }}
+                      className="p-1 rounded text-slate-400 hover:text-slate-700 transition-colors active:scale-90"
+                      title="Copiar NRC"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
                 )}
               </div>
+
 
               <div className="pt-2 border-t border-slate-100 space-y-1 text-xs text-slate-500">
                 <p className="flex items-center gap-1.5 truncate">

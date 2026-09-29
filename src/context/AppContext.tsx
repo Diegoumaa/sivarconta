@@ -4,6 +4,7 @@ import { INITIAL_COMPANIES, INITIAL_PRODUCTS, INITIAL_CLIENTS, INITIAL_INVOICES,
 import { generateUUID, generateControlNumber, generateReceptionStamp, getMhQrUrl } from '../utils/dteUtils';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import confetti from 'canvas-confetti';
+import { toast } from 'sonner';
 
 interface AppContextType {
   companies: Company[];
@@ -312,6 +313,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
+    toast.success('Empresa registrada exitosamente', {
+      description: `${newComp.name} • NRC: ${newComp.nrc}`
+    });
+
     return newComp;
   };
 
@@ -342,6 +347,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error('Error saving product to Supabase:', e);
       }
     }
+
+    toast.success('Producto agregado al catálogo', {
+      description: `${newProd.name} • $${newProd.unitPrice.toFixed(2)} (${newProd.taxType})`
+    });
   };
 
   const addClient = async (clientData: Omit<Client, 'id' | 'companyId'>) => {
@@ -375,6 +384,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error('Error saving client to Supabase:', e);
       }
     }
+
+    toast.success('Cliente registrado exitosamente', {
+      description: `${newCli.name} • ${newCli.docType}: ${newCli.docNumber}`
+    });
   };
 
   const addPurchase = async (purchaseData: Omit<PurchaseDocument, 'id' | 'companyId'>) => {
@@ -409,6 +422,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error('Error saving purchase to Supabase:', e);
       }
     }
+
+    toast.success('Compra registrada en Libros de IVA', {
+      description: `${newPur.supplierName} • Total: $${newPur.totalPagar.toFixed(2)}`
+    });
   };
 
   const createInvoice = async (invoicePayload: any): Promise<InvoiceDocument> => {
@@ -457,6 +474,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // ignore
     }
 
+    toast.success('¡DTE Emitido y Timbrado con Éxito!', {
+      description: `Control: ${controlNumber} • Sello DGII: ${receptionStamp.slice(0, 16)}...`
+    });
+
     setInvoices(prev => [newInvoice, ...prev]);
 
     // Push to Supabase if configured
@@ -467,6 +488,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           dte_type: newInvoice.dteType,
           control_number: newInvoice.controlNumber,
           generation_code: newInvoice.generationCode,
+
           client_name: newInvoice.clientName,
           client_doc_type: newInvoice.clientDocType,
           client_doc_number: newInvoice.clientDocNumber,

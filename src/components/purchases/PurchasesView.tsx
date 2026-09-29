@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { PurchaseDocument } from '../../types';
-import { ShoppingBag, Plus, Search, FileText, X, AlertCircle } from 'lucide-react';
+import { ShoppingBag, Plus, Search, FileText, X, AlertCircle, Copy } from 'lucide-react';
 import { validateNit, validateNrc } from '../../utils/svTaxValidators';
+import { toast } from 'sonner';
 
 export const PurchasesView: React.FC = () => {
   const { filteredPurchases, addPurchase } = useApp();
@@ -171,7 +172,19 @@ export const PurchasesView: React.FC = () => {
               {filtered.map(p => (
                 <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3 px-4">
-                    <span className="font-mono font-bold text-slate-900 block">{p.docNumber}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-bold text-slate-900">{p.docNumber}</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(p.docNumber);
+                          toast.success('Documento copiado', { description: p.docNumber });
+                        }}
+                        className="p-1 rounded text-slate-400 hover:text-slate-700 transition-colors active:scale-90"
+                        title="Copiar número de documento"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                    </div>
                     <span className="text-[11px] text-slate-500 font-mono">{p.emissionDate}</span>
                   </td>
                   <td className="py-3 px-4">
@@ -183,13 +196,13 @@ export const PurchasesView: React.FC = () => {
                   <td className="py-3 px-4 text-slate-600 max-w-[200px] truncate">
                     {p.concept}
                   </td>
-                  <td className="py-3 px-4 text-right font-mono font-medium text-slate-700">
+                  <td className="py-3 px-4 text-right font-mono font-medium text-slate-700 tabular-nums">
                     ${p.purchasesGravadas.toFixed(2)}
                   </td>
-                  <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600">
+                  <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600 tabular-nums">
                     +${p.creditoFiscal.toFixed(2)}
                   </td>
-                  <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 text-sm">
+                  <td className="py-3 px-4 text-right font-mono font-bold text-slate-900 text-sm tabular-nums">
                     ${p.totalPagar.toFixed(2)}
                   </td>
                   <td className="py-3 px-4 text-center">
@@ -199,6 +212,7 @@ export const PurchasesView: React.FC = () => {
                   </td>
                 </tr>
               ))}
+
             </tbody>
           </table>
         </div>
