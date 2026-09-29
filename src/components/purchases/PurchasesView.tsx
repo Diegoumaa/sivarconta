@@ -266,22 +266,22 @@ export const PurchasesView: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
             className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden my-6 animate-in zoom-in-95 duration-150"
           >
-            {/* Executive Dark Header */}
-            <div className="bg-slate-900 text-white p-5 sm:p-6 flex items-center justify-between border-b border-slate-800">
+            {/* Modal Header */}
+            <div className="bg-white text-slate-900 p-5 sm:p-6 flex items-center justify-between border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0">
                   <ShoppingBag className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-base sm:text-lg text-white tracking-tight">
+                    <h3 className="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight">
                       Registrar Compra / Factura Recibida
                     </h3>
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-800">
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200/60">
                       Crédito Fiscal
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Comprobante tributario recibido para deducción en F07
                   </p>
                 </div>
@@ -289,7 +289,7 @@ export const PurchasesView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors shrink-0 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

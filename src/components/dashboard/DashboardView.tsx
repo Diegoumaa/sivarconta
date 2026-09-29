@@ -112,35 +112,37 @@ export const DashboardView: React.FC = () => {
       </div>
 
       {/* Onboarding Widget: "Camino al Éxito Fiscal" (Linear Style) */}
+      {/* Onboarding Widget: "Camino al Éxito Fiscal" (Linear Style) */}
       {!dismissOnboarding && (
-        <div className="bg-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-md border border-slate-800 relative overflow-hidden">
+        <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80 relative overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-brand-600 via-indigo-600 to-cyan-500 absolute top-0 left-0 right-0" />
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="p-1 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  <Sparkles className="w-3.5 h-3.5" />
+                <span className="p-1 rounded-md bg-brand-50 text-brand-700 border border-brand-200/60">
+                  <Sparkles className="w-3.5 h-3.5 text-brand-600" />
                 </span>
-                <span className="text-[11px] font-bold text-cyan-300 uppercase tracking-wider">
+                <span className="text-[11px] font-bold text-brand-700 uppercase tracking-wider">
                   Guía de Inicio Rápido para Emprendedores
                 </span>
               </div>
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
                 Emite tus facturas electrónicas en 3 sencillos pasos
               </h2>
-              <p className="text-xs text-slate-300 max-w-xl">
+              <p className="text-xs text-slate-500 max-w-xl">
                 Hemos preparado esta guía interactiva para acompañarte paso a paso sin complicaciones tributarias.
               </p>
             </div>
 
             {/* Progress bar */}
-            <div className="flex items-center gap-3 bg-slate-800/90 p-2.5 px-3.5 rounded-xl border border-slate-700/80 shrink-0">
+            <div className="flex items-center gap-3 bg-slate-50 p-2.5 px-3.5 rounded-xl border border-slate-200/80 shrink-0">
               <div className="text-right">
                 <span className="text-[10px] text-slate-400 block font-medium">Progreso</span>
-                <span className="text-sm font-extrabold font-mono text-cyan-300">{progressPercent}%</span>
+                <span className="text-sm font-extrabold font-mono text-brand-700">{progressPercent}%</span>
               </div>
-              <div className="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
+              <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all duration-500"
+                  className="h-full bg-gradient-to-r from-brand-600 to-emerald-500 rounded-full transition-all duration-500"
                   style={{ width: `${progressPercent}%` }}
                 ></div>
               </div>
@@ -148,65 +150,65 @@ export const DashboardView: React.FC = () => {
           </div>
 
           {/* 3 Step Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-800/80 relative z-10">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100 relative z-10">
             {/* Step 1 */}
-            <div className="bg-slate-850 border border-slate-700/60 rounded-xl p-3.5 flex items-center justify-between hover:border-slate-600 transition-colors">
+            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    step1Complete ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300'
+                    step1Complete ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
                   }`}>
                     {step1Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '1'}
                   </span>
-                  <span className="text-xs font-bold text-slate-100">Datos de Empresa</span>
+                  <span className="text-xs font-bold text-slate-900">Datos de Empresa</span>
                 </div>
-                <p className="text-[11px] text-slate-400">NRC y giro configurados</p>
+                <p className="text-[11px] text-slate-500">NRC y giro configurados</p>
               </div>
               <button 
                 onClick={() => setCurrentView('settings')}
-                className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold active:scale-95 transition-transform"
+                className="text-xs text-brand-600 hover:text-brand-700 font-semibold active:scale-95 transition-transform cursor-pointer"
               >
                 Revisar
               </button>
             </div>
 
             {/* Step 2 */}
-            <div className="bg-slate-850 border border-slate-700/60 rounded-xl p-3.5 flex items-center justify-between hover:border-slate-600 transition-colors">
+            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    step2Complete ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300'
+                    step2Complete ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
                   }`}>
                     {step2Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '2'}
                   </span>
-                  <span className="text-xs font-bold text-slate-100">Catálogo Inicial</span>
+                  <span className="text-xs font-bold text-slate-900">Catálogo Inicial</span>
                 </div>
-                <p className="text-[11px] text-slate-400">{filteredProducts.length} productos listos</p>
+                <p className="text-[11px] text-slate-500">{filteredProducts.length} productos listos</p>
               </div>
               <button 
                 onClick={() => setCurrentView('catalog')}
-                className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold active:scale-95 transition-transform"
+                className="text-xs text-brand-600 hover:text-brand-700 font-semibold active:scale-95 transition-transform cursor-pointer"
               >
                 Catálogo
               </button>
             </div>
 
             {/* Step 3 */}
-            <div className="bg-slate-850 border border-slate-700/60 rounded-xl p-3.5 flex items-center justify-between hover:border-slate-600 transition-colors">
+            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    step3Complete ? 'bg-emerald-500 text-white' : 'bg-brand-500 text-white animate-pulse'
+                    step3Complete ? 'bg-emerald-600 text-white' : 'bg-brand-600 text-white'
                   }`}>
                     {step3Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '3'}
                   </span>
-                  <span className="text-xs font-bold text-slate-100">Emitir Primer DTE</span>
+                  <span className="text-xs font-bold text-slate-900">Emitir Primer DTE</span>
                 </div>
-                <p className="text-[11px] text-slate-400">Prueba en Sandbox</p>
+                <p className="text-[11px] text-slate-500">Prueba en Sandbox</p>
               </div>
               <button 
                 onClick={() => startNewInvoiceWithDte('01')}
-                className="px-2.5 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-transform active:scale-95 flex items-center gap-1 cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs transition-transform active:scale-95 flex items-center gap-1 cursor-pointer shadow-xs"
               >
                 <span>Emitir</span>
                 <ArrowRight className="w-3 h-3" />
@@ -219,10 +221,10 @@ export const DashboardView: React.FC = () => {
       {/* Main KPI Cards (Tremor Style) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Ventas Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:border-slate-300 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Ventas Facturadas</span>
-            <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Ventas Facturadas</span>
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100/60">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
@@ -231,7 +233,7 @@ export const DashboardView: React.FC = () => {
               ${totalVentas.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-xs text-slate-500 mt-2 flex items-center gap-1.5">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200/60">
                 {filteredInvoices.length} DTEs
               </span>
               <span>documentos DTE emitidos</span>
@@ -240,10 +242,10 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {/* Compras Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:border-slate-300 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Compras Registradas</span>
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Compras Registradas</span>
+            <div className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100/60">
               <TrendingDown className="w-4 h-4" />
             </div>
           </div>
@@ -261,10 +263,10 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {/* Débito Fiscal Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:border-slate-300 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Débito Fiscal (IVA 13%)</span>
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Débito Fiscal (IVA 13%)</span>
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100/60">
               <Receipt className="w-4 h-4" />
             </div>
           </div>
@@ -277,10 +279,10 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {/* Crédito Fiscal Card */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:border-slate-300 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] hover:shadow-md hover:border-slate-300 transition-all group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Crédito Fiscal (Compras)</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Crédito Fiscal (Compras)</span>
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100/60">
               <FileText className="w-4 h-4" />
             </div>
           </div>
@@ -294,28 +296,32 @@ export const DashboardView: React.FC = () => {
       </div>
 
       {/* Special Tax Alert: F07 Liquidación de IVA Estimada (Tremor Executive Card) */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-slate-950 text-white shadow-lg border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+      <div className="p-5 sm:p-6 rounded-2xl bg-white text-slate-900 shadow-sm border border-slate-200/80 border-l-4 border-l-brand-600 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono">
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-50 text-brand-700 border border-brand-200/60 font-mono">
               FORMULARIO F07 MINISTERIO DE HACIENDA
             </span>
             <span className="text-xs text-slate-400 font-medium">Liquidación Proyectada</span>
           </div>
-          <h2 className="text-lg font-bold text-white tracking-tight">Liquidación de IVA del Mes</h2>
-          <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Liquidación de IVA del Mes</h2>
+          <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
             Débito Fiscal (${debitoFiscalTotal.toFixed(2)}) − Crédito Fiscal (${creditoFiscalTotal.toFixed(2)}) =
             {saldoAPagar > 0 ? (
-              <span className="text-amber-400 font-bold ml-1">Impuesto a Pagar a Hacienda: ${saldoAPagar.toFixed(2)}</span>
+              <span className="text-amber-700 font-bold ml-1 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60">
+                Impuesto a Pagar a Hacienda: ${saldoAPagar.toFixed(2)}
+              </span>
             ) : (
-              <span className="text-emerald-400 font-bold ml-1">Remanente de Crédito Fiscal a Favor: ${remanenteCredito.toFixed(2)}</span>
+              <span className="text-emerald-700 font-bold ml-1 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+                Remanente de Crédito Fiscal a Favor: ${remanenteCredito.toFixed(2)}
+              </span>
             )}
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => setCurrentView('books')}
-            className="px-4 py-2.5 rounded-xl bg-white text-slate-900 font-bold text-xs hover:bg-slate-100 transition-all shadow-sm active:scale-95 cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-xs active:scale-95 cursor-pointer"
           >
             Ver Libros Oficiales F07
           </button>

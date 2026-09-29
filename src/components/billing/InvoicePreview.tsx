@@ -160,15 +160,15 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
         className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden border border-slate-200 my-4 sm:my-8 print-document-card animate-in zoom-in-95 duration-150"
       >
         {/* Top Control Bar (Hidden on print) */}
-        <div className="no-print bg-slate-900 px-4 sm:px-6 py-3.5 flex items-center justify-between text-white border-b border-slate-800">
+        <div className="no-print bg-white px-4 sm:px-6 py-3.5 flex items-center justify-between text-slate-900 border-b border-slate-200">
           <div className="flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-brand-600/30 text-cyan-400 border border-brand-500/30">
+            <span className="p-2 rounded-xl bg-brand-50 text-brand-600 border border-brand-100">
               <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-xs sm:text-sm">Representación Gráfica Oficial DTE</h3>
-                <span className="px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <h3 className="font-bold text-xs sm:text-sm text-slate-900">Representación Gráfica Oficial DTE</h3>
+                <span className="px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   SELLO MH
                 </span>
               </div>
@@ -180,9 +180,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             <button
               type="button"
               onClick={() => setShowJson(!showJson)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors btn-tactile"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition-colors btn-tactile cursor-pointer"
             >
-              <Code2 className="w-4 h-4 text-cyan-400" />
+              <Code2 className="w-4 h-4 text-brand-600" />
               <span>{showJson ? 'Ver Factura' : 'Ver JSON MH'}</span>
             </button>
 
@@ -217,7 +217,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors btn-tactile cursor-pointer"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors btn-tactile cursor-pointer"
               title="Cerrar vista previa"
             >
               <X className="w-5 h-5" />

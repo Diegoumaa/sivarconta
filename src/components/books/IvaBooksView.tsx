@@ -116,35 +116,35 @@ export const IvaBooksView: React.FC = () => {
 
 
       {/* F07 Liquidación Summary Card */}
-      <div className="p-5 rounded-2xl bg-slate-900 text-white border border-slate-800 shadow-md no-print">
+      <div className="p-5 rounded-2xl bg-white text-slate-900 border border-slate-200/80 border-l-4 border-l-brand-600 shadow-sm no-print">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400 block mb-1">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200/60 inline-block mb-1">
               Resumen para Declaración de Impuestos F07 (IVA Mensual)
             </span>
             <div className="flex flex-wrap items-center gap-6 mt-2 text-xs">
               <div>
-                <span className="text-slate-400 block">Total Débito Fiscal (Ventas):</span>
-                <span className="text-lg font-mono font-bold text-amber-400">${debitoTotalPeriodo.toFixed(2)}</span>
+                <span className="text-slate-500 block font-medium">Total Débito Fiscal (Ventas):</span>
+                <span className="text-lg font-mono font-bold text-amber-600">${debitoTotalPeriodo.toFixed(2)}</span>
               </div>
-              <div className="text-slate-600 font-bold text-xl">−</div>
+              <div className="text-slate-400 font-bold text-xl">−</div>
               <div>
-                <span className="text-slate-400 block">Total Crédito Fiscal (Compras):</span>
-                <span className="text-lg font-mono font-bold text-emerald-400">${creditoTotalPeriodo.toFixed(2)}</span>
+                <span className="text-slate-500 block font-medium">Total Crédito Fiscal (Compras):</span>
+                <span className="text-lg font-mono font-bold text-emerald-600">${creditoTotalPeriodo.toFixed(2)}</span>
               </div>
-              <div className="text-slate-600 font-bold text-xl">=</div>
+              <div className="text-slate-400 font-bold text-xl">=</div>
               <div>
-                <span className="text-slate-400 block">Resultado F07 a Declarar:</span>
-                <span className={`text-xl font-mono font-extrabold ${saldoF07 > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                <span className="text-slate-500 block font-medium">Resultado F07 a Declarar:</span>
+                <span className={`text-xl font-mono font-extrabold ${saldoF07 > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
                   {saldoF07 > 0 ? `A Pagar: $${saldoF07.toFixed(2)}` : `Remanente a Favor: $${Math.abs(saldoF07).toFixed(2)}`}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start md:self-auto bg-slate-800/80 p-2 rounded-xl border border-slate-700 text-xs">
-            <Calendar className="w-4 h-4 text-cyan-400" />
-            <span className="font-semibold text-slate-200">Período: Septiembre 2026</span>
+          <div className="flex items-center gap-2 self-start md:self-auto bg-slate-50 p-2 rounded-xl border border-slate-200 text-xs">
+            <Calendar className="w-4 h-4 text-brand-600" />
+            <span className="font-semibold text-slate-700">Período: Septiembre 2026</span>
           </div>
         </div>
       </div>

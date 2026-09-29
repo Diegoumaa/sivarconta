@@ -999,12 +999,12 @@ export const InvoiceBuilder: React.FC = () => {
             </div>
 
             {/* Live Draft Preview Box */}
-            <div className="bg-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-white border border-slate-800 shadow-xl space-y-3 sm:space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-                <span className="text-[10px] sm:text-xs uppercase font-bold tracking-wider text-cyan-400">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-slate-900 border border-slate-200/90 shadow-sm space-y-3 sm:space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                <span className="text-[10px] sm:text-xs uppercase font-bold tracking-wider text-brand-700">
                   Resumen de la Transmisión
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-200">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-50 text-brand-700 border border-brand-200/60">
                   DTE-{selectedDteType}
                 </span>
               </div>
@@ -1012,25 +1012,25 @@ export const InvoiceBuilder: React.FC = () => {
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <span className="text-slate-400 block text-[9px] uppercase font-bold">Documento</span>
-                  <strong className="text-white text-xs truncate block">{DTE_NAMES[selectedDteType].short}</strong>
+                  <strong className="text-slate-800 text-xs truncate block">{DTE_NAMES[selectedDteType].short}</strong>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[9px] uppercase font-bold">Condición</span>
-                  <strong className="text-white text-xs block">{condition} {condition === 'CREDITO' ? `(${creditDays}d)` : ''}</strong>
+                  <strong className="text-slate-800 text-xs block">{condition} {condition === 'CREDITO' ? `(${creditDays}d)` : ''}</strong>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[9px] uppercase font-bold">Método Pago</span>
-                  <strong className="text-white text-xs block">{paymentMethod === '01' ? 'Efectivo' : paymentMethod === '04' ? 'Transferencia' : 'Tarjeta'}</strong>
+                  <strong className="text-slate-800 text-xs block">{paymentMethod === '01' ? 'Efectivo' : paymentMethod === '04' ? 'Transferencia' : 'Tarjeta'}</strong>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[9px] uppercase font-bold">Total a Cobrar</span>
-                  <span className="text-lg sm:text-xl font-extrabold font-mono text-cyan-400 block">
+                  <span className="text-lg sm:text-xl font-extrabold font-mono text-brand-700 block">
                     ${totals.totalPagar.toFixed(2)}
                   </span>
                 </div>
               </div>
 
-              <p className="text-[10px] sm:text-[11px] text-slate-400 font-mono italic pt-2 border-t border-slate-800 leading-relaxed">
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-mono italic pt-2 border-t border-slate-100 leading-relaxed">
                 SON: {totals.totalLetras}
               </p>
 
@@ -1039,7 +1039,7 @@ export const InvoiceBuilder: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isTransmitting || !rules.isReady}
-                  className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white py-3.5 px-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold shadow-lg shadow-brand-600/25 transition-all btn-tactile disabled:opacity-50 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white py-3.5 px-4 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold shadow-md shadow-brand-600/20 transition-all btn-tactile disabled:opacity-50 cursor-pointer"
                 >
                   {isTransmitting ? (
                     <>
@@ -1074,15 +1074,15 @@ export const InvoiceBuilder: React.FC = () => {
       {/* Modal / Toast of Transmission Sequence */}
       {isTransmitting && (
         <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-brand-500/20 text-cyan-400 flex items-center justify-center mx-auto animate-pulse">
+          <div className="bg-white border border-slate-200 text-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center mx-auto animate-pulse">
               <ShieldCheck className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="font-extrabold text-lg">Transmitiendo a DGII El Salvador</h3>
-              <p className="text-xs text-slate-400 mt-1">Ambiente de Pruebas / Homologación DTE</p>
+              <h3 className="font-extrabold text-lg text-slate-900">Transmitiendo a DGII El Salvador</h3>
+              <p className="text-xs text-slate-500 mt-1">Ambiente de Pruebas / Homologación DTE</p>
             </div>
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-xs text-cyan-300 font-mono">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-brand-700 font-mono font-medium">
               {transmitStep}
             </div>
           </div>
