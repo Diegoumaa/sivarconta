@@ -51,6 +51,18 @@ export const InvoiceBuilder: React.FC = () => {
     }
   }, [selectedDteTypeForNew]);
 
+  // Sync client when active company or clients list changes
+  useEffect(() => {
+    if (filteredClients.length > 0) {
+      const exists = filteredClients.some(c => c.id === selectedClientId);
+      if (!exists) {
+        setSelectedClientId(filteredClients[0].id);
+      }
+    } else {
+      setSelectedClientId('');
+    }
+  }, [filteredClients, selectedClientId]);
+
   const [items, setItems] = useState<InvoiceItem[]>([
     {
       id: 'item-1',
@@ -69,7 +81,7 @@ export const InvoiceBuilder: React.FC = () => {
 
   const currentClient = filteredClients.find(c => c.id === selectedClientId) || filteredClients[0];
   const clientIsGranContribuyente = currentClient?.taxpayerType === 'GRAN_CONTRIBUYENTE';
-  const companyIsGranContribuyente = currentCompany.taxpayerType === 'GRAN_CONTRIBUYENTE';
+  const companyIsGranContribuyente = currentCompany?.taxpayerType === 'GRAN_CONTRIBUYENTE';
 
   const totals = calculateInvoiceTotals(
     selectedDteType,
@@ -83,7 +95,8 @@ export const InvoiceBuilder: React.FC = () => {
     selectedDteType, 
     totals.totalPagar, 
     currentClient?.docNumber, 
-    currentClient?.nrc
+    currentClient?.nrc,
+    Boolean(currentClient)
   );
 
   const handleProductSelect = (index: number, productId: string) => {
@@ -143,6 +156,11 @@ export const InvoiceBuilder: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentClient) {
+      alert('Debe seleccionar o registrar al menos un cliente en esta empresa para emitir un DTE.');
+      return;
+    }
+
     if (!rules.isReady) {
       alert(rules.blockers[0]);
       return;
@@ -361,17 +379,30 @@ export const InvoiceBuilder: React.FC = () => {
                   <label className="text-xs font-semibold text-slate-700 block mb-1">
                     Cliente Registrado
                   </label>
-                  <select
-                    value={selectedClientId}
-                    onChange={e => setSelectedClientId(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-                  >
-                    {filteredClients.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} • {c.docType}: {c.docNumber} {c.nrc ? `• NRC: ${c.nrc}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  {filteredClients.length === 0 ? (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center justify-between">
+                      <span>No hay clientes registrados en esta empresa.</span>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentView('clients')}
+                        className="px-2.5 py-1 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-lg text-xs cursor-pointer"
+                      >
+                        + Crear Cliente
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedClientId}
+                      onChange={e => setSelectedClientId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                    >
+                      {filteredClients.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} • {c.docType}: {c.docNumber} {c.nrc ? `• NRC: ${c.nrc}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 {currentClient && (
@@ -451,8 +482,15 @@ export const InvoiceBuilder: React.FC = () => {
             <div className="flex justify-end pt-1">
               <button
                 type="button"
-                onClick={() => setCurrentStep(2)}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl sm:rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-brand-600/30 transition-all active:scale-95"
+                onClick={() => {
+                  if (!currentClient) {
+                    alert('Debe registrar o seleccionar al menos un cliente en esta empresa antes de continuar.');
+                    return;
+                  }
+                  setCurrentStep(2);
+                }}
+                disabled={!currentClient}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl sm:rounded-2xl bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm shadow-md shadow-brand-600/30 transition-all active:scale-95"
               >
                 <span>Continuar a Productos</span>
                 <ArrowRight className="w-4 h-4" />
@@ -898,20 +936,30 @@ export const InvoiceBuilder: React.FC = () => {
             <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+                  <ShieldCheck className={`w-4 h-4 sm:w-5 sm:h-5 ${rules.isReady ? 'text-emerald-600' : 'text-amber-500'}`} />
                   <h3 className="font-extrabold text-slate-900 text-xs sm:text-sm">Semáforo de Validación Pre-Vuelo</h3>
                 </div>
-                <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  Listo
+                <span className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  rules.isReady ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {rules.isReady ? 'Listo' : 'Requiere Atención'}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-xs">
-                <div className="p-2.5 sm:p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div className={`p-2.5 sm:p-3 rounded-xl border flex items-center gap-2 ${
+                  currentClient ? 'bg-slate-50 border-slate-200/80' : 'bg-red-50 border-red-200'
+                }`}>
+                  {currentClient ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  )}
                   <div className="truncate">
                     <span className="font-bold text-slate-800 block text-[11px]">Receptor:</span>
-                    <span className="text-slate-500 text-[10px] truncate block">{currentClient?.name}</span>
+                    <span className="text-slate-500 text-[10px] truncate block">
+                      {currentClient?.name || 'Sin cliente seleccionado'}
+                    </span>
                   </div>
                 </div>
 
@@ -937,7 +985,7 @@ export const InvoiceBuilder: React.FC = () => {
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <div>
                     <span className="font-bold text-slate-800 block text-[11px]">Servidor Hacienda:</span>
-                    <span className="text-slate-500 text-[10px]">{currentCompany.mhEnvironment} En línea</span>
+                    <span className="text-slate-500 text-[10px]">{currentCompany?.mhEnvironment || 'PRUEBAS'} En línea</span>
                   </div>
                 </div>
               </div>

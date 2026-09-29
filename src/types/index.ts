@@ -141,6 +141,7 @@ export interface PurchaseDocument {
   purchasesExentas: number;
   creditoFiscal: number;
   retencion1: number;
+  retencionRenta10?: number;
   totalPagar: number;
   paymentMethod: string;
 }

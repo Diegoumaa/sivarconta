@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { Client } from '../../types';
 import { SALVADOR_DEPARTMENTS } from '../../data/mockData';
-import { Users, Plus, Search, Building, Phone, Mail, MapPin, X } from 'lucide-react';
+import { Users, Plus, Search, Building, Phone, Mail, MapPin, X, AlertCircle } from 'lucide-react';
+import { validateDui, validateNit, validateNrc } from '../../utils/svTaxValidators';
 
 export const ClientsView: React.FC = () => {
   const { filteredClients, addClient } = useApp();
@@ -22,6 +24,27 @@ export const ClientsView: React.FC = () => {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Lock body scroll and handle ESC key when modal is open
+  useEffect(() => {
+    if (!showModal) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowModal(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showModal]);
 
   const filtered = filteredClients.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -31,21 +54,47 @@ export const ClientsView: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !docNumber) return;
+    setErrorMessage('');
+    if (!name.trim() || !docNumber.trim()) {
+      setErrorMessage('Por favor complete el nombre y número de documento.');
+      return;
+    }
+
+    if (docType === 'DUI') {
+      const duiRes = validateDui(docNumber.trim());
+      if (!duiRes.isValid) {
+        setErrorMessage(duiRes.error || 'DUI inválido.');
+        return;
+      }
+    } else if (docType === 'NIT') {
+      const nitRes = validateNit(docNumber.trim());
+      if (!nitRes.isValid) {
+        setErrorMessage(nitRes.error || 'NIT inválido.');
+        return;
+      }
+    }
+
+    if (nrc.trim()) {
+      const nrcRes = validateNrc(nrc.trim());
+      if (!nrcRes.isValid) {
+        setErrorMessage(nrcRes.error || 'NRC inválido.');
+        return;
+      }
+    }
 
     addClient({
-      name,
-      commercialName,
+      name: name.trim(),
+      commercialName: commercialName.trim() || undefined,
       docType,
-      docNumber,
-      nrc: nrc || undefined,
+      docNumber: docNumber.trim(),
+      nrc: nrc.trim() || undefined,
       taxpayerType,
-      economicActivity,
+      economicActivity: economicActivity.trim() || undefined,
       department,
-      municipality,
-      address,
-      phone,
-      email
+      municipality: municipality.trim() || 'San Salvador Centro',
+      address: address.trim() || 'San Salvador, El Salvador',
+      phone: phone.trim(),
+      email: email.trim()
     });
 
     // Reset & close
@@ -56,6 +105,7 @@ export const ClientsView: React.FC = () => {
     setAddress('');
     setPhone('');
     setEmail('');
+    setErrorMessage('');
     setShowModal(false);
   };
 
@@ -157,52 +207,71 @@ export const ClientsView: React.FC = () => {
       </div>
 
       {/* Modal New Client */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 border border-slate-200 max-h-[90vh] overflow-y-auto">
+      {showModal && typeof document !== 'undefined' && createPortal(
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowModal(false);
+          }}
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center animate-in fade-in duration-150"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 border border-slate-200 max-h-[90vh] overflow-y-auto"
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-brand-600" />
                 <h3 className="font-extrabold text-slate-900">Registrar Nuevo Cliente</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {errorMessage && (
+                <div role="alert" className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Nombre o Razón Social</label>
+                <label htmlFor="client-name" className="text-xs font-semibold text-slate-700 block mb-1">Nombre o Razón Social</label>
                 <input
+                  id="client-name"
                   type="text"
                   required
                   placeholder="Ej. Comercial Los Ángeles S.A. de C.V."
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Nombre Comercial (Opcional)</label>
+                  <label htmlFor="client-comm-name" className="text-xs font-semibold text-slate-700 block mb-1">Nombre Comercial (Opcional)</label>
                   <input
+                    id="client-comm-name"
                     type="text"
                     placeholder="Ej. Tienda Los Ángeles"
                     value={commercialName}
                     onChange={e => setCommercialName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Tipo de Contribuyente</label>
+                  <label htmlFor="client-taxpayer" className="text-xs font-semibold text-slate-700 block mb-1">Tipo de Contribuyente</label>
                   <select
+                    id="client-taxpayer"
                     value={taxpayerType}
                     onChange={e => setTaxpayerType(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     <option value="PEQUENO">Pequeño Contribuyente</option>
                     <option value="MEDIANO">Mediano Contribuyente</option>
@@ -214,46 +283,50 @@ export const ClientsView: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Tipo Doc.</label>
+                  <label htmlFor="client-doctype" className="text-xs font-semibold text-slate-700 block mb-1">Tipo Doc.</label>
                   <select
+                    id="client-doctype"
                     value={docType}
                     onChange={e => setDocType(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     <option value="NIT">NIT</option>
                     <option value="DUI">DUI</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Número de Doc.</label>
+                  <label htmlFor="client-docnumber" className="text-xs font-semibold text-slate-700 block mb-1">Número de Doc.</label>
                   <input
+                    id="client-docnumber"
                     type="text"
                     required
                     placeholder="0614-XXXXXX-XXX-X"
                     value={docNumber}
                     onChange={e => setDocNumber(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">NRC (Si aplica CCF)</label>
+                  <label htmlFor="client-nrc" className="text-xs font-semibold text-slate-700 block mb-1">NRC (Si aplica CCF)</label>
                   <input
+                    id="client-nrc"
                     type="text"
                     placeholder="Ej. 123456-7"
                     value={nrc}
                     onChange={e => setNrc(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Departamento</label>
+                  <label htmlFor="client-dept" className="text-xs font-semibold text-slate-700 block mb-1">Departamento</label>
                   <select
+                    id="client-dept"
                     value={department}
                     onChange={e => setDepartment(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     {SALVADOR_DEPARTMENTS.map(d => (
                       <option key={d} value={d}>{d}</option>
@@ -261,49 +334,53 @@ export const ClientsView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Municipio</label>
+                  <label htmlFor="client-muni" className="text-xs font-semibold text-slate-700 block mb-1">Municipio</label>
                   <input
+                    id="client-muni"
                     type="text"
                     required
                     value={municipality}
                     onChange={e => setMunicipality(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Dirección Completa</label>
+                <label htmlFor="client-address" className="text-xs font-semibold text-slate-700 block mb-1">Dirección Completa</label>
                 <input
+                  id="client-address"
                   type="text"
                   required
                   placeholder="Calle, avenida, número de local..."
                   value={address}
                   onChange={e => setAddress(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Teléfono</label>
+                  <label htmlFor="client-phone" className="text-xs font-semibold text-slate-700 block mb-1">Teléfono</label>
                   <input
+                    id="client-phone"
                     type="text"
                     placeholder="+503 2222-0000"
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Correo Electrónico (Para DTE)</label>
+                  <label htmlFor="client-email" className="text-xs font-semibold text-slate-700 block mb-1">Correo Electrónico (Para DTE)</label>
                   <input
+                    id="client-email"
                     type="email"
                     required
                     placeholder="facturacion@cliente.com"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
               </div>
@@ -325,7 +402,8 @@ export const ClientsView: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

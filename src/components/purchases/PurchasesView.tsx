@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { PurchaseDocument } from '../../types';
-import { ShoppingBag, Plus, Search, FileText, X } from 'lucide-react';
+import { ShoppingBag, Plus, Search, FileText, X, AlertCircle } from 'lucide-react';
+import { validateNit, validateNrc } from '../../utils/svTaxValidators';
 
 export const PurchasesView: React.FC = () => {
   const { filteredPurchases, addPurchase } = useApp();
@@ -17,6 +19,27 @@ export const PurchasesView: React.FC = () => {
   const [concept, setConcept] = useState('');
   const [purchasesGravadas, setPurchasesGravadas] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState('Transferencia 365');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Lock body scroll and handle ESC key when modal is open
+  useEffect(() => {
+    if (!showModal) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowModal(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showModal]);
 
   const filtered = filteredPurchases.filter(p =>
     p.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -24,25 +47,61 @@ export const PurchasesView: React.FC = () => {
     p.concept.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const creditoFiscal = Number((purchasesGravadas * 0.13).toFixed(2));
-  const totalPagar = Number((purchasesGravadas + creditoFiscal).toFixed(2));
+  // Tax calculations per El Salvador DGII regulations:
+  // - CCF & NOTA_CREDITO: 13% IVA Crédito Fiscal
+  // - FACTURA: Consumidor final invoice does not break down tax credit for buyer (0%)
+  // - SUJETO_EXCLUIDO: 0% IVA, but 10% Retención de Impuesto sobre la Renta withheld
+  const creditoFiscal = docType === 'CCF' || docType === 'NOTA_CREDITO'
+    ? Number((purchasesGravadas * 0.13).toFixed(2))
+    : 0;
+
+  const retencionRenta10 = docType === 'SUJETO_EXCLUIDO'
+    ? Number((purchasesGravadas * 0.10).toFixed(2))
+    : 0;
+
+  const totalPagar = docType === 'SUJETO_EXCLUIDO'
+    ? Number((purchasesGravadas - retencionRenta10).toFixed(2))
+    : docType === 'FACTURA'
+    ? Number(purchasesGravadas.toFixed(2))
+    : Number((purchasesGravadas + creditoFiscal).toFixed(2));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supplierName || purchasesGravadas <= 0) return;
+    setErrorMessage('');
+    if (!supplierName.trim() || purchasesGravadas <= 0) {
+      setErrorMessage('Por favor ingrese el nombre del proveedor y un monto gravado mayor a $0.00.');
+      return;
+    }
+
+    if (supplierNit.trim()) {
+      const nitRes = validateNit(supplierNit.trim());
+      if (!nitRes.isValid) {
+        setErrorMessage(nitRes.error || 'El NIT del proveedor es inválido.');
+        return;
+      }
+    }
+
+    if (supplierNrc.trim()) {
+      const nrcRes = validateNrc(supplierNrc.trim());
+      if (!nrcRes.isValid) {
+        setErrorMessage(nrcRes.error || 'El NRC del proveedor es inválido.');
+        return;
+      }
+    }
 
     addPurchase({
       docType,
-      docNumber,
+      docNumber: docNumber.trim(),
       emissionDate: new Date().toISOString().split('T')[0],
-      supplierName,
-      supplierNit,
-      supplierNrc: supplierNrc || undefined,
-      concept,
+      supplierName: supplierName.trim(),
+      supplierNit: supplierNit.trim(),
+      supplierNrc: supplierNrc.trim() || undefined,
+      concept: concept.trim() || 'Compra de mercadería / gasto operativo',
       purchasesGravadas,
       purchasesExentas: 0,
       creditoFiscal,
       retencion1: 0,
+      retencionRenta10: retencionRenta10 > 0 ? retencionRenta10 : undefined,
       totalPagar,
       paymentMethod
     });
@@ -54,6 +113,7 @@ export const PurchasesView: React.FC = () => {
     setDocNumber('');
     setConcept('');
     setPurchasesGravadas(0);
+    setErrorMessage('');
     setShowModal(false);
   };
 
@@ -145,118 +205,156 @@ export const PurchasesView: React.FC = () => {
       </div>
 
       {/* Modal Add Purchase */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-slate-200">
+      {showModal && typeof document !== 'undefined' && createPortal(
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowModal(false);
+          }}
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center animate-in fade-in duration-150"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-slate-200"
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-brand-600" />
                 <h3 className="font-extrabold text-slate-900">Registrar Compra / Factura Recibida</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {errorMessage && (
+                <div role="alert" className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Tipo de Documento</label>
+                  <label htmlFor="purchase-doctype" className="text-xs font-semibold text-slate-700 block mb-1">Tipo de Documento</label>
                   <select
+                    id="purchase-doctype"
                     value={docType}
                     onChange={e => setDocType(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     <option value="CCF">Comprobante de Crédito Fiscal (CCF)</option>
                     <option value="FACTURA">Factura Consumidor Final</option>
-                    <option value="SUJETO_EXCLUIDO">Factura Sujeto Excluido</option>
+                    <option value="SUJETO_EXCLUIDO">Factura Sujeto Excluido (DTE-14)</option>
+                    <option value="NOTA_CREDITO">Nota de Crédito Proveedor (DTE-05)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Número de Documento</label>
+                  <label htmlFor="purchase-docnumber" className="text-xs font-semibold text-slate-700 block mb-1">Número de Documento</label>
                   <input
+                    id="purchase-docnumber"
                     type="text"
                     required
                     placeholder="Ej. CCF-001920"
                     value={docNumber}
                     onChange={e => setDocNumber(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Nombre del Proveedor</label>
+                <label htmlFor="purchase-supplier" className="text-xs font-semibold text-slate-700 block mb-1">Nombre del Proveedor</label>
                 <input
+                  id="purchase-supplier"
                   type="text"
                   required
                   placeholder="Ej. CAESS / Distribuidora de Papel S.A."
                   value={supplierName}
                   onChange={e => setSupplierName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">NIT Proveedor</label>
+                  <label htmlFor="purchase-nit" className="text-xs font-semibold text-slate-700 block mb-1">NIT Proveedor</label>
                   <input
+                    id="purchase-nit"
                     type="text"
                     required
                     placeholder="0614-XXXXXX-XXX-X"
                     value={supplierNit}
                     onChange={e => setSupplierNit(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">NRC Proveedor</label>
+                  <label htmlFor="purchase-nrc" className="text-xs font-semibold text-slate-700 block mb-1">NRC Proveedor</label>
                   <input
+                    id="purchase-nrc"
                     type="text"
                     placeholder="123456-7"
                     value={supplierNrc}
                     onChange={e => setSupplierNrc(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Concepto del Gasto</label>
+                <label htmlFor="purchase-concept" className="text-xs font-semibold text-slate-700 block mb-1">Concepto del Gasto</label>
                 <input
+                  id="purchase-concept"
                   type="text"
                   required
                   placeholder="Ej. Compra de suministros de oficina o servicio de internet"
                   value={concept}
                   onChange={e => setConcept(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Monto Gravado ($)</label>
+                  <label htmlFor="purchase-gravadas" className="text-xs font-semibold text-slate-700 block mb-1">Monto Gravado ($)</label>
                   <input
+                    id="purchase-gravadas"
                     type="number"
                     step="0.01"
                     min="0"
                     required
                     value={purchasesGravadas}
                     onChange={e => setPurchasesGravadas(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Crédito Fiscal 13% ($)</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={`$${creditoFiscal.toFixed(2)}`}
-                    className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-emerald-600"
-                  />
+                  {docType === 'SUJETO_EXCLUIDO' ? (
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Retención Renta 10% ($)</label>
+                      <input
+                        type="text"
+                        disabled
+                        value={`-$${retencionRenta10.toFixed(2)}`}
+                        className="w-full bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-amber-700"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Crédito Fiscal 13% ($)</label>
+                      <input
+                        type="text"
+                        disabled
+                        value={`$${creditoFiscal.toFixed(2)}`}
+                        className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-emerald-600"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -282,7 +380,8 @@ export const PurchasesView: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -7,6 +7,23 @@ export const SettingsView: React.FC = () => {
   const { currentCompany } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const safeCompany = currentCompany || {
+    name: 'Empresa No Configurada',
+    tradeName: '',
+    nit: '0614-000000-000-0',
+    nrc: '000000-0',
+    taxpayerType: 'PEQUENO' as const,
+    economicActivity: 'Comercio General',
+    economicActivityCode: '46510',
+    address: 'San Salvador',
+    municipality: 'San Salvador Centro',
+    department: 'San Salvador',
+    mhEnvironment: 'PRUEBAS' as const,
+    mhUser: 'DTE_06140000000000',
+    establishmentCode: 'M001',
+    posCode: 'P001'
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20 md:pb-8">
       {/* Header */}
@@ -16,7 +33,7 @@ export const SettingsView: React.FC = () => {
             Configuración Fiscal & Ministerio de Hacienda
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Parámetros de conexión DTE, firma digital y sucursales para {currentCompany.tradeName || currentCompany.name}
+            Parámetros de conexión DTE, firma digital y sucursales para {safeCompany.tradeName || safeCompany.name}
           </p>
         </div>
         <button
@@ -40,31 +57,31 @@ export const SettingsView: React.FC = () => {
           <div className="space-y-3 text-xs">
             <div>
               <span className="text-slate-400 block font-semibold">Razón Social:</span>
-              <p className="font-bold text-slate-800">{currentCompany.name}</p>
+              <p className="font-bold text-slate-800">{safeCompany.name}</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <span className="text-slate-400 block font-semibold">NIT Homologado:</span>
-                <p className="font-mono font-medium text-slate-800">{currentCompany.nit}</p>
+                <p className="font-mono font-medium text-slate-800">{safeCompany.nit}</p>
               </div>
               <div>
                 <span className="text-slate-400 block font-semibold">NRC:</span>
-                <p className="font-mono font-bold text-purple-700">{currentCompany.nrc}</p>
+                <p className="font-mono font-bold text-purple-700">{safeCompany.nrc}</p>
               </div>
             </div>
             <div>
               <span className="text-slate-400 block font-semibold">Clasificación Tributaria:</span>
               <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                {currentCompany.taxpayerType.replace('_', ' ')}
+                {safeCompany.taxpayerType.replace('_', ' ')}
               </span>
             </div>
             <div>
               <span className="text-slate-400 block font-semibold">Giro / Actividad Económica:</span>
-              <p className="text-slate-700">{currentCompany.economicActivity} (Cód: {currentCompany.economicActivityCode})</p>
+              <p className="text-slate-700">{safeCompany.economicActivity} (Cód: {safeCompany.economicActivityCode})</p>
             </div>
             <div>
               <span className="text-slate-400 block font-semibold">Dirección Matriz:</span>
-              <p className="text-slate-700">{currentCompany.address}, {currentCompany.municipality}, {currentCompany.department}</p>
+              <p className="text-slate-700">{safeCompany.address}, {safeCompany.municipality}, {safeCompany.department}</p>
             </div>
           </div>
         </div>
@@ -82,7 +99,7 @@ export const SettingsView: React.FC = () => {
               <div className="flex items-center gap-2 mt-1">
                 <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  {currentCompany.mhEnvironment} (Sandbox Oficial)
+                  {safeCompany.mhEnvironment} (Sandbox Oficial)
                 </span>
                 <span className="text-[11px] text-slate-400">api.dtes.mh.gob.sv</span>
               </div>
@@ -90,7 +107,7 @@ export const SettingsView: React.FC = () => {
 
             <div>
               <span className="text-slate-400 block font-semibold">Usuario API Asignado por Hacienda:</span>
-              <p className="font-mono text-slate-800 bg-slate-100 p-2 rounded-lg mt-0.5">{currentCompany.mhUser}</p>
+              <p className="font-mono text-slate-800 bg-slate-100 p-2 rounded-lg mt-0.5">{safeCompany.mhUser}</p>
             </div>
 
             <div>
@@ -142,8 +159,8 @@ export const SettingsView: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <tr>
-                  <td className="py-2.5 font-mono font-bold text-slate-800">{currentCompany.establishmentCode}</td>
-                  <td className="py-2.5 font-mono text-slate-700">{currentCompany.posCode}</td>
+                  <td className="py-2.5 font-mono font-bold text-slate-800">{safeCompany.establishmentCode}</td>
+                  <td className="py-2.5 font-mono text-slate-700">{safeCompany.posCode}</td>
                   <td className="py-2.5 text-slate-700">Casa Matriz / Oficina Central</td>
                   <td className="py-2.5 text-slate-500">Principal</td>
                   <td className="py-2.5 text-center">

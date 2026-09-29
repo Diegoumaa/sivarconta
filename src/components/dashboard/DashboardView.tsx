@@ -31,12 +31,24 @@ export const DashboardView: React.FC = () => {
   const [period, setPeriod] = useState<'mes' | 'semana' | 'hoy'>('mes');
   const [dismissOnboarding, setDismissOnboarding] = useState(false);
 
-  // Calculations
-  const totalVentas = filteredInvoices.reduce((acc, inv) => acc + inv.totalPagar, 0);
-  const debitoFiscalTotal = filteredInvoices.reduce((acc, inv) => acc + inv.iva13, 0);
+  // Calculations: DTE-05 (Nota de Crédito) subtracts from sales & Débito Fiscal per El Salvador Tax Code
+  const totalVentas = filteredInvoices.reduce(
+    (acc, inv) => acc + (inv.dteType === '05' ? -inv.totalPagar : inv.totalPagar),
+    0
+  );
+  const debitoFiscalTotal = filteredInvoices.reduce(
+    (acc, inv) => acc + (inv.dteType === '05' ? -inv.iva13 : inv.iva13),
+    0
+  );
   
-  const totalCompras = filteredPurchases.reduce((acc, pur) => acc + pur.totalPagar, 0);
-  const creditoFiscalTotal = filteredPurchases.reduce((acc, pur) => acc + pur.creditoFiscal, 0);
+  const totalCompras = filteredPurchases.reduce(
+    (acc, pur) => acc + (pur.docType === 'NOTA_CREDITO' ? -pur.totalPagar : pur.totalPagar),
+    0
+  );
+  const creditoFiscalTotal = filteredPurchases.reduce(
+    (acc, pur) => acc + (pur.docType === 'NOTA_CREDITO' ? -pur.creditoFiscal : pur.creditoFiscal),
+    0
+  );
 
   // F07 IVA Balance (El Salvador)
   const balanceIva = debitoFiscalTotal - creditoFiscalTotal;
@@ -50,7 +62,7 @@ export const DashboardView: React.FC = () => {
   });
 
   // Onboarding Steps computation
-  const step1Complete = Boolean(currentCompany.name && currentCompany.nrc);
+  const step1Complete = Boolean(currentCompany?.name && currentCompany?.nrc);
   const step2Complete = filteredProducts.length > 0;
   const step3Complete = filteredInvoices.length > 0;
   const completedStepsCount = [step1Complete, step2Complete, step3Complete].filter(Boolean).length;
@@ -70,7 +82,7 @@ export const DashboardView: React.FC = () => {
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Empresa: <strong className="text-slate-800">{currentCompany.name}</strong> • NRC: <span className="font-mono text-slate-700">{currentCompany.nrc}</span>
+            Empresa: <strong className="text-slate-800">{currentCompany?.name || 'Empresa No Configurada'}</strong> • NRC: <span className="font-mono text-slate-700">{currentCompany?.nrc || '---'}</span>
           </p>
         </div>
 
@@ -366,43 +378,51 @@ export const DashboardView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredInvoices.slice(0, 5).map(inv => {
-                    const meta = DTE_NAMES[inv.dteType];
-                    return (
-                      <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2.5 font-medium text-slate-800">
-                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold mr-1.5 ${meta.badgeColor}`}>
-                            {inv.dteType}
-                          </span>
-                          <span className="font-mono text-[11px] text-slate-600">{inv.controlNumber.split('-').slice(2).join('-')}</span>
-                        </td>
-                        <td className="py-2.5 max-w-[150px] truncate text-slate-700">
-                          {inv.clientName}
-                        </td>
-                        <td className="py-2.5 text-slate-500 font-mono text-[11px]">
-                          {inv.emissionDate}
-                        </td>
-                        <td className="py-2.5 text-right font-mono font-bold text-slate-900">
-                          ${inv.totalPagar.toFixed(2)}
-                        </td>
-                        <td className="py-2.5 text-center">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Aprobado
-                          </span>
-                        </td>
-                        <td className="py-2.5 text-center">
-                          <button
-                            onClick={() => setActiveDtePreview(inv)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-slate-100 transition-colors"
-                            title="Ver DTE Oficial"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {filteredInvoices.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-6 text-center text-slate-400">
+                        No hay documentos emitidos todavía en esta empresa.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredInvoices.slice(0, 5).map(inv => {
+                      const meta = DTE_NAMES[inv.dteType];
+                      return (
+                        <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-2.5 font-medium text-slate-800">
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold mr-1.5 ${meta.badgeColor}`}>
+                              {inv.dteType}
+                            </span>
+                            <span className="font-mono text-[11px] text-slate-600">{inv.controlNumber.split('-').slice(2).join('-')}</span>
+                          </td>
+                          <td className="py-2.5 max-w-[150px] truncate text-slate-700">
+                            {inv.clientName}
+                          </td>
+                          <td className="py-2.5 text-slate-500 font-mono text-[11px]">
+                            {inv.emissionDate}
+                          </td>
+                          <td className="py-2.5 text-right font-mono font-bold text-slate-900">
+                            ${inv.totalPagar.toFixed(2)}
+                          </td>
+                          <td className="py-2.5 text-center">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Aprobado
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-center">
+                            <button
+                              onClick={() => setActiveDtePreview(inv)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-slate-100 transition-colors"
+                              title="Ver DTE Oficial"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -410,7 +430,7 @@ export const DashboardView: React.FC = () => {
 
           <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
             <span>Validación en tiempo real con servidor DGII de El Salvador</span>
-            <span className="font-mono font-medium text-slate-600">Ambiente: {currentCompany.mhEnvironment}</span>
+            <span className="font-mono font-medium text-slate-600">Ambiente: {currentCompany?.mhEnvironment || 'PRUEBAS'}</span>
           </div>
         </div>
       </div>

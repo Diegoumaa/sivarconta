@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { Product } from '../../types';
 import { Package, Plus, Search, Tag, DollarSign, X } from 'lucide-react';
@@ -16,6 +17,26 @@ export const CatalogView: React.FC = () => {
   const [taxType, setTaxType] = useState<'GRAVADO' | 'EXENTO' | 'NO_SUJETO'>('GRAVADO');
   const [unitOfMeasure, setUnitOfMeasure] = useState('59');
   const [category, setCategory] = useState('General');
+
+  // Lock body scroll and handle ESC key when modal is open
+  useEffect(() => {
+    if (!showModal) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowModal(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showModal]);
 
   const filtered = filteredProducts.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -117,17 +138,26 @@ export const CatalogView: React.FC = () => {
       </div>
 
       {/* Modal New Product */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-slate-200">
+      {showModal && typeof document !== 'undefined' && createPortal(
+        <div 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowModal(false);
+          }}
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm p-4 flex items-center justify-center animate-in fade-in duration-150"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-slate-200"
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <Package className="w-5 h-5 text-brand-600" />
                 <h3 className="font-extrabold text-slate-900">Agregar al Catálogo</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -136,70 +166,76 @@ export const CatalogView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Código / SKU</label>
+                  <label htmlFor="catalog-code" className="text-xs font-semibold text-slate-700 block mb-1">Código / SKU</label>
                   <input
+                    id="catalog-code"
                     type="text"
                     required
                     placeholder="Ej. PROD-001"
                     value={code}
                     onChange={e => setCode(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Categoría</label>
+                  <label htmlFor="catalog-category" className="text-xs font-semibold text-slate-700 block mb-1">Categoría</label>
                   <input
+                    id="catalog-category"
                     type="text"
                     placeholder="Ej. Servicios / Hardware"
                     value={category}
                     onChange={e => setCategory(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Nombre del Producto / Servicio</label>
+                <label htmlFor="catalog-name" className="text-xs font-semibold text-slate-700 block mb-1">Nombre del Producto / Servicio</label>
                 <input
+                  id="catalog-name"
                   type="text"
                   required
                   placeholder="Ej. Asesoría Contable Mensual"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Descripción Detallada</label>
+                <label htmlFor="catalog-description" className="text-xs font-semibold text-slate-700 block mb-1">Descripción Detallada</label>
                 <textarea
+                  id="catalog-description"
                   rows={2}
                   placeholder="Descripción que se reflejará en la factura"
                   value={description}
                   onChange={e => setDescription(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Precio Unitario ($)</label>
+                  <label htmlFor="catalog-price" className="text-xs font-semibold text-slate-700 block mb-1">Precio Unitario ($)</label>
                   <input
+                    id="catalog-price"
                     type="number"
                     step="0.01"
                     min="0"
                     required
                     value={unitPrice}
                     onChange={e => setUnitPrice(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Tipo Gravamen</label>
+                  <label htmlFor="catalog-taxtype" className="text-xs font-semibold text-slate-700 block mb-1">Tipo Gravamen</label>
                   <select
+                    id="catalog-taxtype"
                     value={taxType}
                     onChange={e => setTaxType(e.target.value as any)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     <option value="GRAVADO">Gravado (13%)</option>
                     <option value="EXENTO">Exento</option>
@@ -207,11 +243,12 @@ export const CatalogView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Unidad (CAT-015)</label>
+                  <label htmlFor="catalog-uom" className="text-xs font-semibold text-slate-700 block mb-1">Unidad (CAT-015)</label>
                   <select
+                    id="catalog-uom"
                     value={unitOfMeasure}
                     onChange={e => setUnitOfMeasure(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     <option value="59">59 - Unidad</option>
                     <option value="99">99 - Servicio</option>
@@ -238,7 +275,8 @@ export const CatalogView: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

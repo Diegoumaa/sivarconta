@@ -24,10 +24,23 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
 
   const meta = DTE_NAMES[invoice.dteType];
 
+  const safeCompany = currentCompany || {
+    name: 'Empresa Emisora',
+    tradeName: '',
+    nit: '0614-000000-000-0',
+    nrc: '000000-0',
+    economicActivity: 'Comercio General',
+    economicActivityCode: '46510',
+    address: 'San Salvador, El Salvador',
+    phone: '+503 2222-0000',
+    email: 'facturacion@empresa.sv',
+    mhEnvironment: 'PRUEBAS' as const
+  };
+
   const mhJsonPayload = {
     identificacion: {
       version: 3,
-      ambiente: currentCompany.mhEnvironment === 'PRODUCCION' ? '01' : '00',
+      ambiente: safeCompany.mhEnvironment === 'PRODUCCION' ? '01' : '00',
       tipoDte: invoice.dteType,
       numeroControl: invoice.controlNumber,
       codigoGeneracion: invoice.generationCode,
@@ -38,18 +51,18 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
       tipoMoneda: 'USD'
     },
     emisor: {
-      nit: currentCompany.nit,
-      nrc: currentCompany.nrc,
-      nombre: currentCompany.name,
-      codActividad: currentCompany.economicActivityCode,
-      descActividad: currentCompany.economicActivity,
+      nit: safeCompany.nit,
+      nrc: safeCompany.nrc,
+      nombre: safeCompany.name,
+      codActividad: safeCompany.economicActivityCode,
+      descActividad: safeCompany.economicActivity,
       direccion: {
         departamento: '06',
         municipio: '14',
-        complemento: currentCompany.address
+        complemento: safeCompany.address
       },
-      telefono: currentCompany.phone,
-      correo: currentCompany.email
+      telefono: safeCompany.phone,
+      correo: safeCompany.email
     },
     receptor: {
       tipoDocumento: invoice.clientDocType === 'NIT' ? '36' : '13',
@@ -86,8 +99,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
       porcentajeDescuento: 0,
       totalDescu: invoice.descuentoTotal,
       tributos: invoice.dteType === '03' ? [{ codigo: '20', descripcion: 'IVA 13%', valor: invoice.iva13 }] : null,
-      ivaRete1: invoice.retencion1,
-      reteRenta: invoice.retencionRenta10,
+      ivaRete1: invoice.retencion1 || 0,
+      ivaPerci1: invoice.percepcion1 || 0,
+      reteRenta: invoice.retencionRenta10 || 0,
       totalPagar: invoice.totalPagar,
       totalLetras: invoice.totalLetras,
       condicionOperacion: invoice.condition === 'CONTADO' ? 1 : 2
@@ -204,17 +218,17 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                   Emisor Autorizado
                 </span>
                 <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight">
-                  {currentCompany.name}
+                  {safeCompany.name}
                 </h2>
-                {currentCompany.tradeName && (
-                  <p className="text-xs font-bold text-brand-700">{currentCompany.tradeName}</p>
+                {safeCompany.tradeName && (
+                  <p className="text-xs font-bold text-brand-700">{safeCompany.tradeName}</p>
                 )}
                 
                 <div className="text-[11px] text-slate-700 space-y-1 pt-1 leading-normal">
-                  <p><strong>NIT:</strong> <span className="font-mono font-medium">{currentCompany.nit}</span> &nbsp;|&nbsp; <strong>NRC:</strong> <span className="font-mono font-medium">{currentCompany.nrc}</span></p>
-                  <p><strong>Giro / Actividad:</strong> {currentCompany.economicActivity}</p>
-                  <p><strong>Dirección:</strong> {currentCompany.address}</p>
-                  <p><strong>Teléfono:</strong> {currentCompany.phone} &nbsp;|&nbsp; <strong>Correo:</strong> {currentCompany.email}</p>
+                  <p><strong>NIT:</strong> <span className="font-mono font-medium">{safeCompany.nit}</span> &nbsp;|&nbsp; <strong>NRC:</strong> <span className="font-mono font-medium">{safeCompany.nrc}</span></p>
+                  <p><strong>Giro / Actividad:</strong> {safeCompany.economicActivity}</p>
+                  <p><strong>Dirección:</strong> {safeCompany.address}</p>
+                  <p><strong>Teléfono:</strong> {safeCompany.phone} &nbsp;|&nbsp; <strong>Correo:</strong> {safeCompany.email}</p>
                   <p className="text-[10px] text-slate-500 pt-0.5">
                     Establecimiento: <strong>{invoice.establishmentCode}</strong> &nbsp;|&nbsp; Punto de Venta: <strong>{invoice.posCode}</strong>
                   </p>
@@ -366,18 +380,34 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                   </div>
                 )}
                 
-                {/* IVA 13% for DTE-03 (CCF), DTE-05 (Nota Crédito), DTE-06 (Nota Débito) or whenever iva13 > 0 */}
-                {(invoice.dteType === '03' || invoice.dteType === '05' || invoice.dteType === '06' || invoice.iva13 > 0) && (
+                {/* IVA 13% display based on DTE Type */}
+                {invoice.dteType === '01' ? (
+                  <div className="flex justify-between text-blue-900 font-medium">
+                    <span>(IVA 13% Incluido en Precio):</span>
+                    <span className="font-mono font-bold">${invoice.iva13.toFixed(2)}</span>
+                  </div>
+                ) : invoice.dteType === '05' ? (
+                  <div className="flex justify-between text-rose-900 font-medium">
+                    <span>(-) IVA 13% Débito Fiscal (Ajuste NC):</span>
+                    <span className="font-mono font-bold">-${invoice.iva13.toFixed(2)}</span>
+                  </div>
+                ) : (invoice.dteType === '03' || invoice.dteType === '06' || invoice.iva13 > 0) ? (
                   <div className="flex justify-between text-purple-900 font-medium">
                     <span>(+) IVA 13% Débito Fiscal:</span>
                     <span className="font-mono font-bold">+${invoice.iva13.toFixed(2)}</span>
                   </div>
-                )}
+                ) : null}
                 
                 {invoice.retencion1 > 0 && (
                   <div className="flex justify-between text-amber-900 font-medium">
                     <span>(-) Retención IVA 1% (Gran Contribuyente):</span>
                     <span className="font-mono font-bold">-${invoice.retencion1.toFixed(2)}</span>
+                  </div>
+                )}
+                {Boolean(invoice.percepcion1 && invoice.percepcion1 > 0) && (
+                  <div className="flex justify-between text-emerald-900 font-medium">
+                    <span>(+) Percepción IVA 1% (Agente de Percepción):</span>
+                    <span className="font-mono font-bold">+${invoice.percepcion1!.toFixed(2)}</span>
                   </div>
                 )}
                 {invoice.retencionRenta10 > 0 && (

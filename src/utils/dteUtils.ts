@@ -79,13 +79,33 @@ export function numberToWordsSpanish(amount: number): string {
     const remainder = integerPart % 1000;
     const thWords = thousands === 1 ? 'MIL' : convertGroup(thousands) + ' MIL';
     words = thWords + (remainder > 0 ? ' ' + convertGroup(remainder) : '');
+  } else if (integerPart < 1000000000) {
+    const millions = Math.floor(integerPart / 1000000);
+    const remainder = integerPart % 1000000;
+    const millWords = millions === 1 ? 'UN MILLÓN' : convertGroup(millions) + ' MILLONES';
+    let remWords = '';
+    if (remainder > 0) {
+      if (remainder < 1000) {
+        remWords = ' ' + convertGroup(remainder);
+      } else {
+        const thousands = Math.floor(remainder / 1000);
+        const subRemainder = remainder % 1000;
+        const thWords = thousands === 1 ? 'MIL' : convertGroup(thousands) + ' MIL';
+        remWords = ' ' + thWords + (subRemainder > 0 ? ' ' + convertGroup(subRemainder) : '');
+      }
+    }
+    words = millWords + remWords;
   } else {
     words = String(integerPart);
   }
 
   const cents = String(decimalPart).padStart(2, '0');
-  return `${words} DÓLARES CON ${cents}/100 USD`;
+  const needsDe = words.trim().endsWith('MILLÓN') || words.trim().endsWith('MILLONES');
+  const currency = integerPart === 1 ? 'DÓLAR' : (needsDe ? 'DE DÓLARES' : 'DÓLARES');
+  return `${words.trim()} ${currency} CON ${cents}/100 USD`;
 }
+
+export const generateGenerationCode = generateUUID;
 
 export function calculateInvoiceTotals(
   dteType: DteType,
@@ -93,24 +113,32 @@ export function calculateInvoiceTotals(
   clientIsGranContribuyente = false,
   companyIsGranContribuyente = false
 ) {
-  let subtotalGravado = 0;
-  let subtotalExento = 0;
-  let subtotalNoSujeto = 0;
-  let totalDescuento = 0;
+  let rawGravado = 0;
+  let rawExento = 0;
+  let rawNoSujeto = 0;
+  let rawDescuento = 0;
 
   items.forEach(item => {
-    const lineTotal = item.quantity * item.unitPrice;
-    const lineNet = Math.max(0, lineTotal - (item.discount || 0));
-    totalDescuento += item.discount || 0;
+    const qty = Number(item.quantity) || 0;
+    const price = Number(item.unitPrice) || 0;
+    const disc = Number(item.discount) || 0;
+    const lineTotal = qty * price;
+    const lineNet = Math.max(0, lineTotal - disc);
+    rawDescuento += disc;
 
     if (item.taxType === 'GRAVADO') {
-      subtotalGravado += lineNet;
+      rawGravado += lineNet;
     } else if (item.taxType === 'EXENTO') {
-      subtotalExento += lineNet;
+      rawExento += lineNet;
     } else {
-      subtotalNoSujeto += lineNet;
+      rawNoSujeto += lineNet;
     }
   });
+
+  const subtotalGravado = Number(rawGravado.toFixed(2));
+  const subtotalExento = Number(rawExento.toFixed(2));
+  const subtotalNoSujeto = Number(rawNoSujeto.toFixed(2));
+  const descuentoTotal = Number(rawDescuento.toFixed(2));
 
   let iva13 = 0;
   let retencion1 = 0;
@@ -119,42 +147,49 @@ export function calculateInvoiceTotals(
   let totalPagar = 0;
 
   if (dteType === '03' || dteType === '05' || dteType === '06') {
-    // Comprobante de Crédito Fiscal: IVA 13% explícito
-    iva13 = subtotalGravado * 0.13;
+    // Comprobante de Crédito Fiscal / Nota Crédito / Débito: IVA 13% explícito
+    iva13 = Number((subtotalGravado * 0.13).toFixed(2));
     
     // Regla de Retención y Percepción 1% en El Salvador (Art. 162-163 Código Tributario):
-    // Aplica únicamente si la operación gravada es >= $100.00
+    // Aplica únicamente si la operación gravada es >= $100.00 USD
     if (subtotalGravado >= 100) {
       if (clientIsGranContribuyente && !companyIsGranContribuyente) {
         // El cliente (comprador) es Gran Contribuyente: Retiene 1% de IVA
-        retencion1 = subtotalGravado * 0.01;
+        retencion1 = Number((subtotalGravado * 0.01).toFixed(2));
       } else if (companyIsGranContribuyente && !clientIsGranContribuyente) {
         // La empresa emisora (vendedora) es Gran Contribuyente: Percibe 1% de IVA
-        percepcion1 = subtotalGravado * 0.01;
+        percepcion1 = Number((subtotalGravado * 0.01).toFixed(2));
       }
     }
     
-    totalPagar = subtotalGravado + subtotalExento + subtotalNoSujeto + iva13 - retencion1 + percepcion1;
+    totalPagar = Number(
+      (subtotalGravado + subtotalExento + subtotalNoSujeto + iva13 - retencion1 + percepcion1).toFixed(2)
+    );
   } else if (dteType === '14') {
-    // Factura Sujeto Excluido: Retención 10% de Impuesto sobre la Renta
-    retencionRenta10 = subtotalGravado * 0.10;
-    totalPagar = subtotalGravado - retencionRenta10;
+    // Factura Sujeto Excluido: Retención 10% de Impuesto sobre la Renta (Art. 156 CT)
+    // No causa IVA
+    retencionRenta10 = Number((subtotalGravado * 0.10).toFixed(2));
+    totalPagar = Number(
+      (subtotalGravado + subtotalExento + subtotalNoSujeto - retencionRenta10).toFixed(2)
+    );
   } else {
     // DTE-01 (Factura Consumidor Final): IVA 13% incluido en el total
-    iva13 = (subtotalGravado / 1.13) * 0.13;
-    totalPagar = subtotalGravado + subtotalExento + subtotalNoSujeto;
+    iva13 = Number(((subtotalGravado / 1.13) * 0.13).toFixed(2));
+    totalPagar = Number(
+      (subtotalGravado + subtotalExento + subtotalNoSujeto).toFixed(2)
+    );
   }
 
   return {
-    subtotalGravado: Number(subtotalGravado.toFixed(2)),
-    subtotalExento: Number(subtotalExento.toFixed(2)),
-    subtotalNoSujeto: Number(subtotalNoSujeto.toFixed(2)),
-    descuentoTotal: Number(totalDescuento.toFixed(2)),
-    iva13: Number(iva13.toFixed(2)),
-    retencion1: Number(retencion1.toFixed(2)),
-    percepcion1: Number(percepcion1.toFixed(2)),
-    retencionRenta10: Number(retencionRenta10.toFixed(2)),
-    totalPagar: Number(totalPagar.toFixed(2)),
-    totalLetras: numberToWordsSpanish(Number(totalPagar.toFixed(2)))
+    subtotalGravado,
+    subtotalExento,
+    subtotalNoSujeto,
+    descuentoTotal,
+    iva13,
+    retencion1,
+    percepcion1,
+    retencionRenta10,
+    totalPagar,
+    totalLetras: numberToWordsSpanish(totalPagar)
   };
 }

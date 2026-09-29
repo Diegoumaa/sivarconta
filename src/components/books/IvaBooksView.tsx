@@ -14,21 +14,21 @@ export const IvaBooksView: React.FC = () => {
   // Filter invoices for DTE-01 (Ventas a Consumidor Final)
   const ventasConsumidor = filteredInvoices.filter(i => i.dteType === '01');
 
-  // Totals Ventas Contribuyente
-  const totalGravadasContrib = ventasContribuyente.reduce((a, b) => a + b.subtotalGravado, 0);
-  const totalDebitoContrib = ventasContribuyente.reduce((a, b) => a + b.iva13, 0);
-  const totalRetenidoContrib = ventasContribuyente.reduce((a, b) => a + b.retencion1, 0);
-  const totalVentasContrib = ventasContribuyente.reduce((a, b) => a + b.totalPagar, 0);
+  // Totals Ventas Contribuyente (Nota de Crédito DTE-05 subtracts from sales & fiscal debit per El Salvador Tax Code)
+  const totalGravadasContrib = ventasContribuyente.reduce((a, b) => a + (b.dteType === '05' ? -b.subtotalGravado : b.subtotalGravado), 0);
+  const totalDebitoContrib = ventasContribuyente.reduce((a, b) => a + (b.dteType === '05' ? -b.iva13 : b.iva13), 0);
+  const totalRetenidoContrib = ventasContribuyente.reduce((a, b) => a + (b.dteType === '05' ? -b.retencion1 : b.retencion1), 0);
+  const totalVentasContrib = ventasContribuyente.reduce((a, b) => a + (b.dteType === '05' ? -b.totalPagar : b.totalPagar), 0);
 
   // Totals Ventas Consumidor
   const totalGravadasConsum = ventasConsumidor.reduce((a, b) => a + b.subtotalGravado, 0);
   const totalIvaConsum = ventasConsumidor.reduce((a, b) => a + b.iva13, 0);
   const totalVentasConsum = ventasConsumidor.reduce((a, b) => a + b.totalPagar, 0);
 
-  // Totals Compras
-  const totalComprasGravadas = filteredPurchases.reduce((a, b) => a + b.purchasesGravadas, 0);
-  const totalCreditoFiscal = filteredPurchases.reduce((a, b) => a + b.creditoFiscal, 0);
-  const totalComprasPagar = filteredPurchases.reduce((a, b) => a + b.totalPagar, 0);
+  // Totals Compras (NOTA_CREDITO from suppliers subtracts from purchases and Crédito Fiscal)
+  const totalComprasGravadas = filteredPurchases.reduce((a, b) => a + (b.docType === 'NOTA_CREDITO' ? -b.purchasesGravadas : b.purchasesGravadas), 0);
+  const totalCreditoFiscal = filteredPurchases.reduce((a, b) => a + (b.docType === 'NOTA_CREDITO' ? -b.creditoFiscal : b.creditoFiscal), 0);
+  const totalComprasPagar = filteredPurchases.reduce((a, b) => a + (b.docType === 'NOTA_CREDITO' ? -b.totalPagar : b.totalPagar), 0);
 
   // Overall IVA Balance for F07
   const debitoTotalPeriodo = totalDebitoContrib + totalIvaConsum;
@@ -36,32 +36,36 @@ export const IvaBooksView: React.FC = () => {
   const saldoF07 = debitoTotalPeriodo - creditoTotalPeriodo;
 
   const exportCsv = () => {
-    let csvContent = "data:text/csv;charset=utf-8,";
+    let csvContent = "";
     
     if (activeTab === 'ventas_contribuyente') {
-      csvContent += "Fecha,Numero_Control,Codigo_Generacion,Cliente,NRC,Venta_Gravada,Debito_Fiscal_13,IVA_Retenido_1,Total\n";
+      csvContent += "Fecha,Tipo_DTE,Numero_Control,Codigo_Generacion,Cliente,NRC,Venta_Gravada,Debito_Fiscal_13,IVA_Retenido_1,Total\n";
       ventasContribuyente.forEach(v => {
-        csvContent += `"${v.emissionDate}","${v.controlNumber}","${v.generationCode}","${v.clientName}","${v.clientNrc || ''}",${v.subtotalGravado},${v.iva13},${v.retencion1},${v.totalPagar}\n`;
+        const sign = v.dteType === '05' ? -1 : 1;
+        csvContent += `"${v.emissionDate}","${v.dteType}","${v.controlNumber}","${v.generationCode}","${v.clientName}","${v.clientNrc || ''}",${(v.subtotalGravado * sign).toFixed(2)},${(v.iva13 * sign).toFixed(2)},${(v.retencion1 * sign).toFixed(2)},${(v.totalPagar * sign).toFixed(2)}\n`;
       });
     } else if (activeTab === 'ventas_consumidor') {
       csvContent += "Fecha,Numero_Control,Cliente,Venta_Gravada_Con_IVA,IVA_Implicito,Total\n";
       ventasConsumidor.forEach(v => {
-        csvContent += `"${v.emissionDate}","${v.controlNumber}","${v.clientName}",${v.subtotalGravado},${v.iva13},${v.totalPagar}\n`;
+        csvContent += `"${v.emissionDate}","${v.controlNumber}","${v.clientName}",${v.subtotalGravado.toFixed(2)},${v.iva13.toFixed(2)},${v.totalPagar.toFixed(2)}\n`;
       });
     } else {
-      csvContent += "Fecha,Numero_Documento,Proveedor,NRC,Compra_Gravada,Credito_Fiscal_13,Total\n";
+      csvContent += "Fecha,Tipo_Doc,Numero_Documento,Proveedor,NRC,Compra_Gravada,Credito_Fiscal_13,Total\n";
       filteredPurchases.forEach(p => {
-        csvContent += `"${p.emissionDate}","${p.docNumber}","${p.supplierName}","${p.supplierNrc || ''}",${p.purchasesGravadas},${p.creditoFiscal},${p.totalPagar}\n`;
+        const sign = p.docType === 'NOTA_CREDITO' ? -1 : 1;
+        csvContent += `"${p.emissionDate}","${p.docType}","${p.docNumber}","${p.supplierName}","${p.supplierNrc || ''}",${(p.purchasesGravadas * sign).toFixed(2)},${(p.creditoFiscal * sign).toFixed(2)},${(p.totalPagar * sign).toFixed(2)}\n`;
       });
     }
 
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Libro_IVA_${activeTab}_${selectedMonth}_${selectedYear}.csv`);
+    link.href = url;
+    link.download = `Libro_IVA_${activeTab}_${selectedMonth}_${selectedYear}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -78,7 +82,7 @@ export const IvaBooksView: React.FC = () => {
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Empresa: <strong>{currentCompany.name}</strong> • NRC: <span className="font-mono text-slate-700">{currentCompany.nrc}</span>
+            Empresa: <strong>{currentCompany?.name || 'Empresa No Configurada'}</strong> • NRC: <span className="font-mono text-slate-700">{currentCompany?.nrc || '---'}</span>
           </p>
         </div>
 
@@ -173,8 +177,8 @@ export const IvaBooksView: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden p-4 sm:p-6 print:p-0 print:border-none print:shadow-none">
         {/* Printable Official Header */}
         <div className="hidden print:block text-center mb-6 pb-4 border-b-2 border-slate-900">
-          <h2 className="font-black text-lg uppercase tracking-tight text-slate-900">{currentCompany.name}</h2>
-          <p className="text-xs font-mono">NIT: {currentCompany.nit} • NRC: {currentCompany.nrc}</p>
+          <h2 className="font-black text-lg uppercase tracking-tight text-slate-900">{currentCompany?.name || 'Empresa No Configurada'}</h2>
+          <p className="text-xs font-mono">NIT: {currentCompany?.nit || '---'} • NRC: {currentCompany?.nrc || '---'}</p>
           <h3 className="font-extrabold text-sm uppercase text-slate-800 mt-2">
             {activeTab === 'ventas_contribuyente' && 'LIBRO DE VENTAS A CONTRIBUYENTES (CRÉDITO FISCAL)'}
             {activeTab === 'ventas_consumidor' && 'LIBRO DE VENTAS A CONSUMIDOR FINAL (FACTURAS)'}
@@ -200,18 +204,32 @@ export const IvaBooksView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {ventasContribuyente.map(v => (
-                  <tr key={v.id} className="hover:bg-slate-50 font-mono text-[11px]">
-                    <td className="py-2.5 px-3 text-slate-600">{v.emissionDate}</td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-800">{v.controlNumber}</td>
-                    <td className="py-2.5 px-3 font-sans font-medium text-slate-800 max-w-[180px] truncate">{v.clientName}</td>
-                    <td className="py-2.5 px-3 text-purple-700">{v.clientNrc || '---'}</td>
-                    <td className="py-2.5 px-3 text-right text-slate-700">${v.subtotalGravado.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-purple-700">+${v.iva13.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right text-amber-700">-${v.retencion1.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900">${v.totalPagar.toFixed(2)}</td>
-                  </tr>
-                ))}
+                {ventasContribuyente.map(v => {
+                  const isNC = v.dteType === '05';
+                  return (
+                    <tr key={v.id} className={`hover:bg-slate-50 font-mono text-[11px] ${isNC ? 'bg-amber-50/40 text-amber-900' : ''}`}>
+                      <td className="py-2.5 px-3 text-slate-600">{v.emissionDate}</td>
+                      <td className="py-2.5 px-3 font-semibold text-slate-800">
+                        {v.controlNumber}
+                        {isNC && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-800 font-bold rounded">NC</span>}
+                      </td>
+                      <td className="py-2.5 px-3 font-sans font-medium text-slate-800 max-w-[180px] truncate">{v.clientName}</td>
+                      <td className="py-2.5 px-3 text-purple-700">{v.clientNrc || '---'}</td>
+                      <td className={`py-2.5 px-3 text-right ${isNC ? 'text-amber-700 font-bold' : 'text-slate-700'}`}>
+                        {isNC ? `-$${v.subtotalGravado.toFixed(2)}` : `$${v.subtotalGravado.toFixed(2)}`}
+                      </td>
+                      <td className={`py-2.5 px-3 text-right font-bold ${isNC ? 'text-rose-600' : 'text-purple-700'}`}>
+                        {isNC ? `-$${v.iva13.toFixed(2)}` : `+$${v.iva13.toFixed(2)}`}
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-amber-700">
+                        {v.retencion1 > 0 ? (isNC ? `+$${v.retencion1.toFixed(2)}` : `-$${v.retencion1.toFixed(2)}`) : '$0.00'}
+                      </td>
+                      <td className={`py-2.5 px-3 text-right font-bold ${isNC ? 'text-amber-800' : 'text-slate-900'}`}>
+                        {isNC ? `-$${v.totalPagar.toFixed(2)}` : `$${v.totalPagar.toFixed(2)}`}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="bg-purple-50/80 font-mono font-bold text-xs border-t-2 border-purple-300">

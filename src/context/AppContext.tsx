@@ -258,7 +258,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('sivarconta_purchases', JSON.stringify(purchases));
   }, [purchases]);
 
-  const currentCompany = companies.find(c => c.id === currentCompanyId) || companies[0];
+  const currentCompany = companies.find(c => c.id === currentCompanyId) || companies[0] || INITIAL_COMPANIES[0];
 
   const filteredProducts = products.filter(p => p.companyId === currentCompanyId);
   const filteredClients = clients.filter(c => c.companyId === currentCompanyId);
@@ -392,7 +392,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         await supabase.from('purchases').insert([{
           company_id: effCompanyId,
-          dte_type: purchaseData.docType === 'CCF' ? '03' : '01',
+          dte_type: purchaseData.docType === 'CCF' ? '03' : purchaseData.docType === 'SUJETO_EXCLUIDO' ? '14' : purchaseData.docType === 'NOTA_CREDITO' ? '05' : '01',
           control_number: purchaseData.docNumber,
           generation_code: purchaseData.generationCode || generateUUID(),
           supplier_name: purchaseData.supplierName,
