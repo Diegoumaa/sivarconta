@@ -6,13 +6,13 @@ import { AppProvider, useApp } from '../context/AppContext';
 import { INITIAL_CLIENTS } from '../data/mockData';
 
 const mocks = vi.hoisted(() => ({
-  getSession: vi.fn(), onAuthStateChange: vi.fn(), signInWithPassword: vi.fn(),
+  getSession: vi.fn(), onAuthStateChange: vi.fn(), signInWithPassword: vi.fn(), signUp: vi.fn(),
   signOut: vi.fn(), resetPasswordForEmail: vi.fn(), updateUser: vi.fn(),
   unsubscribe: vi.fn(), from: vi.fn(), listener: null as null | ((event: string, session: any) => void)
 }));
 vi.mock('../lib/supabase', () => ({ isSupabaseConfigured: true, supabase: {
   auth: { getSession: mocks.getSession, onAuthStateChange: mocks.onAuthStateChange,
-    signInWithPassword: mocks.signInWithPassword, signOut: mocks.signOut,
+    signInWithPassword: mocks.signInWithPassword, signUp: mocks.signUp, signOut: mocks.signOut,
     resetPasswordForEmail: mocks.resetPasswordForEmail, updateUser: mocks.updateUser }, from: mocks.from
 } }));
 const session = { user: { id: 'user-a' } };
@@ -28,9 +28,31 @@ beforeEach(() => {
   mocks.signOut.mockResolvedValue({ error: null });
   mocks.resetPasswordForEmail.mockResolvedValue({ error: null });
   mocks.updateUser.mockResolvedValue({ error: null });
+  mocks.signUp.mockResolvedValue({ data: { session: null }, error: null });
 });
 
 describe('Access boundary', () => {
+  it('requests registration and waits for email confirmation before mounting company data', async () => {
+    showGate(); await waitForLogin();
+    fireEvent.click(screen.getByRole('button', { name: 'Crear una cuenta' }));
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), { target: { value: 'fixture@example.test' } });
+    fireEvent.change(screen.getByLabelText('Contraseña', { exact: true }), { target: { value: 'synthetic-password' } });
+    fireEvent.change(screen.getByLabelText('Repite la contraseña'), { target: { value: 'synthetic-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Revisa tu correo');
+    expect(mocks.signUp).toHaveBeenCalledWith({ email: 'fixture@example.test', password: 'synthetic-password', options: { emailRedirectTo: window.location.origin } });
+    expect(content).not.toHaveBeenCalled();
+  });
+  it('does not submit registration with a mismatched password confirmation', async () => {
+    showGate(); await waitForLogin();
+    fireEvent.click(screen.getByRole('button', { name: 'Crear una cuenta' }));
+    fireEvent.change(screen.getByLabelText('Correo electrónico'), { target: { value: 'fixture@example.test' } });
+    fireEvent.change(screen.getByLabelText('Contraseña', { exact: true }), { target: { value: 'synthetic-password' } });
+    fireEvent.change(screen.getByLabelText('Repite la contraseña'), { target: { value: 'different-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('repite la misma contraseña');
+    expect(mocks.signUp).not.toHaveBeenCalled();
+  });
   it('does not mount company data while a session is being checked', () => {
     mocks.getSession.mockReturnValue(new Promise(() => {}));
     showGate();

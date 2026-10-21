@@ -32,7 +32,7 @@ describe('DashboardView Component & Fiscal Calculations', () => {
 
   it('renders dashboard title, active company name and NRC', () => {
     renderDashboard();
-    expect(screen.getByText(/Dashboard Financiero & Tributario/i)).toBeInTheDocument();
+    expect(screen.getByText(/Así va tu negocio/i)).toBeInTheDocument();
     expect(screen.getByText(/Distribuidora Cuscatlán, S.A. de C.V./i)).toBeInTheDocument();
     expect(screen.getByText(/289410-4/i)).toBeInTheDocument();
   });
@@ -40,16 +40,16 @@ describe('DashboardView Component & Fiscal Calculations', () => {
   it('renders KPI metric cards for Ventas, Débito Fiscal, Compras and Crédito Fiscal', () => {
     renderDashboard();
     expect(screen.getByText(/Ventas Facturadas/i)).toBeInTheDocument();
-    expect(screen.getByText(/Débito Fiscal \(IVA 13%\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/IVA de tus ventas/i)).toBeInTheDocument();
     expect(screen.getByText(/Compras Registradas/i)).toBeInTheDocument();
-    expect(screen.getByText(/Crédito Fiscal \(Compras\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/IVA de tus compras/i)).toBeInTheDocument();
   });
 
   it('renders F07 liquidación box with tax balance', () => {
     renderDashboard();
     expect(screen.getByText(/FORMULARIO F07 MINISTERIO DE HACIENDA/i)).toBeInTheDocument();
     expect(screen.getByText(/Liquidación de IVA del período/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Ver Libros Oficiales F07/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Revisar libros de IVA/i })).toBeInTheDocument();
   });
 
   it('allows switching period filter (mes, semana, hoy)', () => {

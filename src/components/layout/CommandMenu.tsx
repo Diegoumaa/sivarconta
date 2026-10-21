@@ -41,25 +41,25 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose, onOpe
 
   // Define commands
   const navigationItems = [
-    { id: 'nav-dashboard', label: 'Dashboard Fiscal', category: 'Navegación', icon: LayoutDashboard, action: () => { setCurrentView('dashboard'); onClose(); } },
-    { id: 'nav-invoices', label: 'Facturación DTE (Listado)', category: 'Navegación', icon: Receipt, action: () => { setCurrentView('invoices'); onClose(); } },
-    { id: 'nav-catalog', label: 'Catálogo de Productos y Servicios', category: 'Navegación', icon: Package, action: () => { setCurrentView('catalog'); onClose(); } },
-    { id: 'nav-clients', label: 'Directorio de Clientes y Receptores', category: 'Navegación', icon: Users, action: () => { setCurrentView('clients'); onClose(); } },
-    { id: 'nav-purchases', label: 'Módulo de Compras y Gastos', category: 'Navegación', icon: ShoppingBag, action: () => { setCurrentView('purchases'); onClose(); } },
-    { id: 'nav-books', label: 'Libros de IVA Oficiales (F07)', category: 'Navegación', icon: BookOpen, action: () => { setCurrentView('books'); onClose(); } },
-    { id: 'nav-settings', label: 'Configuración Fiscal & MH', category: 'Navegación', icon: Settings, action: () => { setCurrentView('settings'); onClose(); } }
+    { id: 'nav-dashboard', label: 'Inicio', category: 'Navegación', icon: LayoutDashboard, action: () => { setCurrentView('dashboard'); onClose(); } },
+    { id: 'nav-invoices', label: 'Facturas y documentos', category: 'Navegación', icon: Receipt, action: () => { setCurrentView('invoices'); onClose(); } },
+    { id: 'nav-catalog', label: 'Productos y servicios', category: 'Navegación', icon: Package, action: () => { setCurrentView('catalog'); onClose(); } },
+    { id: 'nav-clients', label: 'Clientes', category: 'Navegación', icon: Users, action: () => { setCurrentView('clients'); onClose(); } },
+    { id: 'nav-purchases', label: 'Compras y gastos', category: 'Navegación', icon: ShoppingBag, action: () => { setCurrentView('purchases'); onClose(); } },
+    { id: 'nav-books', label: 'Libros de IVA', category: 'Navegación', icon: BookOpen, action: () => { setCurrentView('books'); onClose(); } },
+    { id: 'nav-settings', label: 'Configuración', category: 'Navegación', icon: Settings, action: () => { setCurrentView('settings'); onClose(); } }
   ];
 
   const quickActionItems = [
-    { id: 'act-dte-01', label: 'Emitir Factura Consumidor Final (DTE-01)', category: 'Acciones DTE', icon: Receipt, action: () => { startNewInvoiceWithDte('01'); onClose(); } },
-    { id: 'act-dte-03', label: 'Emitir Comprobante Crédito Fiscal (DTE-03)', category: 'Acciones DTE', icon: FileText, action: () => { startNewInvoiceWithDte('03'); onClose(); } },
-    { id: 'act-dte-14', label: 'Emitir Sujeto Excluido (DTE-14)', category: 'Acciones DTE', icon: Receipt, action: () => { startNewInvoiceWithDte('14'); onClose(); } },
-    { id: 'act-dte-05', label: 'Emitir Nota de Crédito (DTE-05)', category: 'Acciones DTE', icon: Receipt, action: () => { startNewInvoiceWithDte('05'); onClose(); } },
-    { id: 'act-dte-06', label: 'Emitir Nota de Débito (DTE-06)', category: 'Acciones DTE', icon: Receipt, action: () => { startNewInvoiceWithDte('06'); onClose(); } },
+    { id: 'act-dte-01', label: 'Preparar factura de consumidor final (DTE-01)', category: 'Acciones DTE', icon: Receipt, action: () => { startNewInvoiceWithDte('01'); onClose(); } },
+    { id: 'act-dte-03', label: 'Preparar comprobante de crédito fiscal (DTE-03)', category: 'Acciones DTE', icon: FileText, action: () => { startNewInvoiceWithDte('03'); onClose(); } },
+    { id: 'act-dte-14', label: 'Preparar factura de sujeto excluido (DTE-14)', category: 'Acciones DTE', icon: Receipt, action: () => { startNewInvoiceWithDte('14'); onClose(); } },
+    { id: 'act-dte-05', label: 'Preparar nota de crédito (DTE-05)', category: 'Acciones DTE', icon: Receipt, action: () => { startNewInvoiceWithDte('05'); onClose(); } },
+    { id: 'act-dte-06', label: 'Preparar nota de débito (DTE-06)', category: 'Acciones DTE', icon: Receipt, action: () => { startNewInvoiceWithDte('06'); onClose(); } },
     { id: 'act-new-client', label: 'Registrar Nuevo Cliente', category: 'Acciones Rápidas', icon: Users, action: () => { setCurrentView('clients'); onClose(); } },
     { id: 'act-new-product', label: 'Agregar Producto al Catálogo', category: 'Acciones Rápidas', icon: Package, action: () => { setCurrentView('catalog'); onClose(); } },
     { id: 'act-new-purchase', label: 'Registrar Compra / Gasto', category: 'Acciones Rápidas', icon: ShoppingBag, action: () => { setCurrentView('purchases'); onClose(); } },
-    { id: 'act-new-company', label: 'Registrar Nueva Empresa (Multi-Tenant)', category: 'Acciones Rápidas', icon: Building2, action: () => { onClose(); if (onOpenNewCompany) onOpenNewCompany(); else setCurrentView('settings'); } }
+    { id: 'act-new-company', label: 'Registrar nueva empresa', category: 'Acciones Rápidas', icon: Building2, action: () => { onClose(); if (onOpenNewCompany) onOpenNewCompany(); else setCurrentView('settings'); } }
   ];
 
   const companyItems = companies.map(c => ({
@@ -145,7 +145,7 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose, onOpe
       >
         {/* Search Input Bar */}
         <div className="flex items-center px-4 py-3.5 border-b border-slate-100 bg-white gap-3">
-          <Search className="w-5 h-5 text-slate-400 shrink-0" />
+          <Search className="w-5 h-5 text-slate-600 shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -158,12 +158,12 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose, onOpe
             <button 
               type="button"
               onClick={() => setQuery('')}
-              className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+              className="text-slate-600 hover:text-slate-600 p-1 rounded-md"
             >
               <X className="w-4 h-4" />
             </button>
           )}
-          <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono text-slate-400 bg-slate-100 border border-slate-200">
+          <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-xs font-mono text-slate-600 bg-slate-100 border border-slate-200">
             ESC
           </span>
         </div>
@@ -171,7 +171,7 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose, onOpe
         {/* Results List */}
         <div role="listbox" aria-label="Lista de comandos" className="overflow-y-auto p-2 divide-y divide-slate-100/50">
           {filteredItems.length === 0 ? (
-            <div className="py-10 text-center text-slate-400 text-xs">
+            <div className="py-10 text-center text-slate-600 text-xs">
               No se encontraron comandos para &ldquo;<span className="text-slate-700 font-semibold">{query}</span>&rdquo;
             </div>
           ) : (
@@ -203,14 +203,14 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose, onOpe
                       <p className={`font-semibold truncate ${isSelected ? 'text-slate-900' : 'text-slate-800'}`}>
                         {item.label}
                       </p>
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                      <span className="text-xs uppercase font-bold tracking-wider text-slate-600">
                         {item.category}
                       </span>
                     </div>
                   </div>
 
                   {isSelected && (
-                    <span className="hidden sm:flex items-center gap-1 text-[10px] text-brand-600 font-mono font-medium">
+                    <span className="hidden sm:flex items-center gap-1 text-xs text-brand-600 font-mono font-medium">
                       <span>Seleccionar</span>
                       <CornerDownLeft className="w-3 h-3" />
                     </span>
@@ -222,7 +222,7 @@ export const CommandMenu: React.FC<CommandMenuProps> = ({ isOpen, onClose, onOpe
         </div>
 
         {/* Command Palette Footer */}
-        <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex items-center justify-between text-[11px] text-slate-400">
+        <div className="bg-slate-50 border-t border-slate-100 px-4 py-2 flex items-center justify-between text-xs text-slate-600">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono text-[9px] text-slate-600">↑↓</kbd>

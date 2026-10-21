@@ -18,8 +18,8 @@ describe('CommandMenu Component (shadcn-admin Cmd+K Palette)', () => {
     );
 
     expect(screen.getByPlaceholderText(/Escribe un comando/i)).toBeInTheDocument();
-    expect(screen.getByText(/Dashboard Fiscal/i)).toBeInTheDocument();
-    expect(screen.getByText(/Emitir Factura Consumidor Final/i)).toBeInTheDocument();
+    expect(screen.getByText(/Inicio/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preparar factura de consumidor final/i)).toBeInTheDocument();
   });
 
   it('filters commands when typing in the search box', () => {
@@ -32,8 +32,8 @@ describe('CommandMenu Component (shadcn-admin Cmd+K Palette)', () => {
     const input = screen.getByPlaceholderText(/Escribe un comando/i);
     fireEvent.change(input, { target: { value: 'Compras' } });
 
-    expect(screen.getByText(/Módulo de Compras y Gastos/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Catálogo de Productos y Servicios/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Compras y gastos/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Productos y servicios/i)).not.toBeInTheDocument();
   });
 
   it('renders all 5 official Salvadoran DTE types in the palette', () => {
@@ -43,11 +43,11 @@ describe('CommandMenu Component (shadcn-admin Cmd+K Palette)', () => {
       </AppProvider>
     );
 
-    expect(screen.getByText(/Emitir Factura Consumidor Final \(DTE-01\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Emitir Comprobante Crédito Fiscal \(DTE-03\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Emitir Sujeto Excluido \(DTE-14\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Emitir Nota de Crédito \(DTE-05\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Emitir Nota de Débito \(DTE-06\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preparar factura de consumidor final \(DTE-01\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preparar comprobante de crédito fiscal \(DTE-03\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preparar factura de sujeto excluido \(DTE-14\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preparar nota de crédito \(DTE-05\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preparar nota de débito \(DTE-06\)/i)).toBeInTheDocument();
   });
 
   it('supports keyboard navigation with arrow keys and Enter selection', () => {

@@ -9,6 +9,8 @@ const cloud = vi.hoisted(() => ({
   data: {} as Record<string, any[]>,
   readError: '', writeError: '',
   inserts: [] as { table: string; rows: any[] }[],
+  delays: {} as Record<string, Promise<void>>,
+  rpc: vi.fn(),
   success: vi.fn(), error: vi.fn()
 }));
 
@@ -16,13 +18,20 @@ vi.mock('sonner', () => ({ toast: { success: cloud.success, error: cloud.error }
 vi.mock('../lib/supabase', () => ({
   get isSupabaseConfigured() { return cloud.configured; },
   supabase: {
+    rpc: cloud.rpc,
     from: (table: string) => ({
       select: () => {
-        const response = Promise.resolve({
-          data: cloud.data[table] || [],
-          error: cloud.readError === table ? { message: 'permission denied' } : null
-        });
-        return Object.assign(response, { order: () => response });
+        let filtered = cloud.data[table] || [];
+        let company = '';
+        const query = {
+          order: () => query,
+          eq: (_column: string, id: string) => { company = id; filtered = filtered.filter(row => row.company_id === id); return query; },
+          range: async (start: number, end: number) => {
+            await cloud.delays[table + ':' + company];
+            return { data: filtered.slice(start, end + 1), count: filtered.length, error: cloud.readError === table ? { message: 'permission denied' } : null };
+          }
+        };
+        return query;
       },
       insert: async (rows: any[]) => {
         cloud.inserts.push({ table, rows });
@@ -56,6 +65,8 @@ beforeEach(() => {
   cloud.readError = '';
   cloud.writeError = '';
   cloud.inserts = [];
+  cloud.delays = {};
+  cloud.rpc.mockResolvedValue({ data: 'new-company-id', error: null });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -66,6 +77,37 @@ async function loaded() {
 }
 
 describe('Persistence and truthful confirmations', () => {
+  it('creates a company through the atomic ownership RPC', async () => {
+    const { result } = await loaded();
+    const { id: _id, ...input } = company;
+    await act(async () => { await result.current.addCompany(input); });
+    expect(cloud.rpc).toHaveBeenCalledWith('create_company', { company_data: expect.objectContaining({ name: company.name, id: expect.any(String) }) });
+    expect(cloud.inserts.some(insert => insert.table === 'companies')).toBe(false);
+  });
+  it('does not replace the active company with a late response from a previous selection', async () => {
+    const otherId = INITIAL_COMPANIES[1].id;
+    cloud.data.companies = [rawCompany, { ...rawCompany, id: otherId, name: 'Other company' }];
+    cloud.data.clients = [{ id: 'alpha', company_id: company.id, name: 'Alpha' }, { id: 'beta', company_id: otherId, name: 'Beta' }];
+    const { result } = await loaded();
+    let finish!: () => void;
+    cloud.delays['clients:' + otherId] = new Promise(resolve => { finish = resolve; });
+    act(() => result.current.setCurrentCompanyId(otherId));
+    await waitFor(() => expect(result.current.dataStatus).toBe('loading'));
+    act(() => result.current.setCurrentCompanyId(company.id));
+    await waitFor(() => expect(result.current.clients[0].name).toBe('Alpha'));
+    await act(async () => finish());
+    expect(result.current.currentCompanyId).toBe(company.id);
+    expect(result.current.clients.map(client => client.name)).toEqual(['Alpha']);
+  });
+  it('recovers a failed company read on an explicit refresh', async () => {
+    cloud.readError = 'clients';
+    const { result } = renderHook(() => useApp(), { wrapper });
+    await waitFor(() => expect(result.current.dataStatus).toBe('error'));
+    cloud.readError = '';
+    act(() => result.current.refreshData());
+    await waitFor(() => expect(result.current.dataStatus).toBe('ready'));
+    expect(result.current.isCloudSyncActive).toBe(true);
+  });
   it('does not mix cached demo records with an empty cloud database', async () => {
     localStorage.setItem('sivarconta_clients', JSON.stringify(INITIAL_CLIENTS));
     const { result } = await loaded();
@@ -94,7 +136,8 @@ describe('Persistence and truthful confirmations', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
     await waitFor(() => expect(cloud.error).toHaveBeenCalled());
     expect(result.current.isCloudSyncActive).toBe(false);
-    expect(result.current.companies).toEqual([]);
+    expect(result.current.companies).toHaveLength(1);
+    expect(result.current.dataStatus).toBe('error');
     expect(result.current.invoices).toEqual([]);
     consoleSpy.mockRestore();
   });

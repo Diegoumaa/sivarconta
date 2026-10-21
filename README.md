@@ -2,7 +2,7 @@
 
 Prototipo web de facturación y gestión contable para El Salvador, construido con React, TypeScript y Vite. Incluye vistas de ventas, clientes, productos, compras y libros de IVA.
 
-**El estado actual es de demostración y evaluación. Los documentos nuevos se guardan como borradores sin validez fiscal. La interfaz incluye acceso con Supabase Auth y recuperación de cuenta, pero todavía requiere verificar el proyecto real, la autorización por empresa y el backend fiscal antes de utilizarse con datos reales o comercializarse como SaaS.**
+**El estado actual es de evaluación. Los documentos nuevos son borradores sin validez fiscal. Incluye registro, acceso y recuperación con Supabase Auth, navegación con URL y permisos por empresa. La firma/emisión fiscal, el guardado atómico de facturas y la concurrencia de correlativos siguen pendientes antes de operar en producción fiscal.**
 
 ## Ejecución local
 
@@ -41,7 +41,9 @@ VITE_SUPABASE_ANON_KEY=tu-clave-publica
 
 Reinicia Vite después de cambiar el archivo. Las variables con prefijo `VITE_` forman parte del JavaScript público entregado al navegador: utiliza únicamente la clave pública del proyecto. Las claves `service_role`, credenciales de Hacienda y llaves privadas deben permanecer en un backend seguro.
 
-El esquema de referencia está en `supabase/schema.sql`. Contiene tablas y políticas RLS, pero requiere revisión y pruebas de integración antes de su uso real. Con variables configuradas, la aplicación solicita inicio de sesión antes de montar el proveedor de datos remotos. Incluye recuperación de acceso y cierre de sesión; su funcionamiento real depende de que el proyecto Supabase esté disponible y configurado. La gestión de miembros y sus permisos sigue pendiente de validación integral.
+`supabase/schema.sql` es el esquema inicial histórico. En una base nueva aplica después `supabase/migrations/20261021_security.sql`; no vuelvas a ejecutar las semillas ni el esquema inicial sobre una base existente. La migración sustituye las reglas piloto abiertas, exige autenticación y membresía, elimina la recursión de miembros y protege la columna `mh_api_key` del acceso desde el navegador. Fue aplicada al proyecto restaurado el 21 de octubre de 2026 con autorización del propietario; después se verificó HTTP 401 para las ocho tablas usando solo la clave pública sin sesión.
+
+El registro requiere confirmar el correo cuando Supabase tenga activada esa opción. Configura **Authentication → URL Configuration → Site URL** con la URL de tu despliegue; en el proyecto publicado es `https://sivarconta.vercel.app`. Una cuenta nueva empieza sin empresas. La RPC `create_company` crea la empresa y su propietario en una sola transacción y no permite apropiarse de empresas existentes. Las empresas históricas sin miembros requieren una asignación administrativa explícita.
 
 La opción **Explorar demostración** carga únicamente datos de ejemplo del navegador, incluso si el despliegue tiene variables de Supabase. No realiza consultas a las tablas de empresas. Esta separación está cubierta por pruebas de componentes. La interfaz de acceso no sustituye las políticas RLS: una API expuesta debe protegerse también en el servidor.
 
@@ -51,7 +53,16 @@ La demostración explícita utiliza el espacio de almacenamiento `sivarconta_dem
 
 El aislamiento entre empresas debe aplicarse con usuarios autenticados, membresías verificadas y políticas RLS probadas en PostgreSQL. Las políticas de acceso universal y la desactivación de RLS exponen los registros; no deben utilizarse para resolver errores de permisos. La selección de empresa y los filtros del frontend por sí solos no son una barrera de autorización.
 
-Antes de conectar datos reales se debe verificar con dos usuarios de empresas diferentes que cada operación de lectura, inserción, edición y eliminación rechace el acceso cruzado, incluida la consulta directa a la API.
+`supabase/tests/tenant-isolation.sql` prepara 27 comprobaciones de RLS con tres usuarios ficticios, dos empresas y registros sintéticos, y termina con `ROLLBACK`. Úsalo primero en una base de pruebas. Un archivo preparado no equivale a un resultado aprobado: consulta el informe de la ejecución para conocer qué comprobaciones se ejecutaron realmente. No confirma el envío de correos ni la recuperación completa de una cuenta real.
+
+## Arquitectura del frontend
+
+- `NavigationContext` separa las rutas y vistas previas del estado de los datos. Las URL, por ejemplo `#/clientes` o `#/facturas/nueva`, admiten acceso directo, recarga y Atrás/Adelante en un alojamiento estático. Los enlaces laterales conservan el comportamiento nativo de abrir en otra pestaña.
+- Cada sección y la vista previa se cargan con `React.lazy`. Una espera visible y un límite de errores permiten recuperarse de fallos de red o de un módulo sin dejar la pantalla vacía.
+- `services/companyRepository.ts` concentra las consultas y los mapeos de la API. Selecciona solo columnas públicas de empresas y limita los demás registros a la empresa activa en el servidor. RLS sigue siendo la barrera de autorización.
+- La lectura usa páginas de hasta 500 filas y comprueba el conteo total para evitar truncar los cálculos por el límite de REST. Todavía recupera el conjunto completo de la empresa activa; no es paginación de listas a demanda ni un motor de informes del servidor.
+- Hay una caché de 30 segundos por empresa y por instancia autenticada, invalidada al escribir y al pulsar **Actualizar datos**. No se comparte entre sesiones ni con la demostración. Las respuestas tardías de una empresa anterior se descartan.
+- Mientras se consulta la nube o hay un error, no se muestran ceros como si fueran cifras confirmadas. Las mutaciones y los respaldos locales permanecen en `AppContext`; su separación por dominio puede seguir evolucionando.
 
 ## Persistencia y alcance de la demostración
 
@@ -59,13 +70,13 @@ Antes de conectar datos reales se debe verificar con dos usuarios de empresas di
 - Las confirmaciones de guardado se muestran después de una respuesta remota sin error o de un guardado local correcto. Un error conserva el formulario para reintentar.
 - Los identificadores de nuevos clientes, productos, compras y documentos son UUID coherentes entre el estado local y la escritura remota.
 - Las facturas recuperan sus partidas y el estado almacenado. Los nuevos documentos quedan como `BORRADOR`, sin sello de recepción, respuesta ni QR de aceptación MH simulados.
-- El indicador de conexión confirma la carga inicial correcta. Todavía no existe sincronización realtime ni resolución de conflictos entre dispositivos.
+- La actualización explícita vuelve a consultar la nube. Todavía no existe sincronización realtime ni resolución de conflictos entre dispositivos.
 - Los datos de ejemplo y documentos históricos de versiones previas pueden contener sellos o estados simulados. No constituyen evidencia de aceptación fiscal.
 
 ## Trabajo pendiente antes de producción
 
-1. Verificar los flujos de autenticación y recuperación con el proyecto Supabase real, y completar roles/permisos. Definir alta de empresas y asignación del miembro propietario de forma transaccional.
-2. Revisar las políticas SQL y probar el aislamiento por empresa en una base de pruebas. Las subconsultas de las políticas de empresas y miembros requieren especial atención a sus referencias y posibles recursiones.
+1. Completar la prueba de registro, correo y recuperación con cuentas reales, y la interfaz de administración de miembros. El acceso al panel de Supabase no crea una cuenta de usuario de la aplicación.
+2. Completar la validación de permisos con sesiones reales, además de las pruebas SQL y los rechazos de la API anónima. Revisar las empresas históricas sin propietario y las facturas históricas sin partidas; no inventar ni borrar información para hacer pasar la revisión.
 3. Guardar encabezado y partidas de una factura mediante una RPC transaccional con reintentos idempotentes. Actualmente son dos peticiones: un fallo del detalle se reporta, pero puede dejar un borrador parcial en la base.
 4. Reservar correlativos mediante una secuencia o función transaccional del backend, con restricciones por empresa, tipo de documento y establecimiento. La reserva del navegador solo evita colisiones dentro de esa instancia.
 5. Completar el esquema y los mapeos para conservar entre dispositivos el concepto, forma de pago y retención de renta de compras, la categoría de productos y el nombre comercial de clientes.
@@ -78,7 +89,8 @@ Antes de conectar datos reales se debe verificar con dos usuarios de empresas di
 ```text
 src/
   components/       Vistas, formularios y navegación
-  context/          Estado y coordinación de persistencia
+  context/          Estado de datos y navegación en proveedores separados
+  services/         Consultas por empresa, paginación y mapeos de Supabase
   data/             Datos de demostración
   lib/              Configuración de Supabase y almacenamiento local
   types/            Tipos de documentos y entidades

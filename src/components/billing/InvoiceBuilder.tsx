@@ -246,7 +246,7 @@ export const InvoiceBuilder: React.FC = () => {
           <span>Listado</span>
         </button>
         <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-medium text-slate-500">Asistente DTE</span>
+          <h1 className="text-base font-bold text-slate-800">Nueva factura</h1>
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
         </div>
       </div>
@@ -364,7 +364,7 @@ export const InvoiceBuilder: React.FC = () => {
                         </span>
                         {isSelected && <span className="w-2 h-2 rounded-full bg-brand-600"></span>}
                       </div>
-                      <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug truncate sm:whitespace-normal">
+                      <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug whitespace-normal">
                         {meta.short}
                       </h4>
                       <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-relaxed hidden sm:block">
@@ -395,7 +395,7 @@ export const InvoiceBuilder: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <div className="sm:col-span-2">
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  <label htmlFor="billing-client" className="text-xs font-semibold text-slate-700 block mb-1">
                     Cliente Registrado
                   </label>
                   {filteredClients.length === 0 ? (
@@ -411,6 +411,7 @@ export const InvoiceBuilder: React.FC = () => {
                     </div>
                   ) : (
                     <select
+                      id="billing-client"
                       value={selectedClientId}
                       onChange={e => setSelectedClientId(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
@@ -433,6 +434,7 @@ export const InvoiceBuilder: React.FC = () => {
                       <input
                         type="text"
                         disabled
+                        aria-label="Documento del cliente"
                         value={currentClient.docNumber}
                         className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-600"
                       />
@@ -445,6 +447,7 @@ export const InvoiceBuilder: React.FC = () => {
                       <input
                         type="text"
                         disabled
+                        aria-label="NRC del cliente"
                         value={currentClient.nrc || 'Sin NRC registrado'}
                         className={`w-full bg-slate-100 border rounded-xl px-3 py-2 text-xs font-mono font-semibold ${
                           currentClient.nrc ? 'border-slate-200 text-purple-700' : 'border-amber-300 text-amber-600'
@@ -459,6 +462,7 @@ export const InvoiceBuilder: React.FC = () => {
                       <input
                         type="text"
                         disabled
+                        aria-label="Ubicación del cliente"
                         value={`${currentClient.address}, ${currentClient.municipality}`}
                         className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 truncate"
                       />

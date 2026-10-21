@@ -86,20 +86,27 @@ export const DashboardView: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20 md:pb-8">
+      <section aria-label="Acción principal" className="relative overflow-hidden rounded-2xl bg-slate-900 px-5 py-4 text-white sm:px-6 sm:py-5">
+        <div className="absolute -right-12 -top-20 h-64 w-64 rounded-full bg-brand-500/20" aria-hidden="true" />
+        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+          <div><h2 className="text-xl font-bold tracking-tight">Prepara tu próxima factura</h2><p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-200">Elige un cliente, agrega productos y revisa el total antes de guardar.</p></div>
+          <button onClick={() => startNewInvoiceWithDte('01')} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-slate-900 hover:bg-indigo-50">Nueva factura<ArrowRight className="h-4 w-4" /></button>
+        </div>
+      </section>
       {/* Top Banner & Period Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)]">
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              Dashboard Financiero & Tributario
+              Así va tu negocio
             </h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Activo
+              Resumen
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Empresa: <strong className="text-slate-800">{currentCompany?.name || 'Empresa No Configurada'}</strong> • NRC: <span className="font-mono text-slate-700 font-semibold">{currentCompany?.nrc || '---'}</span>
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
+            Empresa: <strong className="text-slate-800">{currentCompany?.name || 'Empresa No Configurada'}</strong> • NRC: <span className="whitespace-nowrap font-mono text-slate-700 font-semibold">{currentCompany?.nrc || '---'}</span>
           </p>
         </div>
 
@@ -113,7 +120,7 @@ export const DashboardView: React.FC = () => {
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all duration-150 active:scale-95 cursor-pointer ${
                 period === p
                   ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               {p === 'mes' ? 'Este Mes' : p === 'semana' ? 'Esta Semana' : p === 'anterior' ? 'Mes anterior' : p === 'personalizado' ? 'Rango personalizado' : 'Hoy'}
@@ -136,18 +143,18 @@ export const DashboardView: React.FC = () => {
         {/* Ventas Card */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-sm transition-all group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Ventas Facturadas</span>
-            <TrendingUp className="w-4 h-4 text-slate-400 group-hover:text-brand-600 transition-colors" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600 group-hover:text-slate-600 transition-colors">Ventas Facturadas</span>
+            <TrendingUp className="w-4 h-4 text-slate-600 group-hover:text-brand-600 transition-colors" />
           </div>
           <div className="mt-3">
             <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
               ${totalVentas.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="text-xs text-slate-500 mt-2.5 flex items-center gap-1.5">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80">
-                {filteredInvoices.length} DTEs
+            <div className="text-xs text-slate-600 mt-2.5 flex items-center gap-1.5">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200/80">
+                {sales.length} DTEs
               </span>
-              <span>documentos DTE emitidos</span>
+              <span>ventas procesadas</span>
             </div>
           </div>
         </div>
@@ -155,15 +162,15 @@ export const DashboardView: React.FC = () => {
         {/* Compras Card */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-sm transition-all group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Compras Registradas</span>
-            <TrendingDown className="w-4 h-4 text-slate-400 group-hover:text-purple-600 transition-colors" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600 group-hover:text-slate-600 transition-colors">Compras Registradas</span>
+            <TrendingDown className="w-4 h-4 text-slate-600 group-hover:text-purple-600 transition-colors" />
           </div>
           <div className="mt-3">
             <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
               ${totalCompras.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="text-xs text-slate-500 mt-2.5 flex items-center gap-1.5">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200/80">
+            <div className="text-xs text-slate-600 mt-2.5 flex items-center gap-1.5">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200/80">
                 {filteredPurchases.length} docs
               </span>
               <span>comprobantes recibidos</span>
@@ -174,15 +181,15 @@ export const DashboardView: React.FC = () => {
         {/* Débito Fiscal Card */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-sm transition-all group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Débito Fiscal (IVA 13%)</span>
-            <Receipt className="w-4 h-4 text-slate-400 group-hover:text-amber-600 transition-colors" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600 group-hover:text-slate-600 transition-colors">IVA de tus ventas</span>
+            <Receipt className="w-4 h-4 text-slate-600 group-hover:text-amber-600 transition-colors" />
           </div>
           <div className="mt-3">
             <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
               ${debitoFiscalTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="text-xs text-slate-500 mt-2.5 flex items-center gap-1.5">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60">
+            <div className="text-xs text-slate-600 mt-2.5 flex items-center gap-1.5">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/60">
                 13% Débito
               </span>
               <span>IVA generado en tus ventas</span>
@@ -193,15 +200,15 @@ export const DashboardView: React.FC = () => {
         {/* Crédito Fiscal Card */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200/70 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] hover:border-slate-300 hover:shadow-sm transition-all group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Crédito Fiscal (Compras)</span>
-            <FileText className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-600 group-hover:text-slate-600 transition-colors">IVA de tus compras</span>
+            <FileText className="w-4 h-4 text-slate-600 group-hover:text-emerald-600 transition-colors" />
           </div>
           <div className="mt-3">
             <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tabular-nums tracking-tight">
               ${creditoFiscalTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="text-xs text-slate-500 mt-2.5 flex items-center gap-1.5">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+            <div className="text-xs text-slate-600 mt-2.5 flex items-center gap-1.5">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
                 13% Crédito
               </span>
               <span>IVA deducible de tus compras</span>
@@ -214,10 +221,10 @@ export const DashboardView: React.FC = () => {
       <div className="p-5 sm:p-6 rounded-2xl bg-white text-slate-900 shadow-sm border border-slate-200/80 border-l-4 border-l-brand-600 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-50 text-brand-700 border border-brand-200/60 font-mono">
+            <span className="px-2 py-0.5 rounded text-xs font-bold bg-brand-50 text-brand-700 border border-brand-200/60 font-mono">
               FORMULARIO F07 MINISTERIO DE HACIENDA
             </span>
-            <span className="text-xs text-slate-400 font-medium">Liquidación Proyectada</span>
+            <span className="text-xs text-slate-600 font-medium">Liquidación Proyectada</span>
           </div>
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">Liquidación de IVA del período</h2>
           <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
@@ -238,7 +245,7 @@ export const DashboardView: React.FC = () => {
             onClick={() => setCurrentView('books')}
             className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-xs active:scale-95 cursor-pointer"
           >
-            Ver Libros Oficiales F07
+            Revisar libros de IVA
           </button>
         </div>
       </div>
@@ -254,14 +261,14 @@ export const DashboardView: React.FC = () => {
                 <span className="p-1 rounded-md bg-brand-50 text-brand-700 border border-brand-200/60">
                   <Sparkles className="w-3.5 h-3.5 text-brand-600" />
                 </span>
-                <span className="text-[11px] font-bold text-brand-700 uppercase tracking-wider">
+                <span className="text-xs font-bold text-brand-700 uppercase tracking-wider">
                   Guía de Inicio Rápido
                 </span>
               </div>
               <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
                 Prepara tu primer documento de prueba
               </h2>
-              <p className="text-xs text-slate-500 max-w-xl">
+              <p className="text-xs text-slate-600 max-w-xl">
                 Hemos preparado esta guía interactiva para acompañarte paso a paso sin complicaciones tributarias.
               </p>
             </div>
@@ -269,7 +276,7 @@ export const DashboardView: React.FC = () => {
             {/* Progress bar */}
             <div className="flex items-center gap-3 bg-slate-50 p-2.5 px-3.5 rounded-xl border border-slate-200/80 shrink-0">
               <div className="text-right">
-                <span className="text-[10px] text-slate-400 block font-medium">Progreso</span>
+                <span className="text-xs text-slate-600 block font-medium">Progreso</span>
                 <span className="text-sm font-extrabold font-mono text-brand-700">{progressPercent}%</span>
               </div>
               <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
@@ -287,14 +294,14 @@ export const DashboardView: React.FC = () => {
             <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-1.5">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
                     step1Complete ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
                   }`}>
                     {step1Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '1'}
                   </span>
                   <span className="text-xs font-bold text-slate-900">Datos de Empresa</span>
                 </div>
-                <p className="text-[11px] text-slate-500">NRC y giro configurados</p>
+                <p className="text-xs text-slate-600">NRC y giro configurados</p>
               </div>
               <button
                 onClick={() => setCurrentView('settings')}
@@ -308,14 +315,14 @@ export const DashboardView: React.FC = () => {
             <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-1.5">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
                     step2Complete ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
                   }`}>
                     {step2Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '2'}
                   </span>
                   <span className="text-xs font-bold text-slate-900">Catálogo Inicial</span>
                 </div>
-                <p className="text-[11px] text-slate-500">{filteredProducts.length} productos listos</p>
+                <p className="text-xs text-slate-600">{filteredProducts.length} productos listos</p>
               </div>
               <button
                 onClick={() => setCurrentView('catalog')}
@@ -329,14 +336,14 @@ export const DashboardView: React.FC = () => {
             <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-1.5">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
                     step3Complete ? 'bg-emerald-600 text-white' : 'bg-brand-600 text-white'
                   }`}>
                     {step3Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '3'}
                   </span>
-                  <span className="text-xs font-bold text-slate-900">Emitir Primer DTE</span>
+                  <span className="text-xs font-bold text-slate-900">Tu primera factura</span>
                 </div>
-                <p className="text-[11px] text-slate-500">Borrador local de prueba</p>
+                <p className="text-xs text-slate-600">Elige un cliente y agrega productos</p>
               </div>
               <button
                 onClick={() => startNewInvoiceWithDte('01')}
@@ -359,7 +366,7 @@ export const DashboardView: React.FC = () => {
               <PlusCircle className="w-4 h-4 text-brand-600" />
               Emisión Rápida de DTEs
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-600 mt-0.5">
               Haz clic en el documento que necesitas emitir:
             </p>
           </div>
@@ -378,13 +385,13 @@ export const DashboardView: React.FC = () => {
                     </span>
                     <div>
                       <p className="text-xs font-bold text-slate-800">{meta.name}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">
+                      <p className="text-xs text-slate-600 font-mono">
                         {countByType[type] || 0} documentos en el período
                       </p>
                     </div>
                   </div>
                   <span className="text-xs text-brand-600 font-semibold group-hover:translate-x-0.5 transition-transform">
-                    Emitir →
+                    Preparar →
                   </span>
                 </button>
               );
@@ -397,7 +404,7 @@ export const DashboardView: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <Clock className="w-4 h-4 text-slate-500" />
+                <Clock className="w-4 h-4 text-slate-600" />
                 Documentos recientes del período
               </h3>
               <button
@@ -411,7 +418,7 @@ export const DashboardView: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-100 text-slate-400 font-semibold">
+                  <tr className="border-b border-slate-100 text-slate-600 font-semibold">
                     <th className="pb-2.5">DTE / Control</th>
                     <th className="pb-2.5">Cliente</th>
                     <th className="pb-2.5">Fecha</th>
@@ -423,7 +430,7 @@ export const DashboardView: React.FC = () => {
                 <tbody className="divide-y divide-slate-100">
                   {filteredInvoices.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                      <td colSpan={6} className="py-8 text-center text-slate-600">
                         No hay documentos emitidos todavía en esta empresa.
                       </td>
                     </tr>
@@ -434,14 +441,14 @@ export const DashboardView: React.FC = () => {
                         <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
                           <td className="py-2.5 font-medium text-slate-800">
                             <div className="flex items-center gap-1.5">
-                              <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${meta.badgeColor}`}>
+                              <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-bold ${meta.badgeColor}`}>
                                 {inv.dteType}
                               </span>
-                              <span className="font-mono text-[11px] text-slate-700 font-semibold">{inv.controlNumber.split('-').slice(2).join('-')}</span>
+                              <span className="font-mono text-xs text-slate-700 font-semibold">{inv.controlNumber.split('-').slice(2).join('-')}</span>
                               <button
                                 type="button"
                                 onClick={() => copyToClipboard(inv.generationCode, 'UUID copiado al portapapeles', inv.generationCode)}
-                                className="text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors btn-tactile"
+                                className="text-slate-600 hover:text-slate-700 p-0.5 rounded transition-colors btn-tactile"
                                 title="Copiar UUID"
                               >
                                 <Copy className="w-3 h-3" />
@@ -451,7 +458,7 @@ export const DashboardView: React.FC = () => {
                           <td className="py-2.5 max-w-[150px] truncate text-slate-700 font-medium">
                             {inv.clientName}
                           </td>
-                          <td className="py-2.5 text-slate-500 font-mono text-[11px]">
+                          <td className="py-2.5 text-slate-600 font-mono text-xs">
                             {inv.emissionDate}
                           </td>
                           <td className="py-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">
@@ -463,7 +470,7 @@ export const DashboardView: React.FC = () => {
                           <td className="py-2.5 text-center">
                             <button
                               onClick={() => setActiveDtePreview(inv)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-slate-100 transition-colors active:scale-90 cursor-pointer"
+                              className="p-1.5 rounded-lg text-slate-600 hover:text-brand-600 hover:bg-slate-100 transition-colors active:scale-90 cursor-pointer"
                               title="Ver DTE Oficial"
                             >
                               <Eye className="w-4 h-4" />
@@ -478,7 +485,7 @@ export const DashboardView: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
             <span>Demostración: sin conexión de emisión a Hacienda</span>
             <span className="font-mono font-medium text-slate-600">Sin validez fiscal</span>
           </div>

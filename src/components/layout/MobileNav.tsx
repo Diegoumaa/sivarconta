@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useNavigation } from '../../context/NavigationContext';
 import { LayoutDashboard, Receipt, Package, Users, BookOpen, ShoppingBag, Settings, Menu } from 'lucide-react';
 
 export const MobileNav: React.FC = () => {
-  const { currentView, setCurrentView } = useApp();
+  const { currentView, setCurrentView } = useNavigation();
   const [showMore, setShowMore] = useState(false);
   const navRef = useRef<HTMLElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
