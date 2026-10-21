@@ -26,6 +26,10 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Check production dependencies
+        run: npm run audit:production
+      - name: Reject critical development advisories
+        run: npm run audit:critical
       - name: Run tests
         run: npm test
       - name: Build

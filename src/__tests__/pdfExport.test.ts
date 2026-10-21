@@ -3,6 +3,8 @@ import { exportElementToPdf } from '../utils/pdfExport';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
+const pdfMethods = vi.hoisted(() => ({ addImage: vi.fn(), addPage: vi.fn(), save: vi.fn() }));
+
 vi.mock('html2canvas', () => ({
   default: vi.fn().mockResolvedValue({
     width: 800,
@@ -13,11 +15,7 @@ vi.mock('html2canvas', () => ({
 
 vi.mock('jspdf', () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
-      addImage: vi.fn(),
-      addPage: vi.fn(),
-      save: vi.fn(),
-    })),
+    default: vi.fn(function MockPdf() { return pdfMethods; }),
   };
 });
 
@@ -44,6 +42,9 @@ describe('pdfExport Utility', () => {
 
     const result = await exportElementToPdf('printable-test-area', 'DTE-01-M001P001-000000000000001');
     expect(result).toBe(true);
+    expect(jsPDF).toHaveBeenCalledWith({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+    expect(pdfMethods.addImage).toHaveBeenCalledTimes(1);
+    expect(pdfMethods.save).toHaveBeenCalledWith('DTE-01-M001P001-000000000000001.pdf');
   });
 
   it('restores preview styles when canvas capture fails', async () => {

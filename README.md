@@ -6,7 +6,7 @@ Prototipo web de facturación y gestión contable para El Salvador, construido c
 
 ## Ejecución local
 
-Utiliza Node.js 22 y npm. Desde la raíz del repositorio:
+Utiliza Node.js 22.12 o posterior de la rama 22 y npm. Desde la raíz del repositorio:
 
 ```sh
 npm ci
@@ -22,13 +22,17 @@ Sin variables de Supabase, la aplicación funciona como demo local con datos de 
 ```sh
 npm test
 npm run build
+npm run audit:production
+npm run audit:critical
 ```
 
 `npm test` ejecuta Vitest y React Testing Library. La salida del comando determina el número de pruebas y su resultado; el proyecto no mantiene una cifra fija de pruebas aprobadas en esta documentación.
 
 `npm run build` comprueba TypeScript y genera el sitio estático en `dist/`. Una compilación correcta o una suite aprobada no certifican seguridad, cumplimiento fiscal ni comportamiento contra servicios externos.
 
-El workflow `.github/workflows/ci.yml` instala dependencias, ejecuta pruebas y compila en Node.js 22 para cada push y pull request. Ese workflow no publica ni despliega el sitio.
+El workflow `.github/workflows/ci.yml` instala dependencias, audita producción, rechaza avisos críticos de desarrollo, ejecuta pruebas y compila en Node.js 22 para cada push y pull request. Ese workflow no publica ni despliega el sitio.
+
+Las versiones de Vite, Vitest y el plugin de React están fijadas en el lockfile. El analizador de selectores CSS usa una versión corregida mediante `overrides`. La auditoría crítica permite los avisos altos de desarrollo que siguen abiertos en la cadena de Tailwind 3; no equivale a una auditoría sin avisos. Antes de migrar Tailwind se deben comprobar el diseño y la exportación PDF.
 
 ## Supabase opcional para desarrollo
 
