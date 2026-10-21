@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
-  const { currentView, setCurrentView } = useApp();
+  const { currentView, setCurrentView, dataMode } = useApp();
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard Fiscal', icon: LayoutDashboard, badge: null },
@@ -20,7 +20,7 @@ export const Sidebar: React.FC = () => {
     { id: 'catalog', label: 'Catálogo Productos', icon: Package, badge: null },
     { id: 'clients', label: 'Directorio Clientes', icon: Users, badge: null },
     { id: 'purchases', label: 'Módulo Compras', icon: ShoppingBag, badge: null },
-    { id: 'books', label: 'Libros de IVA (F07)', icon: BookOpen, badge: 'Oficial' },
+    { id: 'books', label: 'Libros de IVA (F07)', icon: BookOpen, badge: null },
     { id: 'settings', label: 'Configuración MH', icon: Settings, badge: null }
   ];
 
@@ -39,6 +39,7 @@ export const Sidebar: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setCurrentView(item.id)}
+                  aria-current={isActive ? 'page' : undefined}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 active:scale-[0.98] cursor-pointer group ${
                     isActive
                       ? 'bg-slate-100 text-slate-900 font-semibold border-l-2 border-brand-600 rounded-l-none pl-2.5 shadow-2xs'
@@ -69,7 +70,7 @@ export const Sidebar: React.FC = () => {
             <span>Normativa DGII El Salvador</span>
           </div>
           <p className="text-[11px] text-slate-500 leading-relaxed">
-            Esquema oficial JSON v3 con firmado JWS y timbrado digital. Certificación de documentos tributarios.
+            Preparación de documentos de prueba. Firma digital, envío y certificación fiscal pendientes de integración.
           </p>
         </div>
       </div>
@@ -78,11 +79,11 @@ export const Sidebar: React.FC = () => {
       <div className="p-4 border-t border-slate-100 bg-white">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center font-bold text-xs text-white shadow-xs">
-            DU
+            DE
           </div>
           <div className="truncate">
-            <p className="text-xs font-semibold text-slate-800 truncate">Diego Umaña</p>
-            <p className="text-[10px] text-slate-400 truncate">Administrador Técnico</p>
+            <p className="text-xs font-semibold text-slate-800 truncate">{dataMode === 'cloud' ? 'Cuenta de empresa' : 'Sesión de demostración'}</p>
+            <p className="text-[10px] text-slate-500 truncate">{dataMode === 'cloud' ? 'Permisos sujetos a la base de datos' : 'Datos de ejemplo en este navegador'}</p>
           </div>
         </div>
       </div>

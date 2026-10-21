@@ -9,7 +9,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenCommand, onOpenNewCompany }) => {
-  const { companies, currentCompany, currentCompanyId, setCurrentCompanyId, setCurrentView, isCloudSyncActive } = useApp();
+  const { companies, currentCompany, currentCompanyId, setCurrentCompanyId, setCurrentView, isCloudSyncActive, dataMode } = useApp();
   const [internalCompanyModalOpen, setInternalCompanyModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -172,14 +172,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCommand, onOpenNewCompany 
               : 'bg-amber-50 border-amber-200/70 text-amber-700'
           }`}>
             <span className={`w-2 h-2 rounded-full ${isCloudSyncActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
-            <span>{isCloudSyncActive ? 'Nube Conectada' : 'Modo Demo / Local'}</span>
+            <span>{dataMode !== 'cloud' ? 'Demo en este navegador' : isCloudSyncActive ? 'Datos cargados de la nube' : 'Nube sin verificar'}</span>
           </div>
 
           {/* MH Status Indicator (Desktop only) */}
           <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200/80 text-slate-700 text-xs font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>MH {safeCompany?.mhEnvironment || 'PRUEBAS'}</span>
+            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
+            <span>MH sin conectar</span>
           </div>
 
           {/* Quick Create Invoice CTA */}

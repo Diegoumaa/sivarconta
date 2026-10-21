@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PurchasesView } from '../components/purchases/PurchasesView';
 import { AppProvider } from '../context/AppContext';
 
@@ -94,7 +94,7 @@ describe('PurchasesView Component & Calculations', () => {
     expect(screen.getByText('$50.00')).toBeInTheDocument();
   });
 
-  it('submits purchase form and adds purchase to list', () => {
+  it('submits purchase form and adds purchase to list', async () => {
     renderPurchases();
     fireEvent.click(screen.getByRole('button', { name: /Registrar Compra/i }));
 
@@ -111,6 +111,7 @@ describe('PurchasesView Component & Calculations', () => {
     fireEvent.change(amountInput, { target: { value: '100.00' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Guardar Compra/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     expect(screen.getByText('Librería Central')).toBeInTheDocument();
     expect(screen.getByText('CCF-555')).toBeInTheDocument();

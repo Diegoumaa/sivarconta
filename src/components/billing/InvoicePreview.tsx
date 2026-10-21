@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { InvoiceDocument, DTE_NAMES } from '../../types';
 import { Printer, Download, X, Code2, QrCode, CheckCircle2, ShieldCheck, Loader2, Copy } from 'lucide-react';
 import { exportElementToPdf } from '../../utils/pdfExport';
 import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
+import { DocumentStatusBadge } from '../ui/DocumentStatusBadge';
 
 interface InvoicePreviewProps {
   invoice: InvoiceDocument;
@@ -12,28 +13,43 @@ interface InvoicePreviewProps {
 }
 
 export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose }) => {
-  const { currentCompany } = useApp();
+  const { currentCompany, companies } = useApp();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [showJson, setShowJson] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Attach a class to body while modal is open to ensure clean CSS print isolation and listen for ESC
   useEffect(() => {
     document.body.classList.add('dte-modal-active');
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
+      }
+      if (e.key === 'Tab') {
+        const nodes = dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input, select, textarea, [tabindex="0"]');
+        const visible = Array.from(nodes || []).filter(element => element.getClientRects().length > 0);
+        const first = visible[0];
+        const last = visible[visible.length - 1];
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.body.classList.remove('dte-modal-active');
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);
 
   const meta = DTE_NAMES[invoice.dteType];
 
-  const safeCompany = currentCompany || {
+  const safeCompany = companies.find(company => company.id === invoice.companyId) || currentCompany || {
     name: 'Empresa Emisora',
     tradeName: '',
     nit: '0614-000000-000-0',
@@ -92,7 +108,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
       descripcion: item.description,
       precioUni: item.unitPrice,
       montoDescu: item.discount,
-      ventaNoSuj: 0,
+      ventaNoSuj: item.taxType === 'NO_SUJETO' ? item.total : 0,
       ventaExenta: item.taxType === 'EXENTO' ? item.total : 0,
       ventaGravada: item.taxType === 'GRAVADO' ? item.total : 0,
       tributos: item.taxType === 'GRAVADO' ? ['20'] : null
@@ -101,7 +117,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
       totalNoSuj: invoice.subtotalNoSujeto,
       totalExenta: invoice.subtotalExento,
       totalGravada: invoice.subtotalGravado,
-      subTotalVentas: invoice.subtotalGravado + invoice.subtotalExento,
+      subTotalVentas: invoice.subtotalGravado + invoice.subtotalExento + invoice.subtotalNoSujeto,
       descuNoSuj: 0,
       descuExenta: 0,
       descuGravada: invoice.descuentoTotal,
@@ -124,15 +140,15 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
     setIsGeneratingPdf(true);
     toast.info('Generando documento PDF...', { description: `${invoice.controlNumber}.pdf` });
     try {
-      setTimeout(async () => {
-        await exportElementToPdf('printable-dte-area', `${invoice.controlNumber}.pdf`);
-        setIsGeneratingPdf(false);
-        toast.success('PDF descargado exitosamente', { description: 'Listo para imprimir o enviar por correo.' });
-      }, 150);
+      await new Promise(resolve => setTimeout(resolve, 150));
+      const downloaded = await exportElementToPdf('printable-dte-area', `${invoice.controlNumber}.pdf`);
+      if (!downloaded) throw new Error('La exportación PDF no se completó.');
+      toast.success('PDF descargado exitosamente', { description: 'Representación del documento de prueba.' });
     } catch (err) {
       console.error('PDF export error:', err);
-      setIsGeneratingPdf(false);
       toast.error('Error al generar PDF');
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -156,6 +172,11 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
       className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm p-2 sm:p-6 flex items-center justify-center print-modal-wrapper animate-in fade-in duration-150"
     >
       <div 
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Vista previa del documento"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden border border-slate-200 my-4 sm:my-8 print-document-card animate-in zoom-in-95 duration-150"
       >
@@ -167,10 +188,8 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-xs sm:text-sm text-slate-900">Representación Gráfica Oficial DTE</h3>
-                <span className="px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  SELLO MH
-                </span>
+                <h3 className="font-bold text-xs sm:text-sm text-slate-900">Vista previa del documento</h3>
+                <DocumentStatusBadge status={invoice.status} />
               </div>
               <p className="text-[10px] text-slate-400 hidden sm:block">Ministerio de Hacienda de El Salvador (DGII)</p>
             </div>
@@ -192,7 +211,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
               onClick={handleDownloadPdf}
               disabled={isGeneratingPdf}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-xs font-bold text-white transition-all shadow-md shadow-emerald-600/30 btn-tactile cursor-pointer"
-              title="Descargar archivo PDF oficial tamaño Carta listo para enviar o imprimir"
+              title="Descargar PDF de prueba tamaño Carta"
             >
               {isGeneratingPdf ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -229,7 +248,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
         {showJson ? (
           <div className="p-6 bg-slate-900 text-slate-200 font-mono text-xs overflow-x-auto max-h-[75vh]">
             <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-2">
-              <span className="text-slate-400">Payload JSON transmitido a la API del Ministerio de Hacienda (DGII)</span>
+              <span className="text-slate-400">JSON orientativo · no firmado ni transmitido</span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -239,19 +258,20 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                   <Copy className="w-3.5 h-3.5" />
                   <span>Copiar JSON</span>
                 </button>
-                <span className="text-emerald-400 font-bold">Estado: FIRMADO_JWS</span>
+                <span className="text-amber-300 font-bold">Estado: SIN_FIRMA</span>
               </div>
             </div>
             <pre>{JSON.stringify(mhJsonPayload, null, 2)}</pre>
           </div>
         ) : (
           <div id="printable-dte-area" className="p-6 sm:p-10 text-slate-900 max-h-[85vh] overflow-y-auto print:max-h-none print:p-0 print:overflow-visible print:text-black bg-white">
+            <p className="mb-5 border-2 border-amber-600 p-3 text-center text-sm font-bold text-amber-900">DOCUMENTO DE DEMOSTRACIÓN · SIN VALIDEZ FISCAL</p>
             {/* Header: Emisor (Left) & Official DTE Box (Right) */}
             <div className="grid grid-cols-1 sm:grid-cols-12 print:grid-cols-12 gap-6 pb-5 border-b-2 border-slate-900 items-start">
               {/* Emisor Info */}
               <div className="sm:col-span-7 print:col-span-7 space-y-1.5">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Emisor Autorizado
+                  Datos del emisor
                 </span>
                 <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight">
                   {safeCompany.name}
@@ -315,8 +335,8 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                     </div>
                   </div>
                   <div className="pb-0.5">
-                    <span className="text-slate-500 font-sans font-bold text-[8px] uppercase block">Sello de Recepción MH:</span>
-                    <span className="text-emerald-800 break-all text-[9.5px] block font-bold leading-normal mt-0.5">{invoice.mhReceptionStamp}</span>
+                    <span className="text-slate-500 font-sans font-bold text-[8px] uppercase block">Referencia de recepción almacenada sin verificar:</span>
+                    <span className="text-slate-700 break-all text-[9.5px] block font-bold leading-normal mt-0.5">{invoice.mhReceptionStamp || 'No disponible · sin transmitir'}</span>
                   </div>
                   <div className="pt-1.5 border-t border-slate-200 text-slate-600 font-sans text-[10px] flex justify-between items-center">
                     <span><strong>Fecha:</strong> {invoice.emissionDate}</span>
@@ -397,24 +417,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
 
             {/* Bottom Summary: QR Code + Totals Box */}
             <div className="grid grid-cols-1 sm:grid-cols-12 print:grid-cols-12 gap-6 items-start">
-              {/* QR Code and MH Seal */}
-              <div className="sm:col-span-6 print:col-span-6 flex items-center gap-3.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                <div className="w-20 h-20 bg-white p-1 rounded-lg border border-slate-300 flex flex-col items-center justify-center shrink-0 shadow-sm">
-                  <QrCode className="w-14 h-14 text-slate-900" />
-                  <span className="text-[7px] font-mono text-slate-600 font-bold uppercase mt-0.5">DTE HACIENDA</span>
-                </div>
-                <div className="text-[10px] text-slate-600 space-y-1 leading-normal">
-                  <div className="flex items-center gap-1 text-emerald-800 font-bold">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Documento Válido ante Hacienda</span>
-                  </div>
-                  <p className="text-[9px] text-slate-500 leading-tight">
-                    Escanee el código QR para validar este documento directamente en el portal oficial del Ministerio de Hacienda de El Salvador.
-                  </p>
-                  <p className="text-[8px] font-mono text-brand-700 leading-normal break-all">
-                    factura.gob.sv/consultaPublica
-                  </p>
-                </div>
+              <div className="sm:col-span-6 print:col-span-6 bg-amber-50 p-3.5 rounded-xl border border-amber-200 text-sm text-amber-900 space-y-2">
+                <p className="font-bold">Consulta fiscal no disponible</p>
+                <p>Este documento de demostración no incluye un QR fiscal verificable. La firma y la recepción oficial requieren una integración con Hacienda.</p>
               </div>
 
               {/* Totals Breakdown */}
@@ -495,13 +500,13 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             {/* Official Fiscal Footer & Resolution */}
             <div className="mt-8 pt-4 border-t border-slate-200 text-center space-y-1">
               <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide">
-                Representación Gráfica Oficial de Documento Tributario Electrónico (DTE) · Ministerio de Hacienda de El Salvador
+                Representación de prueba de documento tributario electrónico
               </p>
               <p className="text-[8px] text-slate-400 font-mono">
-                Emitido conforme al Art. 29-A de la Ley de IVA y Art. 119-B del Código Tributario · Autorización DGII: RES-MH-DTE-2024-00492
+                Documento generado para revisión. Requiere integración y validación fiscal antes de su emisión real.
               </p>
               <p className="text-[8px] text-slate-400">
-                Plataforma Certificada SIVARCONTA · Verifique la autenticidad con el código QR o en factura.gob.sv
+                SIVARCONTA · Modo demostración
               </p>
             </div>
           </div>

@@ -44,6 +44,7 @@ export const InvoiceBuilder: React.FC = () => {
   const [observations, setObservations] = useState<string>('');
   const [isTransmitting, setIsTransmitting] = useState<boolean>(false);
   const [transmitStep, setTransmitStep] = useState<string>('');
+  const [saveError, setSaveError] = useState('');
 
   // Sync if context selected DTE changed
   useEffect(() => {
@@ -92,13 +93,23 @@ export const InvoiceBuilder: React.FC = () => {
   );
 
   // Business Rules validation
-  const rules = checkDteRules(
+  const fiscalRules = checkDteRules(
     selectedDteType, 
     totals.totalPagar, 
     currentClient?.docNumber, 
     currentClient?.nrc,
     Boolean(currentClient)
   );
+  const invalidItems = items.length === 0 || items.some(item =>
+    !item.description.trim() || !Number.isFinite(item.quantity) || item.quantity <= 0 ||
+    !Number.isFinite(item.unitPrice) || item.unitPrice < 0 ||
+    !Number.isFinite(item.discount) || item.discount < 0 || item.discount > item.quantity * item.unitPrice
+  );
+  const invalidCredit = condition === 'CREDITO' && (!Number.isInteger(creditDays) || creditDays <= 0);
+  const blockers = [...fiscalRules.blockers];
+  if (invalidItems) blockers.push('Revisa las partidas: descripción, cantidad positiva, precio válido y descuento entre cero y el importe de la partida.');
+  if (invalidCredit) blockers.push('El plazo de crédito debe ser un número entero de días mayor que cero.');
+  const rules = { ...fiscalRules, blockers, isReady: fiscalRules.isReady && !invalidItems && !invalidCredit };
 
   const handleProductSelect = (index: number, productId: string) => {
     const prod = filteredProducts.find(p => p.id === productId);
@@ -157,26 +168,21 @@ export const InvoiceBuilder: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isTransmitting) return;
+    setSaveError('');
     if (!currentClient) {
-      alert('Debe seleccionar o registrar al menos un cliente en esta empresa para emitir un DTE.');
+      setSaveError('Debe seleccionar o registrar al menos un cliente en esta empresa.');
       return;
     }
 
     if (!rules.isReady) {
-      alert(rules.blockers[0]);
+      setSaveError(rules.blockers[0]);
       return;
     }
 
     setIsTransmitting(true);
 
-    setTransmitStep('Estructurando JSON bajo Schema v3 oficial de Hacienda...');
-    await new Promise(r => setTimeout(r, 600));
-
-    setTransmitStep('Firmando digitalmente con llave privada (JWS RSA-SHA512)...');
-    await new Promise(r => setTimeout(r, 700));
-
-    setTransmitStep('Transmitiendo a los servidores de la DGII del Ministerio de Hacienda...');
-    await new Promise(r => setTimeout(r, 800));
+    setTransmitStep('Guardando el borrador y sus partidas...');
 
     const invoicePayload = {
       dteType: selectedDteType,
@@ -207,21 +213,28 @@ export const InvoiceBuilder: React.FC = () => {
       observations
     };
 
-    const created = await createInvoice(invoicePayload);
-    setIsTransmitting(false);
-    setActiveDtePreview(created);
-    setCurrentView('invoices');
+    try {
+      const created = await createInvoice(invoicePayload);
+      setActiveDtePreview(created);
+      setCurrentView('invoices');
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'No se pudo guardar. Tus datos siguen en este formulario.');
+    } finally {
+      setIsTransmitting(false);
+    }
   };
 
   const stepTitles = {
     1: 'Tipo de DTE & Cliente',
     2: 'Productos & Servicios',
     3: 'Forma de Pago & Plazos',
-    4: 'Revisión & Firma MH'
+    4: 'Revisión del borrador'
   };
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6 pb-28 sm:pb-16">
+      <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Documento de prueba sin validez fiscal. Guardar este borrador no firma ni envía información a Hacienda.</p>
+      {saveError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{saveError}</p>}
       {/* Top Header */}
       <div className="flex items-center justify-between">
         <button
@@ -256,6 +269,8 @@ export const InvoiceBuilder: React.FC = () => {
                 key={s}
                 type="button"
                 onClick={() => setCurrentStep(s as any)}
+                aria-label={`Paso ${s}: ${stepTitles[s as 1 | 2 | 3 | 4]}`}
+                aria-current={currentStep === s ? 'step' : undefined}
                 className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold transition-all ${
                   currentStep === s
                     ? 'bg-brand-600 text-white shadow-sm ring-2 ring-brand-500/20'
@@ -276,7 +291,7 @@ export const InvoiceBuilder: React.FC = () => {
             { step: 1, label: '1. Tipo & Cliente', desc: '¿A quién facturas?' },
             { step: 2, label: '2. Productos', desc: 'Ítems y servicios' },
             { step: 3, label: '3. Pago & Plazos', desc: 'Condición y crédito' },
-            { step: 4, label: '4. Pre-Vuelo & Firma', desc: 'Revisión final MH' },
+            { step: 4, label: '4. Revisión', desc: 'Guardar borrador' },
           ].map(s => {
             const isCurrent = currentStep === s.step;
             const isPassed = currentStep > s.step;
@@ -285,6 +300,7 @@ export const InvoiceBuilder: React.FC = () => {
                 key={s.step}
                 type="button"
                 onClick={() => setCurrentStep(s.step as any)}
+                aria-current={isCurrent ? 'step' : undefined}
                 className={`p-2.5 rounded-2xl transition-all text-center ${
                   isCurrent 
                     ? 'bg-brand-50 border border-brand-300 ring-2 ring-brand-500/20' 
@@ -329,8 +345,10 @@ export const InvoiceBuilder: React.FC = () => {
                   const meta = DTE_NAMES[type];
                   const isSelected = selectedDteType === type;
                   return (
-                    <div
+                    <button
                       key={type}
+                      type="button"
+                      aria-pressed={isSelected}
                       onClick={() => setSelectedDteType(type)}
                       className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left cursor-pointer transition-all ${
                         isSelected
@@ -352,7 +370,7 @@ export const InvoiceBuilder: React.FC = () => {
                       <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1 leading-relaxed hidden sm:block">
                         {meta.description}
                       </p>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -528,6 +546,7 @@ export const InvoiceBuilder: React.FC = () => {
                     <div className="flex items-center justify-between gap-2">
                       <select
                         value={item.productId || ''}
+                        aria-label={`Producto de partida ${index + 1}`}
                         onChange={e => handleProductSelect(index, e.target.value)}
                         className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-800"
                       >
@@ -542,6 +561,7 @@ export const InvoiceBuilder: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => removeItem(index)}
+                          aria-label={`Eliminar partida ${index + 1}`}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-red-500"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -552,6 +572,7 @@ export const InvoiceBuilder: React.FC = () => {
                     <input
                       type="text"
                       value={item.description}
+                        aria-label={`Descripción de partida ${index + 1}`}
                       onChange={e => handleItemChange(index, 'description', e.target.value)}
                       placeholder="Descripción del producto o servicio"
                       className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-800"
@@ -566,6 +587,7 @@ export const InvoiceBuilder: React.FC = () => {
                           min="1"
                           step="1"
                           value={item.quantity}
+                        aria-label={`Cantidad de partida ${index + 1}`}
                           onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
                           className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-center font-mono font-bold"
                           required
@@ -578,6 +600,7 @@ export const InvoiceBuilder: React.FC = () => {
                           min="0"
                           step="0.01"
                           value={item.unitPrice}
+                        aria-label={`Precio unitario de partida ${index + 1}`}
                           onChange={e => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                           className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-right font-mono"
                           required
@@ -614,6 +637,7 @@ export const InvoiceBuilder: React.FC = () => {
                         <td className="py-2.5 pr-2">
                           <select
                             value={item.productId || ''}
+                        aria-label={`Producto de partida ${index + 1}`}
                             onChange={e => handleProductSelect(index, e.target.value)}
                             className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs font-medium text-slate-800"
                           >
@@ -629,6 +653,7 @@ export const InvoiceBuilder: React.FC = () => {
                           <input
                             type="text"
                             value={item.description}
+                        aria-label={`Descripción de partida ${index + 1}`}
                             onChange={e => handleItemChange(index, 'description', e.target.value)}
                             className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-800"
                             placeholder="Descripción clara del ítem"
@@ -641,6 +666,7 @@ export const InvoiceBuilder: React.FC = () => {
                             min="1"
                             step="1"
                             value={item.quantity}
+                        aria-label={`Cantidad de partida ${index + 1}`}
                             onChange={e => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
                             className="w-16 bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-center font-mono font-bold"
                             required
@@ -652,6 +678,7 @@ export const InvoiceBuilder: React.FC = () => {
                             min="0"
                             step="0.01"
                             value={item.unitPrice}
+                        aria-label={`Precio unitario de partida ${index + 1}`}
                             onChange={e => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                             className="w-24 bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-right font-mono"
                             required
@@ -663,6 +690,7 @@ export const InvoiceBuilder: React.FC = () => {
                             min="0"
                             step="0.01"
                             value={item.discount}
+                        aria-label={`Descuento de partida ${index + 1}`}
                             onChange={e => handleItemChange(index, 'discount', parseFloat(e.target.value) || 0)}
                             className="w-20 bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs text-right font-mono"
                           />
@@ -674,6 +702,7 @@ export const InvoiceBuilder: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => removeItem(index)}
+                          aria-label={`Eliminar partida ${index + 1}`}
                             disabled={items.length <= 1}
                             className="p-1 rounded-lg text-slate-400 hover:text-red-500 disabled:opacity-30"
                           >
@@ -978,7 +1007,7 @@ export const InvoiceBuilder: React.FC = () => {
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <div>
                     <span className="font-bold text-slate-800 block text-[11px]">Firma Criptográfica:</span>
-                    <span className="text-slate-500 text-[10px] font-mono">FirmaSV_2026.crt Activo</span>
+                    <span className="text-amber-800 text-xs">Pendiente de integración</span>
                   </div>
                 </div>
 
@@ -986,14 +1015,14 @@ export const InvoiceBuilder: React.FC = () => {
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <div>
                     <span className="font-bold text-slate-800 block text-[11px]">Servidor Hacienda:</span>
-                    <span className="text-slate-500 text-[10px]">{currentCompany?.mhEnvironment || 'PRUEBAS'} En línea</span>
+                    <span className="text-amber-800 text-xs">Sin conexión de emisión</span>
                   </div>
                 </div>
               </div>
 
               {rules.blockers.length > 0 && (
                 <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs">
-                  <strong>⚠️ No se puede transmitir:</strong> {rules.blockers[0]}
+                  <strong>Revisa antes de guardar:</strong> {rules.blockers[0]}
                 </div>
               )}
             </div>
@@ -1002,7 +1031,7 @@ export const InvoiceBuilder: React.FC = () => {
             <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-slate-900 border border-slate-200/90 shadow-sm space-y-3 sm:space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <span className="text-[10px] sm:text-xs uppercase font-bold tracking-wider text-brand-700">
-                  Resumen de la Transmisión
+                  Resumen del borrador
                 </span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-50 text-brand-700 border border-brand-200/60">
                   DTE-{selectedDteType}
@@ -1044,12 +1073,12 @@ export const InvoiceBuilder: React.FC = () => {
                   {isTransmitting ? (
                     <>
                       <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                      <span>Transmitiendo a Hacienda...</span>
+                      <span>Guardando borrador...</span>
                     </>
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      <span>Firmar y Transmitir DTE a Hacienda</span>
+                      <span>Guardar borrador de prueba</span>
                     </>
                   )}
                 </button>
@@ -1079,8 +1108,8 @@ export const InvoiceBuilder: React.FC = () => {
               <ShieldCheck className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="font-extrabold text-lg text-slate-900">Transmitiendo a DGII El Salvador</h3>
-              <p className="text-xs text-slate-500 mt-1">Ambiente de Pruebas / Homologación DTE</p>
+              <h3 className="font-extrabold text-lg text-slate-900">Guardando borrador de prueba</h3>
+              <p className="text-xs text-slate-500 mt-1">Sin transmisión a Hacienda</p>
             </div>
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-brand-700 font-mono font-medium">
               {transmitStep}

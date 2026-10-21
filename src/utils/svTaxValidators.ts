@@ -82,11 +82,11 @@ export function validateNit(nit: string): { isValid: boolean; error?: string } {
   }
 
   if (nitDuiRegex.test(cleanNit) || nitDuiNoDashRegex.test(cleanNit)) {
-    // Si viene en formato DUI con guion, validamos dígito verificador
-    if (nitDuiRegex.test(cleanNit)) {
-      return validateDui(cleanNit);
-    }
-    return { isValid: true };
+    // Formatting must not provide a way to bypass the same checksum.
+    const formattedDui = nitDuiNoDashRegex.test(cleanNit)
+      ? `${cleanNit.slice(0, 8)}-${cleanNit.slice(8)}`
+      : cleanNit;
+    return validateDui(formattedDui);
   }
 
   return {
@@ -110,7 +110,11 @@ export function checkDteRules(
     return { isReady: false, warnings, blockers };
   }
 
-  if (totalPagar <= 0) {
+  if (!['01', '03', '05', '06', '14'].includes(dteType)) {
+    blockers.push('El tipo de documento seleccionado no está soportado.');
+  }
+
+  if (!Number.isFinite(totalPagar) || totalPagar <= 0) {
     blockers.push('El monto total a pagar debe ser mayor a $0.00 USD.');
   }
 

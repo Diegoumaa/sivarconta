@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { exportElementToPdf } from '../utils/pdfExport';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 vi.mock('html2canvas', () => ({
   default: vi.fn().mockResolvedValue({
@@ -42,5 +44,23 @@ describe('pdfExport Utility', () => {
 
     const result = await exportElementToPdf('printable-test-area', 'DTE-01-M001P001-000000000000001');
     expect(result).toBe(true);
+  });
+
+  it('restores preview styles when canvas capture fails', async () => {
+    const testDiv = document.createElement('div');
+    testDiv.id = 'failed-capture';
+    testDiv.style.maxHeight = '400px';
+    testDiv.style.overflow = 'auto';
+    document.body.appendChild(testDiv);
+    vi.mocked(html2canvas).mockRejectedValueOnce(new Error('Canvas capture failed'));
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(await exportElementToPdf('failed-capture', 'test.pdf')).toBe(false);
+      expect(testDiv.style.maxHeight).toBe('400px');
+      expect(testDiv.style.overflow).toBe('auto');
+      expect(jsPDF).not.toHaveBeenCalled();
+    } finally {
+      consoleSpy.mockRestore();
+    }
   });
 });

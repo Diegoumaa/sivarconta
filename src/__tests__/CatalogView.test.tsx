@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CatalogView } from '../components/catalog/CatalogView';
 import { AppProvider } from '../context/AppContext';
 
@@ -47,7 +47,7 @@ describe('CatalogView Component', () => {
     expect(priceInput.value).toBe('750.00');
   });
 
-  it('adds product to the catalog upon submitting', () => {
+  it('adds product to the catalog upon submitting', async () => {
     renderCatalog();
     fireEvent.click(screen.getByRole('button', { name: /Nuevo Producto \/ Servicio/i }));
 
@@ -56,6 +56,7 @@ describe('CatalogView Component', () => {
     fireEvent.change(screen.getByLabelText(/Precio Unitario/i), { target: { value: '120.00' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Guardar Producto/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     expect(screen.getByText('Servicio Cloud Hosting')).toBeInTheDocument();
     expect(screen.getByText('$120.00')).toBeInTheDocument();

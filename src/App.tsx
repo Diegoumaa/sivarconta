@@ -15,9 +15,10 @@ import { PurchasesView } from './components/purchases/PurchasesView';
 import { IvaBooksView } from './components/books/IvaBooksView';
 import { SettingsView } from './components/settings/SettingsView';
 import { Toaster } from 'sonner';
+import { AuthGate } from './components/auth/AuthGate';
 
 const MainLayout: React.FC = () => {
-  const { currentView, activeDtePreview, setActiveDtePreview } = useApp();
+  const { currentView, currentCompanyId, activeDtePreview, setActiveDtePreview } = useApp();
   const [isCommandOpen, setIsCommandOpen] = useState(false);
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
 
@@ -59,6 +60,7 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className={`min-h-screen bg-slate-50 flex flex-col font-sans ${activeDtePreview ? 'has-active-modal' : ''}`}>
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:p-3 focus:bg-white focus:text-brand-700">Saltar al contenido</a>
       {/* Main App Layout (Completely hidden during invoice printing) */}
       <div className={`flex flex-col min-h-screen flex-1 ${activeDtePreview ? 'print:hidden' : ''}`}>
         <Header 
@@ -68,8 +70,9 @@ const MainLayout: React.FC = () => {
         
         <div className="flex-1 flex">
           <Sidebar />
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-            {renderContent()}
+          <main id="main-content" className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+            <div role="note" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><strong>Modo demostración.</strong> Los documentos nuevos son borradores sin validez fiscal. La emisión real a Hacienda está pendiente.</div>
+            <div key={currentCompanyId}>{renderContent()}</div>
           </main>
         </div>
 
@@ -117,9 +120,11 @@ const MainLayout: React.FC = () => {
 
 export function App() {
   return (
-    <AppProvider>
-      <MainLayout />
-    </AppProvider>
+    <AuthGate>{access => (
+      <AppProvider key={`${access.mode}:${access.userId || 'demo'}`} demo={access.mode === 'demo'}>
+        <MainLayout />
+      </AppProvider>
+    )}</AuthGate>
   );
 }
 

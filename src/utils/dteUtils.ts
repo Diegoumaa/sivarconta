@@ -1,14 +1,25 @@
 import { DteType, InvoiceItem } from '../types';
 
 export function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16).toUpperCase();
-  });
+  // Generation codes identify documents; use the browser's secure random source.
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID().toUpperCase();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`.toUpperCase();
 }
 
 export function generateControlNumber(dteType: DteType, correlative: number, establishment = 'M001', pos = 'P001'): string {
+  if (!['01', '03', '05', '06', '14'].includes(dteType)) {
+    throw new RangeError('Tipo de DTE no soportado.');
+  }
+  if (!Number.isSafeInteger(correlative) || correlative < 1 || correlative > 999999999999999) {
+    throw new RangeError('El correlativo debe ser un entero positivo de hasta 15 dígitos.');
+  }
+  if (!/^[A-Z0-9]{4}$/.test(establishment) || !/^[A-Z0-9]{4}$/.test(pos)) {
+    throw new RangeError('Los códigos de establecimiento y punto de venta deben tener 4 caracteres alfanuméricos en mayúsculas.');
+  }
   const padCorrelative = String(correlative).padStart(15, '0');
   return `DTE-${dteType}-${establishment}${pos}-${padCorrelative}`;
 }
@@ -28,8 +39,13 @@ export function getMhQrUrl(generationCode: string, emissionDate: string, env: 'P
 }
 
 export function numberToWordsSpanish(amount: number): string {
-  const integerPart = Math.floor(amount);
-  const decimalPart = Math.round((amount - integerPart) * 100);
+  if (!Number.isFinite(amount) || amount < 0 || amount > Number.MAX_SAFE_INTEGER / 100) {
+    throw new RangeError('El monto debe ser finito, no negativo y expresable en centavos.');
+  }
+  // Round the complete amount first so 1.999 becomes two dollars, not 100 cents.
+  const totalCents = Math.round((amount + Number.EPSILON * Math.max(1, amount)) * 100);
+  const integerPart = Math.floor(totalCents / 100);
+  const decimalPart = totalCents % 100;
 
   const units = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
   const tens = ['', 'DIEZ', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
@@ -119,11 +135,13 @@ export function calculateInvoiceTotals(
   let rawDescuento = 0;
 
   items.forEach(item => {
-    const qty = Number(item.quantity) || 0;
-    const price = Number(item.unitPrice) || 0;
-    const disc = Number(item.discount) || 0;
-    const lineTotal = qty * price;
-    const lineNet = Math.max(0, lineTotal - disc);
+    // Keep the live preview finite while a numeric field is being edited.
+    const nonNegative = (value: number) => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+    const qty = nonNegative(item.quantity);
+    const price = nonNegative(item.unitPrice);
+    const lineTotal = Number.isFinite(qty * price) ? qty * price : 0;
+    const disc = Math.min(lineTotal, nonNegative(item.discount));
+    const lineNet = lineTotal - disc;
     rawDescuento += disc;
 
     if (item.taxType === 'GRAVADO') {

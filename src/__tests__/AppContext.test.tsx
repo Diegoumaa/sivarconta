@@ -123,7 +123,7 @@ describe('AppContext State Management', () => {
     expect(result.current.purchases.some(p => p.supplierName === 'Don José Plomero')).toBe(true);
   });
 
-  it('creates an invoice with valid generation code, control number, and reception stamp', async () => {
+  it('creates a draft with valid identifiers without claiming Ministry of Finance acceptance', async () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     let invoice: any;
@@ -156,8 +156,9 @@ describe('AppContext State Management', () => {
     expect(invoice).toBeDefined();
     expect(invoice.controlNumber).toMatch(/^DTE-03-M001P001-\d{15}$/);
     expect(invoice.generationCode).toMatch(/^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/);
-    expect(invoice.mhReceptionStamp).toBeDefined();
-    expect(invoice.mhQrUrl).toContain('admin.factura.gob.sv/consultaPublica');
+    expect(invoice.status).toBe('BORRADOR');
+    expect(invoice.mhReceptionStamp).toBeUndefined();
+    expect(invoice.mhQrUrl).toBeUndefined();
     expect(result.current.invoices.some(i => i.id === invoice.id)).toBe(true);
   });
 });

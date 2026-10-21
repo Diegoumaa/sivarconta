@@ -1,6 +1,3 @@
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-
 /**
  * Generates and downloads a high-resolution, pixel-perfect PDF of an HTML element
  * formatted specifically for El Salvador DTEs on standard Letter paper.
@@ -15,16 +12,19 @@ export async function exportElementToPdf(
     return false;
   }
 
+  const originalMaxHeight = element.style.maxHeight;
+  const originalOverflow = element.style.overflow;
+
   try {
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+      import('html2canvas'), import('jspdf')
+    ]);
     // 1. Wait for document fonts to finish loading so glyphs and baselines are exact
     if (document.fonts) {
       await document.fonts.ready;
     }
 
     // 2. Temporarily store original styles and expand element to full natural height
-    const originalMaxHeight = element.style.maxHeight;
-    const originalOverflow = element.style.overflow;
-    
     element.style.maxHeight = 'none';
     element.style.overflow = 'visible';
 
@@ -96,5 +96,9 @@ export async function exportElementToPdf(
   } catch (error) {
     console.error('Error generating PDF:', error);
     return false;
+  } finally {
+    // Restore the live preview even when capture or PDF generation fails.
+    element.style.maxHeight = originalMaxHeight;
+    element.style.overflow = originalOverflow;
   }
 }

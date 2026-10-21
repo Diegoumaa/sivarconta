@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Company, Product, Client, InvoiceDocument, PurchaseDocument, DteType } from '../types';
 import { INITIAL_COMPANIES, INITIAL_PRODUCTS, INITIAL_CLIENTS, INITIAL_INVOICES, INITIAL_PURCHASES } from '../data/mockData';
-import { generateUUID, generateControlNumber, generateReceptionStamp, getMhQrUrl } from '../utils/dteUtils';
+import { generateUUID, generateControlNumber } from '../utils/dteUtils';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import confetti from 'canvas-confetti';
+import { readBackup, writeBackup } from '../lib/localBackup';
 import { toast } from 'sonner';
 
 interface AppContextType {
@@ -32,66 +32,78 @@ interface AppContextType {
   filteredInvoices: InvoiceDocument[];
   filteredPurchases: PurchaseDocument[];
   isCloudSyncActive: boolean;
+  dataMode: 'cloud' | 'local-demo';
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [companies, setCompanies] = useState<Company[]>(() => {
-    const saved = localStorage.getItem('sivarconta_companies');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.length > 0 && parsed[0].id === 'comp-1') {
-          return INITIAL_COMPANIES;
-        }
-        return parsed;
-      } catch (e) {
-        return INITIAL_COMPANIES;
-      }
-    }
-    return INITIAL_COMPANIES;
-  });
+const UNSELECTED_COMPANY: Company = {
+  id: '', name: 'Seleccione una empresa', tradeName: 'Sin empresa disponible',
+  nit: '', nrc: '', economicActivity: '', economicActivityCode: '', taxpayerType: 'OTRO',
+  department: '', municipality: '', address: '', phone: '', email: '',
+  mhEnvironment: 'PRUEBAS', mhUser: '', establishmentCode: 'M001', posCode: 'P001'
+};
 
-  const [currentCompanyId, setCurrentCompanyId] = useState<string>(() => {
+export const AppProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> = ({ children, demo = false }) => {
+  const useCloud = isSupabaseConfigured && !demo;
+  const [companies, setCompanies] = useState<Company[]>(() =>
+    useCloud ? [] : readBackup('sivarconta_companies', INITIAL_COMPANIES));
+
+  const [currentCompanyId, setCurrentCompanyIdState] = useState<string>(() => {
     const firstId = companies[0]?.id;
-    return (firstId && firstId !== 'comp-1') ? firstId : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    return firstId || '';
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('sivarconta_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    return useCloud ? [] : readBackup('sivarconta_products', INITIAL_PRODUCTS);
   });
 
   const [clients, setClients] = useState<Client[]>(() => {
-    const saved = localStorage.getItem('sivarconta_clients');
-    return saved ? JSON.parse(saved) : INITIAL_CLIENTS;
+    return useCloud ? [] : readBackup('sivarconta_clients', INITIAL_CLIENTS);
   });
 
   const [invoices, setInvoices] = useState<InvoiceDocument[]>(() => {
-    const saved = localStorage.getItem('sivarconta_invoices');
-    return saved ? JSON.parse(saved) : INITIAL_INVOICES;
+    return useCloud ? [] : readBackup('sivarconta_invoices', INITIAL_INVOICES);
   });
 
   const [purchases, setPurchases] = useState<PurchaseDocument[]>(() => {
-    const saved = localStorage.getItem('sivarconta_purchases');
-    return saved ? JSON.parse(saved) : INITIAL_PURCHASES;
+    return useCloud ? [] : readBackup('sivarconta_purchases', INITIAL_PURCHASES);
   });
 
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [selectedDteTypeForNew, setSelectedDteTypeForNew] = useState<DteType>('01');
   const [activeDtePreview, setActiveDtePreview] = useState<InvoiceDocument | null>(null);
+  const [isCloudSyncActive, setIsCloudSyncActive] = useState(false);
+  const reservedCorrelatives = useRef(new Map<string, number>());
+
+  const setCurrentCompanyId = (id: string) => {
+    if (!companies.some(company => company.id === id)) return;
+    setCurrentCompanyIdState(id);
+    setActiveDtePreview(null);
+    setCurrentView('dashboard');
+  };
 
   // Sync from Supabase on mount if configured
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) return;
+    if (!useCloud || !supabase) return;
 
     const loadCloudData = async () => {
       try {
         const client = supabase;
         if (!client) return;
+        // Supabase resolves HTTP/SQL failures with { error }; it does not throw.
+        // Validate the complete snapshot before replacing any displayed data.
+        const results = await Promise.all([
+          client.from('companies').select('*'),
+          client.from('clients').select('*'),
+          client.from('products').select('*'),
+          client.from('invoices').select('*, invoice_items(*)').order('created_at', { ascending: false }),
+          client.from('purchases').select('*').order('created_at', { ascending: false })
+        ]);
+        const failed = results.find(result => result.error);
+        if (failed?.error) throw failed.error;
         // 1. Fetch Companies
-        const { data: cloudCompanies } = await client.from('companies').select('*');
+        const cloudCompanies = results[0].data || [];
         if (cloudCompanies && cloudCompanies.length > 0) {
           const mappedCompanies: Company[] = cloudCompanies.map(c => ({
             id: c.id,
@@ -113,11 +125,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             mhUser: c.nit.replace(/-/g, '')
           }));
           setCompanies(mappedCompanies);
-          setCurrentCompanyId(mappedCompanies[0].id);
+          setCurrentCompanyIdState(mappedCompanies[0].id);
+        } else {
+          setCompanies([]);
+          setCurrentCompanyIdState('');
         }
 
         // 2. Fetch Clients
-        const { data: cloudClients } = await client.from('clients').select('*');
+        const cloudClients = results[1].data || [];
         if (cloudClients && cloudClients.length > 0) {
           const mappedClients: Client[] = cloudClients.map(c => ({
             id: c.id,
@@ -135,10 +150,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             municipality: c.municipality || 'San Salvador Centro'
           }));
           setClients(mappedClients);
-        }
+        } else setClients([]);
 
         // 3. Fetch Products
-        const { data: cloudProducts } = await client.from('products').select('*');
+        const cloudProducts = results[2].data || [];
         if (cloudProducts && cloudProducts.length > 0) {
           const mappedProducts: Product[] = cloudProducts.map(p => ({
             id: p.id,
@@ -153,10 +168,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             stock: Number(p.stock)
           }));
           setProducts(mappedProducts);
-        }
+        } else setProducts([]);
 
         // 4. Fetch Invoices
-        const { data: cloudInvoices } = await client.from('invoices').select('*').order('created_at', { ascending: false });
+        const cloudInvoices = results[3].data || [];
         if (cloudInvoices && cloudInvoices.length > 0) {
           const mappedInvoices: InvoiceDocument[] = cloudInvoices.map(inv => ({
             id: inv.id,
@@ -168,7 +183,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             emissionTime: inv.emission_time,
             establishmentCode: inv.establishment_code || 'M001',
             posCode: inv.pos_code || 'P001',
-            status: 'PROCESADO_MH',
+            status: inv.status === 'PROCESADO' ? 'PROCESADO_MH'
+              : inv.status === 'RECHAZADO' ? 'RECHAZADO_MH'
+              : inv.status === 'ANULADO' ? 'INVALIDADO'
+              : inv.status === 'TRANSMITIDO' ? 'TRANSMITIENDO' : 'BORRADOR',
             clientId: inv.client_id || 'cli-generic',
             clientName: inv.client_name,
             clientDocType: inv.client_doc_type,
@@ -182,7 +200,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             paymentMethod: inv.payment_method || '01',
             condition: inv.condition as any,
             creditTermDays: inv.credit_term_days || undefined,
-            items: [],
+            items: (inv.invoice_items || []).sort((a: any, b: any) => a.num_item - b.num_item).map((item: any) => ({
+              id: item.id,
+              productId: item.product_id || undefined,
+              code: item.code || '',
+              description: item.description,
+              quantity: Number(item.quantity),
+              unitPrice: Number(item.unit_price),
+              discount: Number(item.discount),
+              taxType: item.tax_type,
+              unitOfMeasure: item.unit_of_measure,
+              taxAmount: item.tax_type !== 'GRAVADO' || inv.dte_type === '14' ? 0
+                : Number((Number(item.total) * (inv.dte_type === '01' ? 13 / 113 : 0.13)).toFixed(2)),
+              total: Number(item.total)
+            })),
             subtotalGravado: Number(inv.subtotal_gravado || 0),
             subtotalExento: Number(inv.subtotal_exento || 0),
             subtotalNoSujeto: Number(inv.subtotal_no_sujeto || 0),
@@ -195,8 +226,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             totalLetras: inv.total_letras || '',
             observations: inv.observations || undefined,
             mhReceptionStamp: inv.mh_reception_stamp || undefined,
-            mhResponseDate: inv.created_at,
-            mhQrUrl: `https://factura.gob.sv/consultaPublica?ambiente=00&codGen=${inv.generation_code}&fechaEmi=${inv.emission_date}`
+            mhResponseDate: inv.mh_reception_stamp ? inv.created_at : undefined
           }));
           setInvoices(mappedInvoices);
         } else {
@@ -205,12 +235,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         // 5. Fetch Purchases (Compras)
-        const { data: cloudPurchases } = await client.from('purchases').select('*').order('created_at', { ascending: false });
+        const cloudPurchases = results[4].data || [];
         if (cloudPurchases && cloudPurchases.length > 0) {
           const mappedPurchases: PurchaseDocument[] = cloudPurchases.map(pur => ({
             id: pur.id,
             companyId: pur.company_id,
-            docType: pur.dte_type === '03' ? 'CCF' : 'FACTURA',
+            docType: pur.dte_type === '03' ? 'CCF' : pur.dte_type === '14' ? 'SUJETO_EXCLUIDO'
+              : pur.dte_type === '05' ? 'NOTA_CREDITO' : 'FACTURA',
             docNumber: pur.control_number,
             generationCode: pur.generation_code,
             emissionDate: pur.date,
@@ -230,7 +261,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           // Si no hay compras registradas en Supabase, arrancar limpio en 0
           setPurchases([]);
         }
+        setIsCloudSyncActive(true);
       } catch (err) {
+        setIsCloudSyncActive(false);
+        toast.error('No se pudo cargar la información de la nube', {
+          description: 'Verifique la conexión y los permisos. No se mostrarán datos de demostración como datos reales.'
+        });
         console.error('Error loading data from Supabase:', err);
       }
     };
@@ -240,26 +276,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Sync to localStorage as local backup
   useEffect(() => {
-    localStorage.setItem('sivarconta_companies', JSON.stringify(companies));
+    if (!useCloud) writeBackup('sivarconta_companies', companies);
   }, [companies]);
 
   useEffect(() => {
-    localStorage.setItem('sivarconta_products', JSON.stringify(products));
+    if (!useCloud) writeBackup('sivarconta_products', products);
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('sivarconta_clients', JSON.stringify(clients));
+    if (!useCloud) writeBackup('sivarconta_clients', clients);
   }, [clients]);
 
   useEffect(() => {
-    localStorage.setItem('sivarconta_invoices', JSON.stringify(invoices));
+    if (!useCloud) writeBackup('sivarconta_invoices', invoices);
   }, [invoices]);
 
   useEffect(() => {
-    localStorage.setItem('sivarconta_purchases', JSON.stringify(purchases));
+    if (!useCloud) writeBackup('sivarconta_purchases', purchases);
   }, [purchases]);
 
-  const currentCompany = companies.find(c => c.id === currentCompanyId) || companies[0] || INITIAL_COMPANIES[0];
+  const currentCompany = companies.find(c => c.id === currentCompanyId) || companies[0] || UNSELECTED_COMPANY;
 
   const filteredProducts = products.filter(p => p.companyId === currentCompanyId);
   const filteredClients = clients.filter(c => c.companyId === currentCompanyId);
@@ -272,9 +308,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const getEffectiveCompanyId = () => {
-    return (currentCompanyId && currentCompanyId.length === 36 && currentCompanyId !== 'comp-1')
-      ? currentCompanyId
-      : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    if (!companies.some(company => company.id === currentCompanyId)) {
+      throw new Error('Seleccione una empresa disponible antes de guardar.');
+    }
+    return currentCompanyId;
+  };
+
+  const persistRows = async (table: string, rows: Record<string, unknown>[]) => {
+    if (!useCloud || !supabase) return;
+    try {
+      const { error } = await supabase.from(table).insert(rows);
+      if (error) throw error;
+    } catch (error) {
+      setIsCloudSyncActive(false);
+      toast.error('No se pudo guardar en la nube', {
+        description: 'Los datos no se confirmaron. Conserve el formulario y vuelva a intentarlo.'
+      });
+      throw error;
+    }
+  };
+
+  const persistDemo = (key: string, rows: unknown[]) => {
+    if (useCloud || writeBackup(key, rows)) return;
+    toast.error('No se pudo guardar en este navegador', {
+      description: 'El almacenamiento está bloqueado o lleno. Conserve el formulario y vuelva a intentarlo.'
+    });
+    throw new Error('No se pudo guardar la copia local.');
   };
 
   const addCompany = async (companyData: Omit<Company, 'id'>): Promise<Company> => {
@@ -284,13 +343,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: newId
     };
 
-    setCompanies(prev => [newComp, ...prev]);
-    setCurrentCompanyId(newId);
-
     // Push to Supabase if configured
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('companies').insert([{
+    if (useCloud && supabase) {
+        await persistRows('companies', [{
           id: newId,
           name: companyData.name,
           trade_name: companyData.tradeName || companyData.name,
@@ -308,10 +363,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           is_gran_contribuyente: companyData.taxpayerType === 'GRAN_CONTRIBUYENTE',
           mh_environment: companyData.mhEnvironment || 'PRUEBAS'
         }]);
-      } catch (e) {
-        console.error('Error saving company to Supabase:', e);
-      }
     }
+
+    persistDemo('sivarconta_companies', [newComp, ...companies]);
+    setCompanies(prev => [newComp, ...prev]);
+    setCurrentCompanyIdState(newId);
+    setActiveDtePreview(null);
 
     toast.success('Empresa registrada exitosamente', {
       description: `${newComp.name} • NRC: ${newComp.nrc}`
@@ -324,16 +381,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const effCompanyId = getEffectiveCompanyId();
     const newProd: Product = {
       ...productData,
-      id: `prod-${Date.now()}`,
+      id: generateUUID(),
       companyId: effCompanyId
     };
 
-    setProducts(prev => [newProd, ...prev]);
-
     // Push to Supabase if configured
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('products').insert([{
+    if (useCloud && supabase) {
+        await persistRows('products', [{
+          id: newProd.id,
           company_id: effCompanyId,
           code: productData.code,
           name: productData.name,
@@ -343,10 +398,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           unit_of_measure: productData.unitOfMeasure,
           stock: productData.stock || 0
         }]);
-      } catch (e) {
-        console.error('Error saving product to Supabase:', e);
-      }
     }
+
+    persistDemo('sivarconta_products', [newProd, ...products]);
+    setProducts(prev => [newProd, ...prev]);
 
     toast.success('Producto agregado al catálogo', {
       description: `${newProd.name} • $${newProd.unitPrice.toFixed(2)} (${newProd.taxType})`
@@ -357,16 +412,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const effCompanyId = getEffectiveCompanyId();
     const newCli: Client = {
       ...clientData,
-      id: `cli-${Date.now()}`,
+      id: generateUUID(),
       companyId: effCompanyId
     };
 
-    setClients(prev => [newCli, ...prev]);
-
     // Push to Supabase if configured
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('clients').insert([{
+    if (useCloud && supabase) {
+        await persistRows('clients', [{
+          id: newCli.id,
           company_id: effCompanyId,
           name: clientData.name,
           doc_type: clientData.docType,
@@ -380,10 +433,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           department: clientData.department,
           municipality: clientData.municipality
         }]);
-      } catch (e) {
-        console.error('Error saving client to Supabase:', e);
-      }
     }
+
+    persistDemo('sivarconta_clients', [newCli, ...clients]);
+    setClients(prev => [newCli, ...prev]);
 
     toast.success('Cliente registrado exitosamente', {
       description: `${newCli.name} • ${newCli.docType}: ${newCli.docNumber}`
@@ -394,16 +447,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const effCompanyId = getEffectiveCompanyId();
     const newPur: PurchaseDocument = {
       ...purchaseData,
-      id: `pur-${Date.now()}`,
+      id: generateUUID(),
       companyId: effCompanyId
     };
 
-    setPurchases(prev => [newPur, ...prev]);
-
     // Push to Supabase if configured
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('purchases').insert([{
+    if (useCloud && supabase) {
+        await persistRows('purchases', [{
+          id: newPur.id,
           company_id: effCompanyId,
           dte_type: purchaseData.docType === 'CCF' ? '03' : purchaseData.docType === 'SUJETO_EXCLUIDO' ? '14' : purchaseData.docType === 'NOTA_CREDITO' ? '05' : '01',
           control_number: purchaseData.docNumber,
@@ -418,10 +469,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           retencion1: purchaseData.retencion1,
           total: purchaseData.totalPagar
         }]);
-      } catch (e) {
-        console.error('Error saving purchase to Supabase:', e);
-      }
     }
+
+    persistDemo('sivarconta_purchases', [newPur, ...purchases]);
+    setPurchases(prev => [newPur, ...prev]);
 
     toast.success('Compra registrada en Libros de IVA', {
       description: `${newPur.supplierName} • Total: $${newPur.totalPagar.toFixed(2)}`
@@ -431,13 +482,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const createInvoice = async (invoicePayload: any): Promise<InvoiceDocument> => {
     const effCompanyId = getEffectiveCompanyId();
     const now = new Date();
-    const emissionDate = now.toISOString().split('T')[0];
-    const emissionTime = now.toTimeString().split(' ')[0];
+    const dateParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/El_Salvador', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+    }).formatToParts(now);
+    const part = (type: Intl.DateTimeFormatPartTypes) => dateParts.find(value => value.type === type)?.value || '';
+    const emissionDate = `${part('year')}-${part('month')}-${part('day')}`;
+    const emissionTime = `${part('hour')}:${part('minute')}:${part('second')}`;
     const generationCode = generateUUID();
     
     // Correlative for this DTE type
-    const existingOfSameType = filteredInvoices.filter(i => i.dteType === invoicePayload.dteType);
-    const correlative = existingOfSameType.length + 101;
+    const prefix = `DTE-${invoicePayload.dteType}-${currentCompany.establishmentCode}${currentCompany.posCode}-`;
+    const existingMax = Math.max(100, ...filteredInvoices
+      .filter(invoice => invoice.controlNumber.startsWith(prefix))
+      .map(invoice => Number(invoice.controlNumber.slice(prefix.length)))
+      .filter(Number.isSafeInteger));
+    const reservationKey = `${effCompanyId}:${prefix}`;
+    const correlative = Math.max(existingMax, reservedCorrelatives.current.get(reservationKey) || 0) + 1;
+    reservedCorrelatives.current.set(reservationKey, correlative);
     const controlNumber = generateControlNumber(
       invoicePayload.dteType,
       correlative,
@@ -445,12 +507,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       currentCompany.posCode
     );
 
-    const receptionStamp = generateReceptionStamp();
-    const qrUrl = getMhQrUrl(generationCode, emissionDate, currentCompany.mhEnvironment);
-
     const newInvoice: InvoiceDocument = {
       ...invoicePayload,
-      id: `inv-${Date.now()}`,
+      id: generateUUID(),
       companyId: effCompanyId,
       generationCode,
       controlNumber,
@@ -458,37 +517,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       emissionTime,
       establishmentCode: currentCompany.establishmentCode,
       posCode: currentCompany.posCode,
-      status: 'PROCESADO_MH',
-      mhReceptionStamp: receptionStamp,
-      mhResponseDate: `${emissionDate} ${emissionTime}`,
-      mhQrUrl: qrUrl
+      status: 'BORRADOR',
+      mhReceptionStamp: undefined,
+      mhResponseDate: undefined,
+      mhQrUrl: undefined
     };
 
-    try {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-    } catch (e) {
-      // ignore
-    }
-
-    toast.success('¡DTE Emitido y Timbrado con Éxito!', {
-      description: `Control: ${controlNumber} • Sello DGII: ${receptionStamp.slice(0, 16)}...`
-    });
-
-    setInvoices(prev => [newInvoice, ...prev]);
-
     // Push to Supabase if configured
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('invoices').insert([{
+    if (useCloud && supabase) {
+        await persistRows('invoices', [{
+          id: newInvoice.id,
           company_id: effCompanyId,
           dte_type: newInvoice.dteType,
           control_number: newInvoice.controlNumber,
           generation_code: newInvoice.generationCode,
-
+          client_id: filteredClients.some(client => client.id === newInvoice.clientId)
+            && /^[0-9a-f-]{36}$/i.test(newInvoice.clientId) ? newInvoice.clientId : null,
           client_name: newInvoice.clientName,
           client_doc_type: newInvoice.clientDocType,
           client_doc_number: newInvoice.clientDocNumber,
@@ -515,14 +559,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           total_letras: newInvoice.totalLetras,
           establishment_code: newInvoice.establishmentCode,
           pos_code: newInvoice.posCode,
-          status: 'PROCESADO',
-          mh_reception_stamp: newInvoice.mhReceptionStamp,
+          status: 'BORRADOR',
+          mh_reception_stamp: null,
           observations: newInvoice.observations || null
         }]);
-      } catch (e) {
-        console.error('Error saving invoice to Supabase:', e);
+      if (newInvoice.items.length > 0) {
+        await persistRows('invoice_items', newInvoice.items.map((item, index) => ({
+          id: generateUUID(),
+          invoice_id: newInvoice.id,
+          num_item: index + 1,
+          product_id: item.productId && filteredProducts.some(product => product.id === item.productId)
+            && /^[0-9a-f-]{36}$/i.test(item.productId) ? item.productId : null,
+          description: item.description,
+          code: item.code,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          discount: item.discount,
+          tax_type: item.taxType,
+          unit_of_measure: item.unitOfMeasure,
+          total: item.total
+        })));
       }
     }
+
+    persistDemo('sivarconta_invoices', [newInvoice, ...invoices]);
+    setInvoices(prev => [newInvoice, ...prev]);
+    toast.success('Documento de prueba guardado', {
+      description: 'Borrador sin validez fiscal. No ha sido firmado ni enviado al Ministerio de Hacienda.'
+    });
 
     return newInvoice;
   };
@@ -554,7 +618,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         filteredClients,
         filteredInvoices,
         filteredPurchases,
-        isCloudSyncActive: isSupabaseConfigured
+        isCloudSyncActive,
+        dataMode: useCloud ? 'cloud' : 'local-demo'
       }}
     >
       {children}

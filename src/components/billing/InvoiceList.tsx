@@ -4,20 +4,28 @@ import { DteType, DTE_NAMES } from '../../types';
 import { Receipt, Search, Filter, Plus, Eye, CheckCircle2, ShieldAlert, Copy, Check } from 'lucide-react';
 import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
+import { DocumentStatusBadge } from '../ui/DocumentStatusBadge';
 
 export const InvoiceList: React.FC = () => {
   const { filteredInvoices, setCurrentView, setActiveDtePreview } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<string>('ALL');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const invalidRange = Boolean(dateFrom && dateTo && dateFrom > dateTo);
+  const hasFilters = Boolean(searchTerm || selectedType !== 'ALL' || selectedStatus !== 'ALL' || dateFrom || dateTo);
+  const resetFilters = () => { setSearchTerm(''); setSelectedType('ALL'); setSelectedStatus('ALL'); setDateFrom(''); setDateTo(''); };
 
   const filtered = filteredInvoices.filter(inv => {
     const matchesSearch = 
       inv.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inv.controlNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inv.generationCode.toLowerCase().includes(searchTerm.toLowerCase());
+      inv.generationCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inv.emissionDate.includes(searchTerm.trim());
 
     const matchesType = selectedType === 'ALL' || inv.dteType === selectedType;
-    return matchesSearch && matchesType;
+    return matchesSearch && matchesType && (selectedStatus === 'ALL' || inv.status === selectedStatus) && !invalidRange && (!dateFrom || inv.emissionDate >= dateFrom) && (!dateTo || inv.emissionDate <= dateTo);
   });
 
   return (
@@ -47,6 +55,7 @@ export const InvoiceList: React.FC = () => {
         <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
+            aria-label="Buscar facturas por cliente, número o fecha"
             type="text"
             placeholder="Buscar por cliente o # control..."
             value={searchTerm}
@@ -65,6 +74,7 @@ export const InvoiceList: React.FC = () => {
             <button
               key={t}
               onClick={() => setSelectedType(t)}
+              aria-pressed={selectedType === t}
               className={`px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0 transition-colors ${
                 selectedType === t
                   ? 'bg-slate-900 text-white shadow-sm'
@@ -75,6 +85,15 @@ export const InvoiceList: React.FC = () => {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3 bg-white p-4 rounded-2xl border border-slate-200">
+        <label className="text-sm font-medium">Desde<input type="date" aria-label="Facturas desde" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="block mt-1 p-2 border border-slate-300 rounded-lg" /></label>
+        <label className="text-sm font-medium">Hasta<input type="date" aria-label="Facturas hasta" value={dateTo} onChange={e => setDateTo(e.target.value)} className="block mt-1 p-2 border border-slate-300 rounded-lg" /></label>
+        <label className="text-sm font-medium">Estado<select aria-label="Estado del documento" value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)} className="block mt-1 p-2 border border-slate-300 rounded-lg"><option value="ALL">Todos los estados</option><option value="BORRADOR">Borrador</option><option value="PROCESADO_MH">Procesado MH</option><option value="RECHAZADO_MH">Rechazado MH</option><option value="INVALIDADO">Invalidado</option><option value="CONTINGENCIA">Contingencia</option><option value="TRANSMITIENDO">Transmitiendo</option></select></label>
+        {hasFilters && <button onClick={resetFilters} className="min-h-11 px-3 text-sm font-semibold text-brand-700 rounded-lg hover:bg-brand-50">Limpiar filtros</button>}
+        <p role="status" className="text-sm text-slate-600 py-2">{filtered.length} documentos</p>
+        {invalidRange && <p role="alert" className="w-full text-sm text-red-700">La fecha inicial debe ser anterior o igual a la final.</p>}
       </div>
 
       {/* Table */}
@@ -102,19 +121,19 @@ export const InvoiceList: React.FC = () => {
                         <Receipt className="w-6 h-6" />
                       </div>
                       <h4 className="font-bold text-slate-900 text-sm">
-                        {searchTerm || selectedType !== 'ALL' 
+                        {hasFilters
                           ? 'No se encontraron documentos emitidos en este filtro' 
                           : 'Aún no se han emitido facturas en esta empresa'}
                       </h4>
                       <p className="text-xs text-slate-500">
-                        {searchTerm || selectedType !== 'ALL'
+                        {hasFilters
                           ? 'Intenta restablecer la búsqueda o los filtros de tipo para ver todos los comprobantes emitidos.'
-                          : 'Comienza generando tu primer documento tributario electrónico certificado por el Ministerio de Hacienda.'}
+                          : 'Crea un borrador de prueba. La conexión de emisión a Hacienda está pendiente.'}
                       </p>
-                      {searchTerm || selectedType !== 'ALL' ? (
+                      {hasFilters ? (
                         <button
                           type="button"
-                          onClick={() => { setSearchTerm(''); setSelectedType('ALL'); }}
+                          onClick={resetFilters}
                           className="btn-tactile px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700"
                         >
                           Restablecer filtros
@@ -185,10 +204,7 @@ export const InvoiceList: React.FC = () => {
                         ${inv.totalPagar.toFixed(2)}
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle2 className="w-3 h-3" />
-                          PROCESADO MH
-                        </span>
+                        <DocumentStatusBadge status={inv.status} />
                       </td>
                       <td className="py-3 px-4 text-center">
                         <button

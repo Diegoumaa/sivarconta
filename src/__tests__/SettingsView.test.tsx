@@ -34,12 +34,13 @@ describe('SettingsView Component', () => {
     expect(screen.getByText('289410-4')).toBeInTheDocument();
   });
 
-  it('renders MH transmission environment and certificate status', () => {
+  it('clearly identifies the pending MH integration without inventing a valid certificate', () => {
     renderSettings();
     expect(screen.getByText(/Integración DTE \(Hacienda DGII\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/PRUEBAS \(Sandbox Oficial\)/i)).toBeInTheDocument();
-    expect(screen.getByText('FirmaSV_2026.crt')).toBeInTheDocument();
-    expect(screen.getByText(/Válido/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sin integrar · demostración/i)).toBeInTheDocument();
+    expect(screen.getByText('No hay certificado conectado')).toBeInTheDocument();
+    expect(screen.queryByText(/FirmaSV_2026.crt|Sandbox Oficial|^Válido$/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sucursales adicionales pendientes' })).toBeDisabled();
   });
 
   it('renders establishments and POS points of sale table', () => {

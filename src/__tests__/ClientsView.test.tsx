@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ClientsView } from '../components/clients/ClientsView';
 import { AppProvider } from '../context/AppContext';
 
@@ -51,7 +51,7 @@ describe('ClientsView Component', () => {
     expect(nrcInput.value).toBe('87654-3');
   });
 
-  it('adds client to the directory upon submitting', () => {
+  it('adds client to the directory upon submitting', async () => {
     renderClients();
     fireEvent.click(screen.getByRole('button', { name: /Nuevo Cliente/i }));
 
@@ -62,6 +62,7 @@ describe('ClientsView Component', () => {
     fireEvent.change(screen.getByLabelText(/Correo Electrónico/i), { target: { value: 'facturacion@tech.sv' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Guardar Cliente/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     expect(screen.getByText('Tech Solutions S.A.')).toBeInTheDocument();
   });

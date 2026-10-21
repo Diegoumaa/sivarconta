@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { Product } from '../../types';
@@ -17,6 +17,9 @@ export const CatalogView: React.FC = () => {
   const [taxType, setTaxType] = useState<'GRAVADO' | 'EXENTO' | 'NO_SUJETO'>('GRAVADO');
   const [unitOfMeasure, setUnitOfMeasure] = useState('59');
   const [category, setCategory] = useState('General');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
 
   // Lock body scroll and handle ESC key when modal is open
   useEffect(() => {
@@ -26,7 +29,7 @@ export const CatalogView: React.FC = () => {
     document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !savingRef.current) {
         setShowModal(false);
       }
     };
@@ -44,26 +47,40 @@ export const CatalogView: React.FC = () => {
     p.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || unitPrice <= 0) return;
+    if (savingRef.current) return;
+    setErrorMessage('');
+    if (!name.trim() || !Number.isFinite(unitPrice) || unitPrice <= 0) {
+      setErrorMessage('Ingresa un nombre y un precio mayor a $0.00.');
+      return;
+    }
 
-    addProduct({
+    savingRef.current = true;
+    setIsSaving(true);
+    try {
+      await addProduct({
       code: code || `SKU-${Date.now().toString().slice(-4)}`,
-      name,
+      name: name.trim(),
       description,
       unitPrice,
       taxType,
       unitOfMeasure,
       category
-    });
+      });
 
     // Reset & close
     setCode('');
     setName('');
     setDescription('');
     setUnitPrice(0);
-    setShowModal(false);
+      setShowModal(false);
+    } catch {
+      setErrorMessage('No se pudo guardar el producto. Revisa tu conexión e inténtalo de nuevo; tus datos siguen aquí.');
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -177,11 +194,12 @@ export const CatalogView: React.FC = () => {
       {showModal && typeof document !== 'undefined' && createPortal(
         <div 
           onClick={(e) => {
-            if (e.target === e.currentTarget) setShowModal(false);
+            if (e.target === e.currentTarget && !savingRef.current) setShowModal(false);
           }}
           className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm p-3 sm:p-4 flex items-center justify-center animate-in fade-in duration-150 overflow-y-auto"
         >
           <div 
+            role="dialog" aria-modal="true" aria-labelledby="catalog-dialog-title"
             onClick={(e) => e.stopPropagation()}
             className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden my-6 animate-in zoom-in-95 duration-150"
           >
@@ -193,7 +211,7 @@ export const CatalogView: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight">
+                    <h3 id="catalog-dialog-title" className="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight">
                       Agregar al Catálogo
                     </h3>
                     <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200/60">
@@ -207,6 +225,8 @@ export const CatalogView: React.FC = () => {
               </div>
               <button
                 type="button"
+                aria-label="Cerrar formulario de producto"
+                disabled={isSaving}
                 onClick={() => setShowModal(false)}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors shrink-0 cursor-pointer"
               >
@@ -214,7 +234,9 @@ export const CatalogView: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto text-slate-900">
+            <form onSubmit={handleSubmit} aria-busy={isSaving} className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto text-slate-900">
+              <fieldset disabled={isSaving} className="contents">
+              {errorMessage && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">{errorMessage}</div>}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="catalog-code" className="text-xs font-semibold text-slate-700 block mb-1">Código / SKU</label>
@@ -312,6 +334,7 @@ export const CatalogView: React.FC = () => {
               <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
                 <button
                   type="button"
+                  disabled={isSaving}
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
                 >
@@ -319,11 +342,13 @@ export const CatalogView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={isSaving}
                   className="btn-tactile px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/30"
                 >
-                  Guardar Producto
+                  {isSaving ? 'Guardando producto…' : 'Guardar Producto'}
                 </button>
               </div>
+              </fieldset>
             </form>
           </div>
         </div>,

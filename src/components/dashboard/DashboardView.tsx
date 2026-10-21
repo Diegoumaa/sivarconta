@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Receipt, 
-  FileText, 
-  PlusCircle, 
-  Clock, 
-  Eye, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Receipt,
+  FileText,
+  PlusCircle,
+  Clock,
+  Eye,
   CheckCircle2,
   Sparkles,
   ArrowRight,
@@ -21,32 +21,42 @@ import {
 import { DTE_NAMES, DteType } from '../../types';
 import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
+import { getReportRange, isInReportRange, ReportPeriod } from './reportPeriod';
+import { DocumentStatusBadge } from '../ui/DocumentStatusBadge';
 
 export const DashboardView: React.FC = () => {
-  const { 
-    currentCompany, 
-    filteredInvoices, 
-    filteredPurchases, 
-    filteredProducts, 
-    filteredClients, 
-    setCurrentView, 
+  const {
+    currentCompany,
+    filteredInvoices: allInvoices,
+    filteredPurchases: allPurchases,
+    filteredProducts,
+    filteredClients,
+    setCurrentView,
     setActiveDtePreview,
-    startNewInvoiceWithDte 
+    startNewInvoiceWithDte
   } = useApp();
-  
-  const [period, setPeriod] = useState<'mes' | 'semana' | 'hoy'>('mes');
+
+  const [period, setPeriod] = useState<ReportPeriod>('mes');
+  const initialRange = getReportRange('mes');
+  const [rangeStart, setRangeStart] = useState(initialRange.start);
+  const [rangeEnd, setRangeEnd] = useState(initialRange.end);
+  const range = getReportRange(period, new Date(), rangeStart, rangeEnd);
+  const filteredInvoices = allInvoices.filter(inv => isInReportRange(inv.emissionDate, range));
+  const filteredPurchases = allPurchases.filter(pur => isInReportRange(pur.emissionDate, range));
+  const sales = filteredInvoices.filter(inv => inv.status === 'PROCESADO_MH' && inv.dteType !== '14');
+  const invalidRange = period === 'personalizado' && (!rangeStart || !rangeEnd || rangeStart > rangeEnd);
   const [dismissOnboarding, setDismissOnboarding] = useState(false);
 
   // Calculations: DTE-05 (Nota de Crédito) subtracts from sales & Débito Fiscal per El Salvador Tax Code
-  const totalVentas = filteredInvoices.reduce(
+  const totalVentas = sales.reduce(
     (acc, inv) => acc + (inv.dteType === '05' ? -inv.totalPagar : inv.totalPagar),
     0
   );
-  const debitoFiscalTotal = filteredInvoices.reduce(
+  const debitoFiscalTotal = sales.reduce(
     (acc, inv) => acc + (inv.dteType === '05' ? -inv.iva13 : inv.iva13),
     0
   );
-  
+
   const totalCompras = filteredPurchases.reduce(
     (acc, pur) => acc + (pur.docType === 'NOTA_CREDITO' ? -pur.totalPagar : pur.totalPagar),
     0
@@ -70,7 +80,7 @@ export const DashboardView: React.FC = () => {
   // Onboarding Steps computation
   const step1Complete = Boolean(currentCompany?.name && currentCompany?.nrc);
   const step2Complete = filteredProducts.length > 0;
-  const step3Complete = filteredInvoices.length > 0;
+  const step3Complete = allInvoices.length > 0;
   const completedStepsCount = [step1Complete, step2Complete, step3Complete].filter(Boolean).length;
   const progressPercent = Math.round((completedStepsCount / 3) * 100);
 
@@ -94,128 +104,32 @@ export const DashboardView: React.FC = () => {
         </div>
 
         {/* Period Selector Tabs */}
-        <div className="inline-flex p-1 bg-slate-100 rounded-xl self-start sm:self-auto border border-slate-200">
-          {(['hoy', 'semana', 'mes'] as const).map(p => (
+        <div className="flex flex-wrap gap-1 p-1 bg-slate-100 rounded-xl self-start sm:self-auto border border-slate-200" role="group" aria-label="Período del dashboard">
+          {(['hoy', 'semana', 'mes', 'anterior', 'personalizado'] as const).map(p => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
+              aria-pressed={period === p}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all duration-150 active:scale-95 cursor-pointer ${
                 period === p
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              {p === 'mes' ? 'Este Mes' : p === 'semana' ? 'Esta Semana' : 'Hoy'}
+              {p === 'mes' ? 'Este Mes' : p === 'semana' ? 'Esta Semana' : p === 'anterior' ? 'Mes anterior' : p === 'personalizado' ? 'Rango personalizado' : 'Hoy'}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Onboarding Widget: "Camino al Éxito Fiscal" (Linear Style) */}
-      {!dismissOnboarding && (
-        <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80 relative overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-brand-600 via-indigo-600 to-indigo-400 absolute top-0 left-0 right-0" />
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="p-1 rounded-md bg-brand-50 text-brand-700 border border-brand-200/60">
-                  <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-                </span>
-                <span className="text-[11px] font-bold text-brand-700 uppercase tracking-wider">
-                  Guía de Inicio Rápido para Emprendedores
-                </span>
-              </div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                Emite tus facturas electrónicas en 3 sencillos pasos
-              </h2>
-              <p className="text-xs text-slate-500 max-w-xl">
-                Hemos preparado esta guía interactiva para acompañarte paso a paso sin complicaciones tributarias.
-              </p>
-            </div>
-
-            {/* Progress bar */}
-            <div className="flex items-center gap-3 bg-slate-50 p-2.5 px-3.5 rounded-xl border border-slate-200/80 shrink-0">
-              <div className="text-right">
-                <span className="text-[10px] text-slate-400 block font-medium">Progreso</span>
-                <span className="text-sm font-extrabold font-mono text-brand-700">{progressPercent}%</span>
-              </div>
-              <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-brand-600 to-emerald-500 rounded-full transition-all duration-500"
-                  style={{ width: `${progressPercent}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-
-          {/* 3 Step Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100 relative z-10">
-            {/* Step 1 */}
-            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    step1Complete ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {step1Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '1'}
-                  </span>
-                  <span className="text-xs font-bold text-slate-900">Datos de Empresa</span>
-                </div>
-                <p className="text-[11px] text-slate-500">NRC y giro configurados</p>
-              </div>
-              <button 
-                onClick={() => setCurrentView('settings')}
-                className="text-xs text-brand-600 hover:text-brand-700 font-semibold active:scale-95 transition-transform cursor-pointer"
-              >
-                Revisar
-              </button>
-            </div>
-
-            {/* Step 2 */}
-            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    step2Complete ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {step2Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '2'}
-                  </span>
-                  <span className="text-xs font-bold text-slate-900">Catálogo Inicial</span>
-                </div>
-                <p className="text-[11px] text-slate-500">{filteredProducts.length} productos listos</p>
-              </div>
-              <button 
-                onClick={() => setCurrentView('catalog')}
-                className="text-xs text-brand-600 hover:text-brand-700 font-semibold active:scale-95 transition-transform cursor-pointer"
-              >
-                Catálogo
-              </button>
-            </div>
-
-            {/* Step 3 */}
-            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    step3Complete ? 'bg-emerald-600 text-white' : 'bg-brand-600 text-white'
-                  }`}>
-                    {step3Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '3'}
-                  </span>
-                  <span className="text-xs font-bold text-slate-900">Emitir Primer DTE</span>
-                </div>
-                <p className="text-[11px] text-slate-500">Prueba en Sandbox</p>
-              </div>
-              <button 
-                onClick={() => startNewInvoiceWithDte('01')}
-                className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs transition-transform active:scale-95 flex items-center gap-1 cursor-pointer shadow-xs"
-              >
-                <span>Emitir</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
+      {period === 'personalizado' && (
+        <div className="flex flex-wrap gap-4 bg-white p-4 rounded-2xl border border-slate-200">
+          <label className="text-sm font-medium">Desde<input aria-label="Desde" type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} className="block rounded-lg border border-slate-300 p-2 mt-1" /></label>
+          <label className="text-sm font-medium">Hasta<input aria-label="Hasta" type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} className="block rounded-lg border border-slate-300 p-2 mt-1" /></label>
+          {invalidRange && <p role="alert" className="w-full text-sm text-red-700">Selecciona un rango válido: la fecha inicial debe ser anterior o igual a la final.</p>}
         </div>
       )}
+      <p className="text-sm text-slate-600" role="status">{invalidRange ? 'Período pendiente de corregir' : `${range.start} al ${range.end}`} · {filteredClients.length} clientes · {filteredInvoices.filter(inv => inv.status === 'BORRADOR').length} borradores. Las ventas e IVA generado incluyen documentos procesados; los borradores se excluyen.</p>
 
       {/* Main KPI Cards (Tremor / Stripe Style) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -305,7 +219,7 @@ export const DashboardView: React.FC = () => {
             </span>
             <span className="text-xs text-slate-400 font-medium">Liquidación Proyectada</span>
           </div>
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Liquidación de IVA del Mes</h2>
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Liquidación de IVA del período</h2>
           <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
             Débito Fiscal (${debitoFiscalTotal.toFixed(2)}) − Crédito Fiscal (${creditoFiscalTotal.toFixed(2)}) =
             {saldoAPagar > 0 ? (
@@ -328,6 +242,113 @@ export const DashboardView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Onboarding Widget */}
+      {!dismissOnboarding && (
+        <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80 relative overflow-hidden">
+          <button type="button" onClick={() => setDismissOnboarding(true)} aria-label="Ocultar guía de inicio" className="absolute right-3 top-3 z-20 min-h-11 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Ocultar guía</button>
+          <div className="h-1 bg-gradient-to-r from-brand-600 via-indigo-600 to-indigo-400 absolute top-0 left-0 right-0" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10 pt-8">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded-md bg-brand-50 text-brand-700 border border-brand-200/60">
+                  <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+                </span>
+                <span className="text-[11px] font-bold text-brand-700 uppercase tracking-wider">
+                  Guía de Inicio Rápido
+                </span>
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                Prepara tu primer documento de prueba
+              </h2>
+              <p className="text-xs text-slate-500 max-w-xl">
+                Hemos preparado esta guía interactiva para acompañarte paso a paso sin complicaciones tributarias.
+              </p>
+            </div>
+
+            {/* Progress bar */}
+            <div className="flex items-center gap-3 bg-slate-50 p-2.5 px-3.5 rounded-xl border border-slate-200/80 shrink-0">
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 block font-medium">Progreso</span>
+                <span className="text-sm font-extrabold font-mono text-brand-700">{progressPercent}%</span>
+              </div>
+              <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-brand-600 to-emerald-500 rounded-full transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3 Step Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100 relative z-10">
+            {/* Step 1 */}
+            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    step1Complete ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {step1Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '1'}
+                  </span>
+                  <span className="text-xs font-bold text-slate-900">Datos de Empresa</span>
+                </div>
+                <p className="text-[11px] text-slate-500">NRC y giro configurados</p>
+              </div>
+              <button
+                onClick={() => setCurrentView('settings')}
+                className="text-xs text-brand-600 hover:text-brand-700 font-semibold active:scale-95 transition-transform cursor-pointer"
+              >
+                Revisar
+              </button>
+            </div>
+
+            {/* Step 2 */}
+            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    step2Complete ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {step2Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '2'}
+                  </span>
+                  <span className="text-xs font-bold text-slate-900">Catálogo Inicial</span>
+                </div>
+                <p className="text-[11px] text-slate-500">{filteredProducts.length} productos listos</p>
+              </div>
+              <button
+                onClick={() => setCurrentView('catalog')}
+                className="text-xs text-brand-600 hover:text-brand-700 font-semibold active:scale-95 transition-transform cursor-pointer"
+              >
+                Catálogo
+              </button>
+            </div>
+
+            {/* Step 3 */}
+            <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between hover:bg-white hover:border-brand-200 hover:shadow-xs transition-all">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    step3Complete ? 'bg-emerald-600 text-white' : 'bg-brand-600 text-white'
+                  }`}>
+                    {step3Complete ? <Check className="w-3 h-3 stroke-[3]" /> : '3'}
+                  </span>
+                  <span className="text-xs font-bold text-slate-900">Emitir Primer DTE</span>
+                </div>
+                <p className="text-[11px] text-slate-500">Borrador local de prueba</p>
+              </div>
+              <button
+                onClick={() => startNewInvoiceWithDte('01')}
+                className="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs transition-transform active:scale-95 flex items-center gap-1 cursor-pointer shadow-xs"
+              >
+                <span>Emitir</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Launchpad & Documents by Type */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -358,7 +379,7 @@ export const DashboardView: React.FC = () => {
                     <div>
                       <p className="text-xs font-bold text-slate-800">{meta.name}</p>
                       <p className="text-[10px] text-slate-400 font-mono">
-                        {countByType[type] || 0} emitidos este mes
+                        {countByType[type] || 0} documentos en el período
                       </p>
                     </div>
                   </div>
@@ -377,7 +398,7 @@ export const DashboardView: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                 <Clock className="w-4 h-4 text-slate-500" />
-                Últimos Documentos Transmitidos a Hacienda
+                Documentos recientes del período
               </h3>
               <button
                 onClick={() => setCurrentView('invoices')}
@@ -437,10 +458,7 @@ export const DashboardView: React.FC = () => {
                             ${inv.totalPagar.toFixed(2)}
                           </td>
                           <td className="py-2.5 text-center">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3" />
-                              Aprobado
-                            </span>
+                            <DocumentStatusBadge status={inv.status} />
                           </td>
                           <td className="py-2.5 text-center">
                             <button
@@ -461,8 +479,8 @@ export const DashboardView: React.FC = () => {
           </div>
 
           <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-            <span>Validación en tiempo real con servidor DGII de El Salvador</span>
-            <span className="font-mono font-medium text-slate-600">Ambiente: {currentCompany?.mhEnvironment || 'PRUEBAS'}</span>
+            <span>Demostración: sin conexión de emisión a Hacienda</span>
+            <span className="font-mono font-medium text-slate-600">Sin validez fiscal</span>
           </div>
         </div>
       </div>

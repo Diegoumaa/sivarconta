@@ -2,7 +2,9 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { InvoiceBuilder } from '../components/billing/InvoiceBuilder';
-import { AppProvider } from '../context/AppContext';
+import { AppProvider, useApp } from '../context/AppContext';
+
+const CurrentView = () => <output aria-label="Vista actual">{useApp().currentView}</output>;
 
 vi.mock('canvas-confetti', () => ({
   default: vi.fn(),
@@ -23,6 +25,7 @@ describe('InvoiceBuilder Component', () => {
     return render(
       <AppProvider>
         <InvoiceBuilder />
+        <CurrentView />
       </AppProvider>
     );
   };
@@ -90,11 +93,43 @@ describe('InvoiceBuilder Component', () => {
     // Step 3 -> Step 4
     fireEvent.click(screen.getByRole('button', { name: /Revisión Pre-Vuelo/i }));
     expect(screen.getByText(/Semáforo de Validación Pre-Vuelo/i)).toBeInTheDocument();
-    expect(screen.getByText(/Resumen de la Transmisión/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Firmar y Transmitir DTE a Hacienda/i })).toBeInTheDocument();
+    expect(screen.getByText(/Resumen del borrador/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Guardar borrador de prueba/i })).toBeInTheDocument();
   });
 
-  it('submits invoice and navigates to invoices view upon completion', async () => {
+  it('blocks a zero-quantity line even if another line keeps the document total positive', () => {
+    renderInvoiceBuilder();
+    fireEvent.click(screen.getByRole('button', { name: /Continuar a Productos/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Agregar/i }));
+    fireEvent.change(screen.getAllByLabelText('Cantidad de partida 1')[0], { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: /Continuar a Pago/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Revisión Pre-Vuelo/i }));
+    expect(screen.getByRole('button', { name: /Guardar borrador de prueba/i })).toBeDisabled();
+    expect(screen.getByText(/Revisa las partidas/i)).toBeInTheDocument();
+  });
+
+  it('keeps the edited invoice available when local persistence fails', async () => {
+    renderInvoiceBuilder();
+    fireEvent.click(screen.getByRole('button', { name: /Continuar a Productos/i }));
+    fireEvent.change(screen.getAllByLabelText('Cantidad de partida 1')[0], { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: /Continuar a Pago/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Revisión Pre-Vuelo/i }));
+    const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage full'); });
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /Guardar borrador de prueba/i }));
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No se pudo guardar la copia local.'));
+      expect(screen.getByRole('button', { name: /Guardar borrador de prueba/i })).toBeEnabled();
+      expect(screen.getByLabelText('Vista actual')).not.toHaveTextContent('invoices');
+      fireEvent.click(screen.getByRole('button', { name: 'Paso 2: Productos & Servicios' }));
+      expect(screen.getAllByLabelText('Cantidad de partida 1')[0]).toHaveValue(3);
+    } finally {
+      storage.mockRestore();
+      log.mockRestore();
+    }
+  });
+
+  it('saves a draft without a fabricated MH stamp and navigates to invoices', async () => {
     renderInvoiceBuilder();
 
     // Walk to Step 4
@@ -102,15 +137,17 @@ describe('InvoiceBuilder Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Continuar a Pago/i }));
     fireEvent.click(screen.getByRole('button', { name: /Revisión Pre-Vuelo/i }));
 
-    const submitBtn = screen.getByRole('button', { name: /Firmar y Transmitir DTE a Hacienda/i });
+    const submitBtn = screen.getByRole('button', { name: /Guardar borrador de prueba/i });
     fireEvent.click(submitBtn);
 
-    // Transmission modal appears
-    expect(screen.getByText(/Transmitiendo a DGII El Salvador/i)).toBeInTheDocument();
-
-    // Wait for async transmission simulation
     await waitFor(() => {
-      expect(screen.queryByText(/Transmitiendo a DGII El Salvador/i)).not.toBeInTheDocument();
-    }, { timeout: 4000 });
+      expect(screen.getByLabelText('Vista actual')).toHaveTextContent('invoices');
+    });
+    const invoices = JSON.parse(localStorage.getItem('sivarconta_invoices') || '[]');
+    expect(invoices[0].status).toBe('BORRADOR');
+    expect(invoices[0].items).toHaveLength(1);
+    expect(invoices[0].mhReceptionStamp).toBeUndefined();
+    expect(invoices[0].mhQrUrl).toBeUndefined();
+    expect(screen.queryByText(/Transmitiendo a DGII El Salvador/i)).not.toBeInTheDocument();
   });
 });

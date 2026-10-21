@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { PurchaseDocument } from '../../types';
@@ -7,10 +7,17 @@ import { validateNit, validateNrc } from '../../utils/svTaxValidators';
 import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
 
+const currentSvDate = () => {
+  const parts = new Intl.DateTimeFormat('en', { timeZone: 'America/El_Salvador', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  return ['year', 'month', 'day'].map(type => parts.find(part => part.type === type)!.value).join('-');
+};
+
 export const PurchasesView: React.FC = () => {
   const { filteredPurchases, addPurchase } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   // Form State
   const [supplierName, setSupplierName] = useState('');
@@ -22,6 +29,9 @@ export const PurchasesView: React.FC = () => {
   const [purchasesGravadas, setPurchasesGravadas] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState('Transferencia 365');
   const [errorMessage, setErrorMessage] = useState('');
+  const [emissionDate, setEmissionDate] = useState(currentSvDate);
+  const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
 
   // Lock body scroll and handle ESC key when modal is open
   useEffect(() => {
@@ -31,7 +41,7 @@ export const PurchasesView: React.FC = () => {
     document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !savingRef.current) {
         setShowModal(false);
       }
     };
@@ -43,10 +53,12 @@ export const PurchasesView: React.FC = () => {
     };
   }, [showModal]);
 
+  const invalidDateRange = Boolean(dateFrom && dateTo && dateFrom > dateTo);
   const filtered = filteredPurchases.filter(p =>
+    !invalidDateRange && (!dateFrom || p.emissionDate >= dateFrom) && (!dateTo || p.emissionDate <= dateTo) && (
     p.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.docNumber.includes(searchTerm) ||
-    p.concept.toLowerCase().includes(searchTerm.toLowerCase())
+    p.concept.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Tax calculations per El Salvador DGII regulations:
@@ -67,10 +79,11 @@ export const PurchasesView: React.FC = () => {
     ? Number(purchasesGravadas.toFixed(2))
     : Number((purchasesGravadas + creditoFiscal).toFixed(2));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingRef.current) return;
     setErrorMessage('');
-    if (!supplierName.trim() || purchasesGravadas <= 0) {
+    if (!supplierName.trim() || !Number.isFinite(purchasesGravadas) || purchasesGravadas <= 0) {
       setErrorMessage('Por favor ingrese el nombre del proveedor y un monto gravado mayor a $0.00.');
       return;
     }
@@ -91,10 +104,18 @@ export const PurchasesView: React.FC = () => {
       }
     }
 
-    addPurchase({
+    if (!docNumber.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(emissionDate)) {
+      setErrorMessage('Ingresa el número de documento y una fecha válida.');
+      return;
+    }
+
+    savingRef.current = true;
+    setIsSaving(true);
+    try {
+      await addPurchase({
       docType,
       docNumber: docNumber.trim(),
-      emissionDate: new Date().toISOString().split('T')[0],
+      emissionDate,
       supplierName: supplierName.trim(),
       supplierNit: supplierNit.trim(),
       supplierNrc: supplierNrc.trim() || undefined,
@@ -106,7 +127,7 @@ export const PurchasesView: React.FC = () => {
       retencionRenta10: retencionRenta10 > 0 ? retencionRenta10 : undefined,
       totalPagar,
       paymentMethod
-    });
+      });
 
     // Reset & close
     setSupplierName('');
@@ -116,7 +137,14 @@ export const PurchasesView: React.FC = () => {
     setConcept('');
     setPurchasesGravadas(0);
     setErrorMessage('');
-    setShowModal(false);
+      setEmissionDate(currentSvDate());
+      setShowModal(false);
+    } catch {
+      setErrorMessage('No se pudo guardar la compra. Revisa tu conexión e inténtalo de nuevo; tus datos siguen aquí.');
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -141,10 +169,11 @@ export const PurchasesView: React.FC = () => {
       </div>
 
       {/* Search */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
         <div className="relative max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
+            aria-label="Buscar compras"
             type="text"
             placeholder="Buscar por proveedor o # documento..."
             value={searchTerm}
@@ -152,6 +181,12 @@ export const PurchasesView: React.FC = () => {
             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           />
         </div>
+        <div className="flex flex-wrap items-end gap-3 text-xs">
+          <label className="space-y-1">Desde<input aria-label="Compras desde" type="date" value={dateFrom} onChange={event => setDateFrom(event.target.value)} className="block rounded-lg border border-slate-300 bg-white p-2" /></label>
+          <label className="space-y-1">Hasta<input aria-label="Compras hasta" type="date" value={dateTo} onChange={event => setDateTo(event.target.value)} className="block rounded-lg border border-slate-300 bg-white p-2" /></label>
+          {(dateFrom || dateTo) && <button type="button" onClick={() => { setDateFrom(''); setDateTo(''); }} className="rounded-lg bg-slate-100 p-2 font-semibold text-slate-700">Limpiar fechas</button>}
+        </div>
+        {invalidDateRange && <p role="alert" className="text-xs text-red-700">La fecha inicial debe ser anterior o igual a la fecha final.</p>}
       </div>
 
       {/* Purchases Table */}
@@ -258,11 +293,12 @@ export const PurchasesView: React.FC = () => {
       {showModal && typeof document !== 'undefined' && createPortal(
         <div 
           onClick={(e) => {
-            if (e.target === e.currentTarget) setShowModal(false);
+            if (e.target === e.currentTarget && !savingRef.current) setShowModal(false);
           }}
           className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm p-3 sm:p-4 flex items-center justify-center animate-in fade-in duration-150 overflow-y-auto"
         >
           <div 
+            role="dialog" aria-modal="true" aria-labelledby="purchase-dialog-title"
             onClick={(e) => e.stopPropagation()}
             className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden my-6 animate-in zoom-in-95 duration-150"
           >
@@ -274,7 +310,7 @@ export const PurchasesView: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight">
+                    <h3 id="purchase-dialog-title" className="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight">
                       Registrar Compra / Factura Recibida
                     </h3>
                     <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200/60">
@@ -288,6 +324,8 @@ export const PurchasesView: React.FC = () => {
               </div>
               <button
                 type="button"
+                aria-label="Cerrar formulario de compra"
+                disabled={isSaving}
                 onClick={() => setShowModal(false)}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors shrink-0 cursor-pointer"
               >
@@ -295,13 +333,27 @@ export const PurchasesView: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto text-slate-900">
+            <form onSubmit={handleSubmit} aria-busy={isSaving} className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto text-slate-900">
+              <fieldset disabled={isSaving} className="contents">
               {errorMessage && (
                 <div role="alert" className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
                   <span>{errorMessage}</span>
                 </div>
               )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="purchase-date" className="mb-1 block text-xs font-semibold text-slate-700">Fecha de compra</label>
+                  <input id="purchase-date" type="date" required value={emissionDate} onChange={event => setEmissionDate(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs" />
+                </div>
+                <div>
+                  <label htmlFor="purchase-payment" className="mb-1 block text-xs font-semibold text-slate-700">Forma de pago</label>
+                  <select id="purchase-payment" value={paymentMethod} onChange={event => setPaymentMethod(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs">
+                    <option>Transferencia 365</option><option>Efectivo</option><option>Tarjeta</option><option>Cheque</option><option>Crédito</option>
+                  </select>
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -431,6 +483,7 @@ export const PurchasesView: React.FC = () => {
               <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
                 <button
                   type="button"
+                  disabled={isSaving}
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
                 >
@@ -438,11 +491,13 @@ export const PurchasesView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={isSaving}
                   className="btn-tactile px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/30"
                 >
-                  Guardar Compra
+                  {isSaving ? 'Guardando compra…' : 'Guardar Compra'}
                 </button>
               </div>
+              </fieldset>
             </form>
           </div>
         </div>,

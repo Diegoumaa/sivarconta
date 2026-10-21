@@ -6,14 +6,26 @@ import { toast } from 'sonner';
 export const IvaBooksView: React.FC = () => {
   const { currentCompany, filteredInvoices, filteredPurchases } = useApp();
   const [activeTab, setActiveTab] = useState<'ventas_contribuyente' | 'ventas_consumidor' | 'compras'>('ventas_contribuyente');
-  const [selectedMonth, setSelectedMonth] = useState('09');
-  const [selectedYear, setSelectedYear] = useState('2026');
+  const [selectedPeriod, setSelectedPeriod] = useState(() => {
+    const parts = new Intl.DateTimeFormat('en', {
+      timeZone: 'America/El_Salvador', year: 'numeric', month: '2-digit'
+    }).formatToParts(new Date());
+    return `${parts.find(part => part.type === 'year')!.value}-${parts.find(part => part.type === 'month')!.value}`;
+  });
+  const selectedMonth = selectedPeriod.slice(5, 7);
+  const selectedYear = selectedPeriod.slice(0, 4);
+  const periodLabel = new Date(`${selectedPeriod}-01T12:00:00Z`).toLocaleDateString('es-SV', {
+    timeZone: 'America/El_Salvador', month: 'long', year: 'numeric'
+  });
+  const periodInvoices = filteredInvoices.filter(invoice =>
+    invoice.emissionDate.startsWith(`${selectedPeriod}-`) && invoice.status === 'PROCESADO_MH');
+  const periodPurchases = filteredPurchases.filter(purchase => purchase.emissionDate.startsWith(`${selectedPeriod}-`));
 
   // Filter invoices for DTE-03 (Ventas a Contribuyente)
-  const ventasContribuyente = filteredInvoices.filter(i => i.dteType === '03' || i.dteType === '05' || i.dteType === '06');
+  const ventasContribuyente = periodInvoices.filter(i => i.dteType === '03' || i.dteType === '05' || i.dteType === '06');
   
   // Filter invoices for DTE-01 (Ventas a Consumidor Final)
-  const ventasConsumidor = filteredInvoices.filter(i => i.dteType === '01');
+  const ventasConsumidor = periodInvoices.filter(i => i.dteType === '01');
 
   // Totals Ventas Contribuyente (Nota de Crédito DTE-05 subtracts from sales & fiscal debit per El Salvador Tax Code)
   const totalGravadasContrib = ventasContribuyente.reduce((a, b) => a + (b.dteType === '05' ? -b.subtotalGravado : b.subtotalGravado), 0);
@@ -27,9 +39,9 @@ export const IvaBooksView: React.FC = () => {
   const totalVentasConsum = ventasConsumidor.reduce((a, b) => a + b.totalPagar, 0);
 
   // Totals Compras (NOTA_CREDITO from suppliers subtracts from purchases and Crédito Fiscal)
-  const totalComprasGravadas = filteredPurchases.reduce((a, b) => a + (b.docType === 'NOTA_CREDITO' ? -b.purchasesGravadas : b.purchasesGravadas), 0);
-  const totalCreditoFiscal = filteredPurchases.reduce((a, b) => a + (b.docType === 'NOTA_CREDITO' ? -b.creditoFiscal : b.creditoFiscal), 0);
-  const totalComprasPagar = filteredPurchases.reduce((a, b) => a + (b.docType === 'NOTA_CREDITO' ? -b.totalPagar : b.totalPagar), 0);
+  const totalComprasGravadas = periodPurchases.reduce((a, b) => a + (b.docType === 'NOTA_CREDITO' ? -b.purchasesGravadas : b.purchasesGravadas), 0);
+  const totalCreditoFiscal = periodPurchases.reduce((a, b) => a + (b.docType === 'NOTA_CREDITO' ? -b.creditoFiscal : b.creditoFiscal), 0);
+  const totalComprasPagar = periodPurchases.reduce((a, b) => a + (b.docType === 'NOTA_CREDITO' ? -b.totalPagar : b.totalPagar), 0);
 
   // Overall IVA Balance for F07
   const debitoTotalPeriodo = totalDebitoContrib + totalIvaConsum;
@@ -37,36 +49,47 @@ export const IvaBooksView: React.FC = () => {
   const saldoF07 = debitoTotalPeriodo - creditoTotalPeriodo;
 
   const exportCsv = () => {
-    let csvContent = "";
-    
+    // Quote text, escape embedded quotes, and prevent spreadsheet formula execution.
+    // Numeric values remain numeric so credit notes retain their negative amounts.
+    const csvCell = (value: string | number) => {
+      if (typeof value === 'number') return value.toFixed(2);
+      const text = /^[\s\u0000-\u001f]*[=+\-@]/.test(value) || /^[\t\r\n]/.test(value) ? `'${value}` : value;
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    let rows: (string | number)[][];
     if (activeTab === 'ventas_contribuyente') {
-      csvContent += "Fecha,Tipo_DTE,Numero_Control,Codigo_Generacion,Cliente,NRC,Venta_Gravada,Debito_Fiscal_13,IVA_Retenido_1,Total\n";
+      rows = [['Fecha', 'Tipo_DTE', 'Numero_Control', 'Codigo_Generacion', 'Cliente', 'NRC', 'Venta_Gravada', 'Venta_Exenta', 'Debito_Fiscal_13', 'IVA_Retenido_1', 'IVA_Percibido_1', 'Total']];
       ventasContribuyente.forEach(v => {
         const sign = v.dteType === '05' ? -1 : 1;
-        csvContent += `"${v.emissionDate}","${v.dteType}","${v.controlNumber}","${v.generationCode}","${v.clientName}","${v.clientNrc || ''}",${(v.subtotalGravado * sign).toFixed(2)},${(v.iva13 * sign).toFixed(2)},${(v.retencion1 * sign).toFixed(2)},${(v.totalPagar * sign).toFixed(2)}\n`;
+        rows.push([v.emissionDate, v.dteType, v.controlNumber, v.generationCode, v.clientName, v.clientNrc || '', v.subtotalGravado * sign, v.subtotalExento * sign, v.iva13 * sign, v.retencion1 * sign, (v.percepcion1 || 0) * sign, v.totalPagar * sign]);
       });
     } else if (activeTab === 'ventas_consumidor') {
-      csvContent += "Fecha,Numero_Control,Cliente,Venta_Gravada_Con_IVA,IVA_Implicito,Total\n";
+      rows = [['Fecha', 'Numero_Control', 'Cliente', 'Venta_Gravada', 'Venta_Exenta', 'IVA_Implicito', 'Total']];
       ventasConsumidor.forEach(v => {
-        csvContent += `"${v.emissionDate}","${v.controlNumber}","${v.clientName}",${v.subtotalGravado.toFixed(2)},${v.iva13.toFixed(2)},${v.totalPagar.toFixed(2)}\n`;
+        rows.push([v.emissionDate, v.controlNumber, v.clientName, v.subtotalGravado, v.subtotalExento, v.iva13, v.totalPagar]);
       });
     } else {
-      csvContent += "Fecha,Tipo_Doc,Numero_Documento,Proveedor,NRC,Compra_Gravada,Credito_Fiscal_13,Total\n";
-      filteredPurchases.forEach(p => {
+      rows = [['Fecha', 'Tipo_Doc', 'Numero_Documento', 'Proveedor', 'NRC', 'Compra_Gravada', 'Compra_Exenta', 'Credito_Fiscal_13', 'IVA_Retenido_1', 'Renta_Retenida_10', 'Total']];
+      periodPurchases.forEach(p => {
         const sign = p.docType === 'NOTA_CREDITO' ? -1 : 1;
-        csvContent += `"${p.emissionDate}","${p.docType}","${p.docNumber}","${p.supplierName}","${p.supplierNrc || ''}",${(p.purchasesGravadas * sign).toFixed(2)},${(p.creditoFiscal * sign).toFixed(2)},${(p.totalPagar * sign).toFixed(2)}\n`;
+        rows.push([p.emissionDate, p.docType, p.docNumber, p.supplierName, p.supplierNrc || '', p.purchasesGravadas * sign, p.purchasesExentas * sign, p.creditoFiscal * sign, p.retencion1 * sign, (p.retencionRenta10 || 0) * sign, p.totalPagar * sign]);
       });
     }
-
+    const csvContent = rows.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const filename = `Libro_IVA_${activeTab}_${selectedMonth}_${selectedYear}.csv`;
     const link = document.createElement("a");
+    link.href = url;
     link.download = filename;
     document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    try {
+      link.click();
+    } finally {
+      document.body.removeChild(link);
+      // Let the browser begin the download before releasing its object URL.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
     toast.success('Libro de IVA exportado a CSV exitosamente', { description: filename });
   };
 
@@ -144,7 +167,10 @@ export const IvaBooksView: React.FC = () => {
 
           <div className="flex items-center gap-2 self-start md:self-auto bg-slate-50 p-2 rounded-xl border border-slate-200 text-xs">
             <Calendar className="w-4 h-4 text-brand-600" />
-            <span className="font-semibold text-slate-700">Período: Septiembre 2026</span>
+            <label htmlFor="iva-period" className="font-semibold text-slate-700">Período</label>
+            <input id="iva-period" type="month" value={selectedPeriod} onChange={event => {
+              if (/^\d{4}-(0[1-9]|1[0-2])$/.test(event.target.value)) setSelectedPeriod(event.target.value);
+            }} className="min-w-0 rounded-lg border border-slate-300 bg-white p-2 text-slate-800" />
           </div>
         </div>
       </div>
@@ -194,7 +220,7 @@ export const IvaBooksView: React.FC = () => {
             {activeTab === 'ventas_consumidor' && 'LIBRO DE VENTAS A CONSUMIDOR FINAL (FACTURAS)'}
             {activeTab === 'compras' && 'LIBRO DE COMPRAS'}
           </h3>
-          <p className="text-xs text-slate-600">Mes: Septiembre | Año: 2026 (Valores expresados en USD)</p>
+          <p className="text-xs text-slate-600">Período: {periodLabel} (Valores expresados en USD)</p>
         </div>
 
         {/* Tab 1: Ventas a Contribuyentes */}
@@ -328,22 +354,22 @@ export const IvaBooksView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredPurchases.length === 0 ? (
+                {periodPurchases.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-slate-400 font-sans">
                       No hay compras registradas en este período.
                     </td>
                   </tr>
                 ) : (
-                  filteredPurchases.map(p => (
+                  periodPurchases.map(p => (
                     <tr key={p.id} className="hover:bg-slate-50 font-mono text-[11px]">
                       <td className="py-2.5 px-3 text-slate-600">{p.emissionDate}</td>
                       <td className="py-2.5 px-3 font-semibold text-slate-800">{p.docNumber}</td>
                       <td className="py-2.5 px-3 font-sans font-medium text-slate-800 max-w-[200px] truncate">{p.supplierName}</td>
                       <td className="py-2.5 px-3 text-emerald-700">{p.supplierNrc || '---'}</td>
-                      <td className="py-2.5 px-3 text-right text-slate-700">${p.purchasesGravadas.toFixed(2)}</td>
-                      <td className="py-2.5 px-3 text-right font-bold text-emerald-700">+${p.creditoFiscal.toFixed(2)}</td>
-                      <td className="py-2.5 px-3 text-right font-bold text-slate-900">${p.totalPagar.toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-700">${((p.docType === 'NOTA_CREDITO' ? -1 : 1) * p.purchasesGravadas).toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-emerald-700">${((p.docType === 'NOTA_CREDITO' ? -1 : 1) * p.creditoFiscal).toFixed(2)}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-slate-900">${((p.docType === 'NOTA_CREDITO' ? -1 : 1) * p.totalPagar).toFixed(2)}</td>
                     </tr>
                   ))
                 )}

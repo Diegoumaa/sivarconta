@@ -59,6 +59,7 @@ export const NewCompanyModal: React.FC<NewCompanyModalProps> = ({ isOpen, onClos
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setErrorMessage('');
     if (!formData.name.trim() || !formData.nit.trim() || !formData.nrc.trim()) {
       setErrorMessage('Por favor complete los campos obligatorios: Razón Social, NIT y NRC.');
@@ -101,6 +102,7 @@ export const NewCompanyModal: React.FC<NewCompanyModalProps> = ({ isOpen, onClos
       onClose();
     } catch (error) {
       console.error('Error al registrar empresa:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'No se pudo guardar la empresa. Puedes corregir o reintentar sin perder tus datos.');
     } finally {
       setIsSubmitting(false);
     }

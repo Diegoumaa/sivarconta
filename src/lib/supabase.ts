@@ -1,16 +1,20 @@
 /// <reference types="vite/client" />
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://cpbithyqxmirayubqtsk.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Bh4MIAt7r9AbbYORo-HBpg_-eQ2Ah2J';
+// A checkout without explicit configuration is an isolated local demo.
+// Never silently connect a developer's browser or tests to a shared database.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // Validates whether the Supabase project credentials have been configured
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseAnonKey && 
-  supabaseUrl.startsWith('https://') &&
-  !supabaseUrl.includes('tu-proyecto')
-);
+export const isSupabaseConfigured = (() => {
+  try {
+    const url = new URL(supabaseUrl);
+    return Boolean(supabaseAnonKey && url.protocol === 'https:' && url.hostname && !url.hostname.includes('tu-proyecto'));
+  } catch {
+    return false;
+  }
+})();
 
 // Singleton Supabase Client
 export const supabase = isSupabaseConfigured

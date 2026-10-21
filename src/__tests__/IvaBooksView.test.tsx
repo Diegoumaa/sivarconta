@@ -61,6 +61,8 @@ describe('IvaBooksView Component (F07 Books & Export)', () => {
   });
 
   it('triggers CSV export download without throwing errors', () => {
+    vi.useFakeTimers();
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     renderIvaBooks();
 
     // Mock URL.createObjectURL and URL.revokeObjectURL
@@ -73,7 +75,11 @@ describe('IvaBooksView Component (F07 Books & Export)', () => {
     fireEvent.click(exportBtn);
 
     expect(createObjectUrlMock).toHaveBeenCalled();
+    expect(revokeObjectUrlMock).not.toHaveBeenCalled();
+    vi.runAllTimers();
     expect(revokeObjectUrlMock).toHaveBeenCalled();
+    clickSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   it('triggers window.print when clicking print button', () => {
