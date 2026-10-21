@@ -45,6 +45,8 @@ El esquema de referencia está en `supabase/schema.sql`. Contiene tablas y polí
 
 La opción **Explorar demostración** carga únicamente datos de ejemplo del navegador, incluso si el despliegue tiene variables de Supabase. No realiza consultas a las tablas de empresas. Esta separación está cubierta por pruebas de componentes. La interfaz de acceso no sustituye las políticas RLS: una API expuesta debe protegerse también en el servidor.
 
+La demostración explícita utiliza el espacio de almacenamiento `sivarconta_demo_v2_`. No lee ni elimina la caché `sivarconta_` que pudieran haber dejado versiones anteriores conectadas a la nube. Sus datos se conservan para evitar una pérdida silenciosa, pero no se muestran como ejemplos sin autenticación.
+
 `supabase/audits/readiness.sql` contiene comprobaciones administrativas de solo lectura sobre tablas, RLS, políticas, privilegios, funciones y restricciones. Preparar este archivo no significa que ya se haya ejecutado sobre la base real.
 
 El aislamiento entre empresas debe aplicarse con usuarios autenticados, membresías verificadas y políticas RLS probadas en PostgreSQL. Las políticas de acceso universal y la desactivación de RLS exponen los registros; no deben utilizarse para resolver errores de permisos. La selección de empresa y los filtros del frontend por sí solos no son una barrera de autorización.

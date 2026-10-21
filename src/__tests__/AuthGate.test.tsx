@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthGate } from '../components/auth/AuthGate';
 import { AppProvider, useApp } from '../context/AppContext';
+import { INITIAL_CLIENTS } from '../data/mockData';
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(), onAuthStateChange: vi.fn(), signInWithPassword: vi.fn(),
@@ -147,6 +148,17 @@ describe('Access boundary', () => {
     const Example = () => <output aria-label="Clientes de ejemplo">{useApp().filteredClients.length}</output>;
     render(<AppProvider demo><Example /></AppProvider>);
     expect(Number(screen.getByLabelText('Clientes de ejemplo').textContent)).toBeGreaterThan(0);
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+
+  it('does not expose a legacy cloud cache through explicit demo mode', () => {
+    const legacy = JSON.stringify([{ ...INITIAL_CLIENTS[0], name: 'PRIVATE LEGACY CUSTOMER' }]);
+    localStorage.setItem('sivarconta_clients', legacy);
+    const Example = () => <output aria-label="Nombres de ejemplo">{useApp().filteredClients.map(client => client.name).join(', ')}</output>;
+    render(<AppProvider demo><Example /></AppProvider>);
+    expect(screen.getByLabelText('Nombres de ejemplo')).not.toHaveTextContent('PRIVATE LEGACY CUSTOMER');
+    expect(localStorage.getItem('sivarconta_clients')).toBe(legacy);
+    expect(localStorage.getItem('sivarconta_demo_v2_clients')).not.toBeNull();
     expect(mocks.from).not.toHaveBeenCalled();
   });
 });

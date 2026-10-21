@@ -46,8 +46,12 @@ const UNSELECTED_COMPANY: Company = {
 
 export const AppProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> = ({ children, demo = false }) => {
   const useCloud = isSupabaseConfigured && !demo;
+  // Explicit demos never reuse caches left by older cloud-enabled builds.
+  const localKey = (key: string) => demo ? key.replace('sivarconta_', 'sivarconta_demo_v2_') : key;
+  const readLocalBackup = <T,>(key: string, fallback: T[]) => readBackup<T>(localKey(key), fallback);
+  const writeLocalBackup = (key: string, value: unknown) => writeBackup(localKey(key), value);
   const [companies, setCompanies] = useState<Company[]>(() =>
-    useCloud ? [] : readBackup('sivarconta_companies', INITIAL_COMPANIES));
+    useCloud ? [] : readLocalBackup('sivarconta_companies', INITIAL_COMPANIES));
 
   const [currentCompanyId, setCurrentCompanyIdState] = useState<string>(() => {
     const firstId = companies[0]?.id;
@@ -55,19 +59,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode; demo?: boolean }
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
-    return useCloud ? [] : readBackup('sivarconta_products', INITIAL_PRODUCTS);
+    return useCloud ? [] : readLocalBackup('sivarconta_products', INITIAL_PRODUCTS);
   });
 
   const [clients, setClients] = useState<Client[]>(() => {
-    return useCloud ? [] : readBackup('sivarconta_clients', INITIAL_CLIENTS);
+    return useCloud ? [] : readLocalBackup('sivarconta_clients', INITIAL_CLIENTS);
   });
 
   const [invoices, setInvoices] = useState<InvoiceDocument[]>(() => {
-    return useCloud ? [] : readBackup('sivarconta_invoices', INITIAL_INVOICES);
+    return useCloud ? [] : readLocalBackup('sivarconta_invoices', INITIAL_INVOICES);
   });
 
   const [purchases, setPurchases] = useState<PurchaseDocument[]>(() => {
-    return useCloud ? [] : readBackup('sivarconta_purchases', INITIAL_PURCHASES);
+    return useCloud ? [] : readLocalBackup('sivarconta_purchases', INITIAL_PURCHASES);
   });
 
   const [currentView, setCurrentView] = useState<string>('dashboard');
@@ -276,23 +280,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode; demo?: boolean }
 
   // Sync to localStorage as local backup
   useEffect(() => {
-    if (!useCloud) writeBackup('sivarconta_companies', companies);
+    if (!useCloud) writeLocalBackup('sivarconta_companies', companies);
   }, [companies]);
 
   useEffect(() => {
-    if (!useCloud) writeBackup('sivarconta_products', products);
+    if (!useCloud) writeLocalBackup('sivarconta_products', products);
   }, [products]);
 
   useEffect(() => {
-    if (!useCloud) writeBackup('sivarconta_clients', clients);
+    if (!useCloud) writeLocalBackup('sivarconta_clients', clients);
   }, [clients]);
 
   useEffect(() => {
-    if (!useCloud) writeBackup('sivarconta_invoices', invoices);
+    if (!useCloud) writeLocalBackup('sivarconta_invoices', invoices);
   }, [invoices]);
 
   useEffect(() => {
-    if (!useCloud) writeBackup('sivarconta_purchases', purchases);
+    if (!useCloud) writeLocalBackup('sivarconta_purchases', purchases);
   }, [purchases]);
 
   const currentCompany = companies.find(c => c.id === currentCompanyId) || companies[0] || UNSELECTED_COMPANY;
@@ -329,7 +333,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode; demo?: boolean }
   };
 
   const persistDemo = (key: string, rows: unknown[]) => {
-    if (useCloud || writeBackup(key, rows)) return;
+    if (useCloud || writeLocalBackup(key, rows)) return;
     toast.error('No se pudo guardar en este navegador', {
       description: 'El almacenamiento está bloqueado o lleno. Conserve el formulario y vuelva a intentarlo.'
     });
