@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { COMPANY_COLUMNS, loadCompanies, loadCompanySnapshot, readPages } from '../services/companyRepository';
+import { COMPANY_COLUMNS, loadCompanies, loadCompanySnapshot, readPages, mapCompanies, mapInvoices } from '../services/companyRepository';
 
 function api(rowsByTable: Record<string, any[]>, options: { cap?: number; failOffset?: number } = {}) {
   const calls: { table: string; columns: string; company?: string; offset?: number }[] = [];
@@ -21,6 +21,18 @@ function api(rowsByTable: Record<string, any[]>, options: { cap?: number; failOf
 }
 
 describe('Company repository', () => {
+  it('preserves company geography and taxpayer classification instead of replacing them with defaults', () => {
+    expect(mapCompanies([{ id: 'c', name: 'Empresa', nit: '123-4', taxpayer_type: 'MEDIANO',
+      department: 'Santa Ana', municipality: 'Santa Ana Centro', mh_user: 'Usuario conservado' }])[0])
+      .toMatchObject({ department: 'Santa Ana', municipality: 'Santa Ana Centro', taxpayerType: 'MEDIANO', mhUser: 'Usuario conservado' });
+  });
+  it('preserves stored item taxes and related document references', () => {
+    const invoice = mapInvoices([{ referenced_dte: 'Referencia conservada', invoice_items: [{
+      id: 'item', quantity: '2', unit_price: '50', discount: '0', total: '100', tax_type: 'GRAVADO', tax_amount: '13.00'
+    }] }])[0];
+    expect(invoice.referencedDte).toBe('Referencia conservada');
+    expect(invoice.items[0].taxAmount).toBe(13);
+  });
   it('loads more than 1,000 rows rather than silently truncating accounting totals', async () => {
     const rows = Array.from({ length: 1203 }, (_, id) => ({ id }));
     const { client, calls } = api({ invoices: rows });

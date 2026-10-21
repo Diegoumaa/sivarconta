@@ -66,7 +66,14 @@ beforeEach(() => {
   cloud.writeError = '';
   cloud.inserts = [];
   cloud.delays = {};
-  cloud.rpc.mockResolvedValue({ data: 'new-company-id', error: null });
+  cloud.rpc.mockImplementation(async (name: string, args: any) => {
+    if (name === 'create_company') return { data: args.company_data.id, error: null };
+    if (cloud.writeError) return { data: null, error: { message: 'write denied' } };
+    const draft = args.draft;
+    return { data: { ...draft, control_number: 'DTE-03-M001P001-000000000004321',
+      status: 'BORRADOR', mh_reception_stamp: null, emission_date: '2026-10-21', emission_time: '10:00:00',
+      invoice_items: draft.items.map((item: any, index: number) => ({ ...item, id: 'saved-item-' + index })) }, error: null };
+  });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -160,15 +167,17 @@ describe('Persistence and truthful confirmations', () => {
   it('saves invoice line items under the persisted draft ID and does not fabricate an acceptance stamp', async () => {
     const { result } = await loaded();
     await act(async () => { await result.current.createInvoice(invoiceInput); });
-    const header = cloud.inserts.find(insert => insert.table === 'invoices')!.rows[0];
-    const detail = cloud.inserts.find(insert => insert.table === 'invoice_items')!.rows[0];
-    expect(detail.invoice_id).toBe(header.id);
+    const header = cloud.rpc.mock.calls.find(call => call[0] === 'save_invoice_draft')![1].draft;
+    const detail = header.items[0];
+    expect(header.id).toMatch(/^[0-9A-F-]{36}$/);
     expect(detail.description).toBe('Servicio de prueba');
     expect(detail.quantity).toBe(2);
     expect(header.status).toBe('BORRADOR');
     expect(header.mh_reception_stamp).toBeNull();
     expect(result.current.invoices[0].mhReceptionStamp).toBeUndefined();
     expect(result.current.invoices[0].mhQrUrl).toBeUndefined();
+    expect(result.current.invoices[0].controlNumber).toBe('DTE-03-M001P001-000000000004321');
+    expect(cloud.inserts).toEqual([]);
   });
 
   it('reports detail write failures instead of confirming a complete document', async () => {
@@ -177,6 +186,33 @@ describe('Persistence and truthful confirmations', () => {
     await act(async () => { await expect(result.current.createInvoice(invoiceInput)).rejects.toBeDefined(); });
     expect(result.current.invoices).toEqual([]);
     expect(cloud.success).not.toHaveBeenCalled();
+    expect(cloud.inserts).toEqual([]);
+  });
+
+  it('reuses the request identity after an ambiguous failure, preventing duplicate retry documents', async () => {
+    const { result } = await loaded();
+    cloud.writeError = 'invoice_items';
+    await act(async () => { await expect(result.current.createInvoice(invoiceInput)).rejects.toBeDefined(); });
+    const failed = cloud.rpc.mock.calls.find(call => call[0] === 'save_invoice_draft')![1].draft;
+    cloud.writeError = '';
+    await act(async () => { await result.current.createInvoice(invoiceInput); });
+    const retried = cloud.rpc.mock.calls.filter(call => call[0] === 'save_invoice_draft')[1][1].draft;
+    expect(retried).toEqual(failed);
+    expect(result.current.invoices).toHaveLength(1);
+  });
+
+  it('restores every new client, product and purchase field after remounting the cloud provider', async () => {
+    const first = await loaded();
+    const client = { ...clientInput, commercialName: 'Nombre comercial conservado', taxpayerType: 'MEDIANO' as const };
+    const product = { ...productInput, category: 'Categoría conservada' };
+    const purchase = { ...purchaseInput, concept: 'Servicio conservado', paymentMethod: '04', retencionRenta10: 35.5 };
+    await act(async () => { await first.result.current.addClient(client); await first.result.current.addProduct(product); await first.result.current.addPurchase(purchase); });
+    for (const insert of cloud.inserts) cloud.data[insert.table] = insert.rows;
+    first.unmount();
+    const second = await loaded();
+    expect(second.result.current.clients[0]).toMatchObject(client);
+    expect(second.result.current.products[0]).toMatchObject(product);
+    expect(second.result.current.purchases[0]).toMatchObject(purchase);
   });
 
   it('preserves rejected status and line items when loading invoices', async () => {

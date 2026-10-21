@@ -6,7 +6,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { readBackup, writeBackup } from '../lib/localBackup';
 import { toast } from 'sonner';
 import { NavigationProvider, useNavigation, useNavigationActions } from './NavigationContext';
-import { loadCompanies, loadCompanySnapshot, type CompanySnapshot } from '../services/companyRepository';
+import { loadCompanies, loadCompanySnapshot, mapInvoices, type CompanySnapshot } from '../services/companyRepository';
 
 interface AppDataContextType {
   companies: Company[];
@@ -86,6 +86,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
 
   const [isCloudSyncActive, setIsCloudSyncActive] = useState(false);
   const reservedCorrelatives = useRef(new Map<string, number>());
+  const pendingCloudDrafts = useRef(new Map<string, InvoiceDocument>());
 
   const setCurrentCompanyId = (id: string) => {
     if (!companies.some(company => company.id === id)) return;
@@ -179,11 +180,14 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
   const persistRows = async (table: string, rows: Record<string, unknown>[]) => {
     if (!useCloud || !supabase) return;
     try {
-      const { error } = table === 'companies'
+      const { data, error } = table === 'companies'
         ? await supabase.rpc('create_company', { company_data: rows[0] })
-        : await supabase.from(table).insert(rows);
+        : table === 'invoices'
+          ? await supabase.rpc('save_invoice_draft', { draft: rows[0] })
+          : await supabase.from(table).insert(rows);
       if (error) throw error;
       snapshotCache.current.delete(currentCompanyId);
+      return data;
     } catch (error) {
       setIsCloudSyncActive(false);
       toast.error('No se pudo guardar en la nube', {
@@ -226,7 +230,11 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
           establishment_code: companyData.establishmentCode || 'M001',
           pos_code: companyData.posCode || 'P001',
           is_gran_contribuyente: companyData.taxpayerType === 'GRAN_CONTRIBUYENTE',
-          mh_environment: companyData.mhEnvironment || 'PRUEBAS'
+          mh_environment: companyData.mhEnvironment || 'PRUEBAS',
+          department: companyData.department,
+          municipality: companyData.municipality,
+          taxpayer_type: companyData.taxpayerType,
+          mh_user: companyData.mhUser
         }]);
     }
 
@@ -262,7 +270,8 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
           price: productData.unitPrice,
           tax_type: productData.taxType,
           unit_of_measure: productData.unitOfMeasure,
-          stock: productData.stock || 0
+          stock: productData.stock ?? 0,
+          category: productData.category
         }]);
     }
 
@@ -288,6 +297,8 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
           id: newCli.id,
           company_id: effCompanyId,
           name: clientData.name,
+          commercial_name: clientData.commercialName || null,
+          taxpayer_type: clientData.taxpayerType,
           doc_type: clientData.docType,
           doc_number: clientData.docNumber,
           nrc: clientData.nrc || null,
@@ -333,7 +344,10 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
           subtotal_exento: purchaseData.purchasesExentas,
           iva13: purchaseData.creditoFiscal,
           retencion1: purchaseData.retencion1,
-          total: purchaseData.totalPagar
+          total: purchaseData.totalPagar,
+          concept: purchaseData.concept,
+          payment_method: purchaseData.paymentMethod,
+          retencion_renta10: purchaseData.retencionRenta10 ?? 0
         }]);
     }
 
@@ -373,7 +387,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
       currentCompany.posCode
     );
 
-    const newInvoice: InvoiceDocument = {
+    let newInvoice: InvoiceDocument = {
       ...invoicePayload,
       retencionRenta10: invoicePayload.retencionRenta10 ?? 0,
       id: generateUUID(),
@@ -392,7 +406,10 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
 
     // Push to Supabase if configured
     if (useCloud && supabase) {
-        await persistRows('invoices', [{
+      const requestKey = effCompanyId + ':' + JSON.stringify(invoicePayload);
+      newInvoice = pendingCloudDrafts.current.get(requestKey) || newInvoice;
+      pendingCloudDrafts.current.set(requestKey, newInvoice);
+      const saved = await persistRows('invoices', [{
           id: newInvoice.id,
           company_id: effCompanyId,
           dte_type: newInvoice.dteType,
@@ -428,12 +445,9 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
           pos_code: newInvoice.posCode,
           status: 'BORRADOR',
           mh_reception_stamp: null,
-          observations: newInvoice.observations || null
-        }]);
-      if (newInvoice.items.length > 0) {
-        await persistRows('invoice_items', newInvoice.items.map((item, index) => ({
-          id: generateUUID(),
-          invoice_id: newInvoice.id,
+          observations: newInvoice.observations || null,
+          referenced_dte: newInvoice.referencedDte || null,
+          items: newInvoice.items.map((item, index) => ({
           num_item: index + 1,
           product_id: item.productId && filteredProducts.some(product => product.id === item.productId)
             && /^[0-9a-f-]{36}$/i.test(item.productId) ? item.productId : null,
@@ -444,13 +458,18 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
           discount: item.discount,
           tax_type: item.taxType,
           unit_of_measure: item.unitOfMeasure,
-          total: item.total
-        })));
+          total: Number(item.total.toFixed(2))
+          }))
+      }]);
+      if (!saved?.id || !Array.isArray(saved.invoice_items) || !saved.invoice_items.length) {
+        throw new Error('La nube no confirmó el documento completo. Reintenta para verificar el mismo borrador.');
       }
+      newInvoice = mapInvoices([saved])[0];
+      pendingCloudDrafts.current.delete(requestKey);
     }
 
     persistDemo('sivarconta_invoices', [newInvoice, ...invoices]);
-    setInvoices(prev => [newInvoice, ...prev]);
+    setInvoices(prev => [newInvoice, ...prev.filter(invoice => invoice.id !== newInvoice.id)]);
     toast.success('Documento de prueba guardado', {
       description: 'Borrador sin validez fiscal. No ha sido firmado ni enviado al Ministerio de Hacienda.'
     });

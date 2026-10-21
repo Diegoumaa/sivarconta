@@ -2,7 +2,7 @@
 
 Prototipo web de facturación y gestión contable para El Salvador, construido con React, TypeScript y Vite. Incluye vistas de ventas, clientes, productos, compras y libros de IVA.
 
-**El estado actual es de evaluación. Los documentos nuevos son borradores sin validez fiscal. Incluye registro, acceso y recuperación con Supabase Auth, navegación con URL y permisos por empresa. La firma/emisión fiscal, el guardado atómico de facturas y la concurrencia de correlativos siguen pendientes antes de operar en producción fiscal.**
+**El estado actual es de evaluación. Los documentos nuevos son borradores sin validez fiscal. Incluye registro, acceso y recuperación con Supabase Auth, navegación con URL, permisos por empresa y guardado transaccional de facturas con correlativos del servidor. La firma y emisión fiscal siguen pendientes antes de operar en producción fiscal.**
 
 ## Ejecución local
 
@@ -45,6 +45,10 @@ Reinicia Vite después de cambiar el archivo. Las variables con prefijo `VITE_` 
 
 El registro requiere confirmar el correo cuando Supabase tenga activada esa opción. Configura **Authentication → URL Configuration → Site URL** con la URL de tu despliegue; en el proyecto publicado es `https://sivarconta.vercel.app`. Una cuenta nueva empieza sin empresas. La RPC `create_company` crea la empresa y su propietario en una sola transacción y no permite apropiarse de empresas existentes. Las empresas históricas sin miembros requieren una asignación administrativa explícita.
 
+Después aplica `supabase/migrations/20261021_persistence.sql`. Añade los campos que faltaban de empresas, clientes, productos y compras. La RPC `save_invoice_draft` valida pertenencia y relaciones, comprueba las partidas y los totales, asigna fecha y correlativo en el servidor y guarda encabezado, partidas y secuencia en la misma transacción. Las escrituras directas de facturas y partidas desde el navegador quedan retiradas. Un mismo ID y contenido permiten recuperar un resultado confirmado sin duplicarlo; un ID reutilizado con otros datos se rechaza. El frontend conserva el ID de un reintento mientras permanece montado el proveedor; no garantiza conservar una solicitud pendiente tras recargar o cerrar el navegador.
+
+`supabase/tests/persistence-roundtrip.sql` ejecutó 31 comprobaciones reales con ROLLBACK, incluido un fallo del detalle después de insertar el encabezado. Además, se verificaron mediante la API pública y dos sesiones autenticadas los campos recuperados por el repositorio, cierre y nuevo acceso, seis guardados concurrentes, reintentos simultáneos y rechazo de escrituras directas y relaciones entre empresas. Los datos de la prueba API pertenecen exclusivamente a empresas QA nuevas y no acreditan aceptación fiscal.
+
 La opción **Explorar demostración** carga únicamente datos de ejemplo del navegador, incluso si el despliegue tiene variables de Supabase. No realiza consultas a las tablas de empresas. Esta separación está cubierta por pruebas de componentes. La interfaz de acceso no sustituye las políticas RLS: una API expuesta debe protegerse también en el servidor.
 
 La demostración explícita utiliza el espacio de almacenamiento `sivarconta_demo_v2_`. No lee ni elimina la caché `sivarconta_` que pudieran haber dejado versiones anteriores conectadas a la nube. Sus datos se conservan para evitar una pérdida silenciosa, pero no se muestran como ejemplos sin autenticación.
@@ -78,13 +82,11 @@ El aislamiento entre empresas debe aplicarse con usuarios autenticados, membres�
 ## Trabajo pendiente antes de producción
 
 1. Completar la prueba de registro, correo y recuperación con cuentas reales, y la interfaz de administración de miembros. El acceso al panel de Supabase no crea una cuenta de usuario de la aplicación.
-2. Completar la validación de permisos con sesiones reales, además de las pruebas SQL y los rechazos de la API anónima. Revisar las empresas históricas sin propietario y las facturas históricas sin partidas; no inventar ni borrar información para hacer pasar la revisión.
-3. Guardar encabezado y partidas de una factura mediante una RPC transaccional con reintentos idempotentes. Actualmente son dos peticiones: un fallo del detalle se reporta, pero puede dejar un borrador parcial en la base.
-4. Reservar correlativos mediante una secuencia o función transaccional del backend, con restricciones por empresa, tipo de documento y establecimiento. La reserva del navegador solo evita colisiones dentro de esa instancia.
-5. Completar el esquema y los mapeos para conservar entre dispositivos el concepto, forma de pago y retención de renta de compras, la categoría de productos y el nombre comercial de clientes.
-6. Implementar refresco/suscripciones, estados pendientes y manejo de conflictos para la sincronización entre web y móvil. La interfaz adaptable no equivale a una APP independiente ni confirma capacidades offline.
-7. Integrar firma y transmisión fiscal en un backend. Validar cada tipo de documento y las reglas de negocio contra las especificaciones vigentes de Hacienda, con respuestas reales del entorno de pruebas, antes de habilitar producción.
-8. Completar los flujos funcionales pendientes de los requisitos, incluidos edición/historial de clientes y compras, anulación/reenvío y administración de usuarios.
+2. Revisar las empresas históricas sin propietario y las facturas históricas sin partidas; no inventar ni borrar información para hacer pasar la revisión. Las pruebas API de la cuenta QA no sustituyen la asignación de esos propietarios reales.
+3. Conservar una solicitud pendiente de forma segura a través de recargas y cierres, además de los reintentos idempotentes ya implementados en el servidor.
+4. Implementar refresco/suscripciones, estados pendientes y manejo de conflictos para la sincronización entre web y móvil. La interfaz adaptable no equivale a una APP independiente ni confirma capacidades offline.
+5. Integrar firma y transmisión fiscal en un backend. Validar cada tipo de documento y las reglas de negocio contra las especificaciones vigentes de Hacienda, con respuestas reales del entorno de pruebas, antes de habilitar producción.
+6. Completar los flujos funcionales pendientes de los requisitos, incluidos edición/historial de clientes y compras, anulación/reenvío y administración de usuarios.
 
 ## Estructura principal
 

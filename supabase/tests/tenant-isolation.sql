@@ -14,6 +14,18 @@ DO $$ DECLARE tab TEXT; BEGIN
     PERFORM pg_temp.check_rls(NOT has_table_privilege('anon','public.'||tab,'SELECT,INSERT,UPDATE,DELETE'), 'anon bloqueado: '||tab);
   END LOOP;
 END; $$;
+CREATE FUNCTION pg_temp.fixture_draft(cid UUID,iid UUID,clientid UUID,productid UUID,kind TEXT DEFAULT '03') RETURNS JSONB LANGUAGE sql AS $$
+SELECT jsonb_build_object('id',iid,'company_id',cid,'dte_type',kind,'generation_code',gen_random_uuid(),
+ 'client_id',clientid,'client_name','Fixture cliente','client_doc_type','NIT','client_doc_number','0000-000000-000-0',
+ 'client_nrc','1','client_email','fixture@example.invalid','client_phone','0000','client_address','Fixture dirección',
+ 'client_department','Santa Ana','client_municipality','Santa Ana Centro','condition','CREDITO','credit_term_days',45,
+ 'payment_method','04','subtotal_gravado',100,'subtotal_exento',0,'subtotal_no_sujeto',0,'descuento_total',0,
+ 'iva13',CASE WHEN kind='14' THEN 0 WHEN kind='01' THEN 11.50 ELSE 13 END,'retencion1',0,'percepcion1',0,
+ 'retencion_renta10',CASE WHEN kind='14' THEN 10 ELSE 0 END,'total_pagar',CASE WHEN kind='14' THEN 90 WHEN kind='01' THEN 100 ELSE 113 END,
+ 'total_letras','Importe de prueba','observations','Notas conservadas','referenced_dte','Referencia de prueba',
+ 'items',jsonb_build_array(jsonb_build_object('product_id',productid,'description','Servicio conservado','code','FIX-001',
+ 'quantity',2,'unit_price',50,'discount',0,'tax_type','GRAVADO','unit_of_measure','59','total',100)));
+$$;
 INSERT INTO auth.users(id,email,raw_user_meta_data) VALUES
 ('11111111-1111-4111-8111-111111111111','rls-a@example.invalid','{}'),
 ('22222222-2222-4222-8222-222222222222','rls-b@example.invalid','{}'),
@@ -36,8 +48,7 @@ SELECT set_config('request.jwt.claim.sub','22222222-2222-4222-8222-222222222222'
 SELECT public.create_company('{"id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","name":"RLS fixture B","nit":"0000-000000-000-0","nrc":"2","economic_activity_code":"1","economic_activity_desc":"Fixture","phone":"0000","email":"rls-b@example.invalid","address":"Fixture"}');
 INSERT INTO public.clients(id,company_id,name,doc_number,email,phone,address) VALUES('b1000000-0000-4000-8000-000000000000','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','Fixture B','0','rls-b@example.invalid','0','Fixture');
 INSERT INTO public.products(id,company_id,code,name,price) VALUES('b2000000-0000-4000-8000-000000000000','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','RLS-B','Fixture B',1);
-INSERT INTO public.invoices(id,company_id,dte_type,control_number,generation_code,client_name,client_doc_type,client_doc_number,total_pagar,total_letras,status) VALUES('b3000000-0000-4000-8000-000000000000','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','01','RLS-TEST-B',gen_random_uuid(),'Fixture B','DUI','0',1,'UNO','BORRADOR');
-INSERT INTO public.invoice_items(invoice_id,num_item,description,quantity,unit_price,total) VALUES('b3000000-0000-4000-8000-000000000000',1,'Fixture',1,1,1);
+SELECT public.save_invoice_draft(pg_temp.fixture_draft('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','b3000000-0000-4000-8000-000000000000','b1000000-0000-4000-8000-000000000000','b2000000-0000-4000-8000-000000000000'));
 INSERT INTO public.purchases(company_id,control_number,generation_code,supplier_name,supplier_nit,supplier_nrc,date,total) VALUES('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','RLS-B','RLS-B','Fixture','0','0',CURRENT_DATE,1);
 SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',TRUE);
 DO $$ DECLARE affected INTEGER; BEGIN
@@ -54,11 +65,11 @@ DO $$ DECLARE affected INTEGER; BEGIN
   UPDATE public.clients SET name='Intrusion' WHERE id='b1000000-0000-4000-8000-000000000000';
   GET DIAGNOSTICS affected=ROW_COUNT;
   PERFORM pg_temp.check_rls(affected=0,'edicion cruzada rechazada');
-  INSERT INTO public.invoices(id,company_id,dte_type,control_number,generation_code,client_name,client_doc_type,client_doc_number,total_pagar,total_letras,status) VALUES('a3000000-0000-4000-8000-000000000000','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','01','RLS-TEST-A',gen_random_uuid(),'Fixture A','DUI','0',1,'UNO','BORRADOR');
+  PERFORM public.save_invoice_draft(pg_temp.fixture_draft('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','a3000000-0000-4000-8000-000000000000',NULL,NULL));
   BEGIN
     INSERT INTO public.invoice_items(invoice_id,num_item,product_id,description,quantity,unit_price,total) VALUES('a3000000-0000-4000-8000-000000000000',1,'b2000000-0000-4000-8000-000000000000','Intrusion',1,1,1);
     RAISE EXCEPTION 'RLS TEST FAILED: producto cruzado permitido';
-  EXCEPTION WHEN insufficient_privilege THEN PERFORM pg_temp.check_rls(TRUE,'producto de otra empresa rechazado en partidas'); END;
+  EXCEPTION WHEN insufficient_privilege THEN PERFORM pg_temp.check_rls(TRUE,'escritura directa de partidas rechazada'); END;
   BEGIN
     UPDATE public.invoices SET status='PROCESADO',mh_reception_stamp='SELLO-FALSO' WHERE id='a3000000-0000-4000-8000-000000000000';
     RAISE EXCEPTION 'RLS TEST FAILED: aceptacion fiscal falsa permitida';

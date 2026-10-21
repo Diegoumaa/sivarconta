@@ -4,7 +4,7 @@ import type { Company, Client, Product, InvoiceDocument, PurchaseDocument } from
 // The REST boundary is mapped here; components receive domain objects only.
 type CloudRow = Record<string, any>;
 export const PAGE_SIZE = 500;
-export const COMPANY_COLUMNS = 'id,name,trade_name,nit,nrc,economic_activity_code,economic_activity_desc,phone,email,address,department_code,municipality_code,establishment_code,pos_code,is_gran_contribuyente,mh_environment,created_at,updated_at';
+export const COMPANY_COLUMNS = 'id,name,trade_name,nit,nrc,economic_activity_code,economic_activity_desc,phone,email,address,department_code,municipality_code,establishment_code,pos_code,is_gran_contribuyente,mh_environment,department,municipality,taxpayer_type,mh_user,created_at,updated_at';
 export interface CompanySnapshot {
   clients: Client[]; products: Product[]; invoices: InvoiceDocument[]; purchases: PurchaseDocument[];
 }
@@ -54,16 +54,16 @@ export function mapCompanies(rows: CloudRow[]): Company[] {
             nrc: c.nrc,
             economicActivityCode: c.economic_activity_code,
             economicActivity: c.economic_activity_desc,
-            taxpayerType: c.is_gran_contribuyente ? 'GRAN_CONTRIBUYENTE' : 'PEQUENO',
+            taxpayerType: c.is_gran_contribuyente ? 'GRAN_CONTRIBUYENTE' : (c.taxpayer_type || 'PEQUENO'),
             phone: c.phone,
             email: c.email,
             address: c.address,
-            department: 'San Salvador',
-            municipality: 'San Salvador Centro',
+            department: c.department || 'San Salvador',
+            municipality: c.municipality || 'San Salvador Centro',
             establishmentCode: c.establishment_code || 'M001',
             posCode: c.pos_code || 'P001',
             mhEnvironment: c.mh_environment,
-            mhUser: c.nit.replace(/-/g, '')
+            mhUser: c.mh_user ?? (c.nit || '').replace(/-/g, '')
           }));
 }
 
@@ -72,11 +72,12 @@ export function mapClients(rows: CloudRow[]): Client[] {
             id: c.id,
             companyId: c.company_id,
             name: c.name,
+            commercialName: c.commercial_name || undefined,
             docType: c.doc_type === 'NIT' ? 'NIT' : 'DUI',
             docNumber: c.doc_number,
             nrc: c.nrc || undefined,
             economicActivity: c.economic_activity || undefined,
-            taxpayerType: c.is_gran_contribuyente ? 'GRAN_CONTRIBUYENTE' : 'PEQUENO',
+            taxpayerType: c.is_gran_contribuyente ? 'GRAN_CONTRIBUYENTE' : (c.taxpayer_type || 'PEQUENO'),
             email: c.email,
             phone: c.phone,
             address: c.address,
@@ -95,7 +96,7 @@ export function mapProducts(rows: CloudRow[]): Product[] {
             unitPrice: Number(p.price),
             taxType: p.tax_type as any,
             unitOfMeasure: p.unit_of_measure,
-            category: 'General',
+            category: p.category ?? 'General',
             stock: Number(p.stock)
           }));
 }
@@ -138,7 +139,7 @@ export function mapInvoices(rows: CloudRow[]): InvoiceDocument[] {
               discount: Number(item.discount),
               taxType: item.tax_type,
               unitOfMeasure: item.unit_of_measure,
-              taxAmount: item.tax_type !== 'GRAVADO' || inv.dte_type === '14' ? 0
+              taxAmount: item.tax_amount != null ? Number(item.tax_amount) : item.tax_type !== 'GRAVADO' || inv.dte_type === '14' ? 0
                 : Number((Number(item.total) * (inv.dte_type === '01' ? 13 / 113 : 0.13)).toFixed(2)),
               total: Number(item.total)
             })),
@@ -153,6 +154,7 @@ export function mapInvoices(rows: CloudRow[]): InvoiceDocument[] {
             totalPagar: Number(inv.total_pagar || 0),
             totalLetras: inv.total_letras || '',
             observations: inv.observations || undefined,
+            referencedDte: inv.referenced_dte || undefined,
             mhReceptionStamp: inv.mh_reception_stamp || undefined,
             mhResponseDate: inv.mh_reception_stamp ? inv.created_at : undefined
           }));
@@ -170,12 +172,13 @@ export function mapPurchases(rows: CloudRow[]): PurchaseDocument[] {
             supplierName: pur.supplier_name,
             supplierNit: pur.supplier_nit,
             supplierNrc: pur.supplier_nrc || '',
-            concept: 'Compra de inventario / servicios',
+            concept: pur.concept ?? 'Compra de inventario / servicios',
             purchasesGravadas: Number(pur.subtotal_gravado || 0),
             purchasesExentas: Number(pur.subtotal_exento || 0),
             creditoFiscal: Number(pur.iva13 || 0),
             retencion1: Number(pur.retencion1 || 0),
+            retencionRenta10: Number(pur.retencion_renta10 || 0),
             totalPagar: Number(pur.total || 0),
-            paymentMethod: '01'
+            paymentMethod: pur.payment_method || '01'
           }));
 }
