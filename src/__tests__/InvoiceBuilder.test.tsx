@@ -45,6 +45,21 @@ describe('InvoiceBuilder Component', () => {
     fireEvent.click(ccfCard);
     expect(screen.getByText(/DTE-03/i)).toBeInTheDocument();
   });
+  it('names payment fields and preserves the chosen terms between steps', () => {
+    renderInvoiceBuilder();
+    fireEvent.click(screen.getByRole('button', { name: /Continuar a Productos/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Continuar a Pago/i }));
+    fireEvent.change(screen.getByLabelText('Forma de pago'), { target: { value: '04' } });
+    fireEvent.change(screen.getByLabelText('Notas para tu cliente'), { target: { value: 'Prueba de conservación del formulario' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crédito a Plazos' }));
+    expect(screen.getByRole('button', { name: 'Crédito a Plazos' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.change(screen.getByLabelText('Otro plazo en días'), { target: { value: '45' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar borrador' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Paso Anterior' }));
+    expect(screen.getByLabelText('Forma de pago')).toHaveValue('04');
+    expect(screen.getByLabelText('Notas para tu cliente')).toHaveValue('Prueba de conservación del formulario');
+    expect(screen.getByLabelText('Otro plazo en días')).toHaveValue(45);
+  });
 
   it('navigates from Step 1 to Step 2 when client exists', () => {
     renderInvoiceBuilder();
@@ -83,7 +98,7 @@ describe('InvoiceBuilder Component', () => {
 
     // Step 2 -> Step 3
     fireEvent.click(screen.getByRole('button', { name: /Continuar a Pago/i }));
-    expect(screen.getByText(/Paso 3: ¿Cómo se cancela la operación\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/Paso 3: ¿Cómo pagará tu cliente\?/i)).toBeInTheDocument();
 
     // Switch payment condition to Crédito
     const creditoBtn = screen.getByRole('button', { name: /Crédito a Plazos/i });
@@ -91,7 +106,7 @@ describe('InvoiceBuilder Component', () => {
     expect(screen.getByText(/Plazo de Crédito Otorgado/i)).toBeInTheDocument();
 
     // Step 3 -> Step 4
-    fireEvent.click(screen.getByRole('button', { name: /Revisión Pre-Vuelo/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Revisar borrador/i }));
     expect(screen.getByText(/Semáforo de Validación Pre-Vuelo/i)).toBeInTheDocument();
     expect(screen.getByText(/Resumen del borrador/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Guardar borrador de prueba/i })).toBeInTheDocument();
@@ -103,7 +118,7 @@ describe('InvoiceBuilder Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Agregar/i }));
     fireEvent.change(screen.getAllByLabelText('Cantidad de partida 1')[0], { target: { value: '0' } });
     fireEvent.click(screen.getByRole('button', { name: /Continuar a Pago/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Revisión Pre-Vuelo/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Revisar borrador/i }));
     expect(screen.getByRole('button', { name: /Guardar borrador de prueba/i })).toBeDisabled();
     expect(screen.getByText(/Revisa las partidas/i)).toBeInTheDocument();
   });
@@ -113,7 +128,7 @@ describe('InvoiceBuilder Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Continuar a Productos/i }));
     fireEvent.change(screen.getAllByLabelText('Cantidad de partida 1')[0], { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: /Continuar a Pago/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Revisión Pre-Vuelo/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Revisar borrador/i }));
     const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage full'); });
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
@@ -135,7 +150,7 @@ describe('InvoiceBuilder Component', () => {
     // Walk to Step 4
     fireEvent.click(screen.getByRole('button', { name: /Continuar a Productos/i }));
     fireEvent.click(screen.getByRole('button', { name: /Continuar a Pago/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Revisión Pre-Vuelo/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Revisar borrador/i }));
 
     const submitBtn = screen.getByRole('button', { name: /Guardar borrador de prueba/i });
     fireEvent.click(submitBtn);

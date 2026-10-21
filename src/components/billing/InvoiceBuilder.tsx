@@ -215,8 +215,8 @@ export const InvoiceBuilder: React.FC = () => {
 
     try {
       const created = await createInvoice(invoicePayload);
-      setActiveDtePreview(created);
       setCurrentView('invoices');
+      setActiveDtePreview(created);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'No se pudo guardar. Tus datos siguen en este formulario.');
     } finally {
@@ -754,7 +754,7 @@ export const InvoiceBuilder: React.FC = () => {
             <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm space-y-4 sm:space-y-5">
               <div>
                 <label className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block">
-                  Paso 3: ¿Cómo se cancela la operación?
+                  Paso 3: ¿Cómo pagará tu cliente?
                 </label>
                 <p className="text-xs text-slate-500 mt-0.5">Define el método de cobro y los términos comerciales</p>
               </div>
@@ -762,10 +762,11 @@ export const InvoiceBuilder: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {/* Payment method selector */}
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Método de Pago (CAT-014 MH)
+                  <label htmlFor="billing-payment" className="text-xs font-semibold text-slate-700 block mb-1">
+                    Forma de pago
                   </label>
                   <select
+                    id="billing-payment"
                     value={paymentMethod}
                     onChange={e => setPaymentMethod(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800"
@@ -787,6 +788,7 @@ export const InvoiceBuilder: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setCondition('CONTADO')}
+                      aria-pressed={condition === 'CONTADO'}
                       className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         condition === 'CONTADO'
                           ? 'bg-brand-600 text-white shadow-xs'
@@ -798,6 +800,7 @@ export const InvoiceBuilder: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setCondition('CREDITO')}
+                      aria-pressed={condition === 'CREDITO'}
                       className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                         condition === 'CREDITO'
                           ? 'bg-brand-600 text-white shadow-xs'
@@ -824,6 +827,7 @@ export const InvoiceBuilder: React.FC = () => {
                         key={d}
                         type="button"
                         onClick={() => setCreditDays(d)}
+                        aria-pressed={creditDays === d}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all ${
                           creditDays === d
                             ? 'bg-brand-600 text-white shadow-sm'
@@ -836,6 +840,7 @@ export const InvoiceBuilder: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-indigo-800 font-medium">Otro:</span>
                       <input
+                        aria-label="Otro plazo en días"
                         type="number"
                         min="1"
                         value={creditDays}
@@ -849,10 +854,11 @@ export const InvoiceBuilder: React.FC = () => {
 
               {/* Observations */}
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  Observaciones adicionales en el DTE
+                <label htmlFor="billing-notes" className="text-xs font-semibold text-slate-700 block mb-1">
+                  Notas para tu cliente
                 </label>
                 <textarea
+                  id="billing-notes"
                   rows={2}
                   value={observations}
                   onChange={e => setObservations(e.target.value)}
@@ -956,7 +962,7 @@ export const InvoiceBuilder: React.FC = () => {
                 onClick={() => setCurrentStep(4)}
                 className="flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-brand-600/30 transition-all active:scale-95"
               >
-                <span>Revisión Pre-Vuelo</span>
+                <span>Revisar borrador</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

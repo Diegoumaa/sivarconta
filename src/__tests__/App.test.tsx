@@ -41,4 +41,20 @@ describe('Application routes', () => {
     expect(screen.getByRole('main')).toHaveFocus();
     expect(window.location.hash).toBe('#/clientes');
   });
+  it('opens the saved draft preview after navigating to the invoice list and keeps focus in it', async () => {
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Así va tu negocio' });
+    fireEvent.click(within(screen.getByRole('region', { name: 'Acción principal' })).getByRole('button', { name: 'Nueva factura' }));
+    await screen.findByRole('heading', { name: 'Nueva factura' });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar a Productos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar a Pago' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar borrador' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador de prueba' }));
+    const preview = await screen.findByRole('dialog', { name: 'Vista previa del documento' });
+    expect(preview).toHaveFocus();
+    expect(within(preview).getAllByText(/sin validez fiscal/i).length).toBeGreaterThan(0);
+    expect(window.location.hash).toBe('#/facturas');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Vista previa del documento' })).not.toBeInTheDocument();
+  });
 });

@@ -41,6 +41,7 @@ const MainLayout: React.FC = () => {
   useEffect(() => {
     const labels: Record<string, string> = { dashboard: 'Inicio', invoices: 'Facturas', 'new-invoice': 'Nueva factura', catalog: 'Productos', clients: 'Clientes', purchases: 'Compras', books: 'Libros de IVA', settings: 'Configuración' };
     document.title = `${labels[currentView]} · SIVARCONTA`;
+    if (activeDtePreview) return; // The document dialog manages its own focus.
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
     document.getElementById('main-content')?.focus({ preventScroll: true });
