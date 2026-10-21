@@ -49,8 +49,9 @@ const UNSELECTED_COMPANY: Company = {
   mhEnvironment: 'PRUEBAS', mhUser: '', establishmentCode: 'M001', posCode: 'P001'
 };
 
-const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> = ({ children, demo = false }) => {
+const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; userId?: string }> = ({ children, demo = false, userId }) => {
   const useCloud = isSupabaseConfigured && !demo;
+  const selectionKey = useCloud && userId ? `sivarconta_active_company:${userId}` : undefined;
   const { setCurrentView, setActiveDtePreview } = useNavigationActions();
   const [dataStatus, setDataStatus] = useState<'loading' | 'ready' | 'error'>(useCloud ? 'loading' : 'ready');
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -104,7 +105,10 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
     loadCompanies(supabase).then(next => {
       if (!alive) return;
       setCompanies(next);
-      setCurrentCompanyIdState(previous => next.some(company => company.id === previous) ? previous : next[0]?.id || '');
+      let remembered = '';
+      try { remembered = selectionKey ? sessionStorage.getItem(selectionKey) || '' : ''; } catch { /* Storage is optional. */ }
+      setCurrentCompanyIdState(previous => next.some(company => company.id === previous) ? previous
+        : next.some(company => company.id === remembered) ? remembered : next[0]?.id || '');
       if (!next.length) { setDataStatus('ready'); setIsCloudSyncActive(true); }
     }).catch(() => {
       if (!alive) return;
@@ -112,7 +116,12 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
       toast.error('No se pudieron cargar tus empresas', { description: 'Revisa tu conexión y los permisos. Puedes volver a intentarlo.' });
     });
     return () => { alive = false; };
-  }, [useCloud, refreshVersion]);
+  }, [useCloud, refreshVersion, selectionKey]);
+
+  useEffect(() => {
+    if (!selectionKey || !companies.some(company => company.id === currentCompanyId)) return;
+    try { sessionStorage.setItem(selectionKey, currentCompanyId); } catch { /* A blocked browser store must not prevent cloud use. */ }
+  }, [selectionKey, currentCompanyId, companies]);
 
   useEffect(() => {
     if (!useCloud || !supabase || !currentCompanyId) return;
@@ -514,8 +523,8 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> =
   );
 };
 
-export const AppProvider: React.FC<{ children: React.ReactNode; demo?: boolean }> = ({ children, demo }) => (
-  <NavigationProvider><AppDataProvider demo={demo}>{children}</AppDataProvider></NavigationProvider>
+export const AppProvider: React.FC<{ children: React.ReactNode; demo?: boolean; userId?: string }> = ({ children, demo, userId }) => (
+  <NavigationProvider><AppDataProvider demo={demo} userId={userId}>{children}</AppDataProvider></NavigationProvider>
 );
 
 export const useAppData = () => {

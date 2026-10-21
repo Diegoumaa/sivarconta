@@ -139,7 +139,7 @@ const MainLayout: React.FC = () => {
 export function App() {
   return (
     <AuthGate>{access => (
-      <AppProvider key={`${access.mode}:${access.userId || 'demo'}`} demo={access.mode === 'demo'}>
+      <AppProvider key={`${access.mode}:${access.userId || 'demo'}`} demo={access.mode === 'demo'} userId={access.userId}>
         <MainLayout />
       </AppProvider>
     )}</AuthGate>

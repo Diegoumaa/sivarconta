@@ -59,6 +59,7 @@ const invoiceInput = { ...INITIAL_INVOICES[0], items: [{
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   vi.clearAllMocks();
   cloud.configured = true;
   cloud.data = { companies: [rawCompany] };
@@ -84,6 +85,24 @@ async function loaded() {
 }
 
 describe('Persistence and truthful confirmations', () => {
+  it('restores an authorized company after remounting and does not reuse another account selection', async () => {
+    const otherId = INITIAL_COMPANIES[1].id;
+    cloud.data.companies = [rawCompany, { ...rawCompany, id: otherId, name: 'Other company' }];
+    const ownerWrapper = ({ children }: { children: React.ReactNode }) => <AppProvider userId="account-a">{children}</AppProvider>;
+    const first = renderHook(() => useApp(), { wrapper: ownerWrapper });
+    await waitFor(() => expect(first.result.current.dataStatus).toBe('ready'));
+    act(() => first.result.current.setCurrentCompanyId(otherId));
+    await waitFor(() => expect(first.result.current.dataStatus).toBe('ready'));
+    first.unmount();
+    const second = renderHook(() => useApp(), { wrapper: ownerWrapper });
+    await waitFor(() => expect(second.result.current.dataStatus).toBe('ready'));
+    expect(second.result.current.currentCompanyId).toBe(otherId);
+    second.unmount();
+    const differentWrapper = ({ children }: { children: React.ReactNode }) => <AppProvider userId="account-b">{children}</AppProvider>;
+    const different = renderHook(() => useApp(), { wrapper: differentWrapper });
+    await waitFor(() => expect(different.result.current.dataStatus).toBe('ready'));
+    expect(different.result.current.currentCompanyId).toBe(company.id);
+  });
   it('creates a company through the atomic ownership RPC', async () => {
     const { result } = await loaded();
     const { id: _id, ...input } = company;

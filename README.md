@@ -68,6 +68,7 @@ El aislamiento entre empresas debe aplicarse con usuarios autenticados, membres�
 - `services/companyRepository.ts` concentra las consultas y los mapeos de la API. Selecciona solo columnas públicas de empresas y limita los demás registros a la empresa activa en el servidor. RLS sigue siendo la barrera de autorización.
 - La lectura usa páginas de hasta 500 filas y comprueba el conteo total para evitar truncar los cálculos por el límite de REST. Todavía recupera el conjunto completo de la empresa activa; no es paginación de listas a demanda ni un motor de informes del servidor.
 - Hay una caché de 30 segundos por empresa y por instancia autenticada, invalidada al escribir y al pulsar **Actualizar datos**. No se comparte entre sesiones ni con la demostración. Las respuestas tardías de una empresa anterior se descartan.
+- La empresa activa se recuerda en la sesión del navegador mediante una clave por usuario. Al recargar solo se restaura si sigue entre sus empresas autorizadas; otra cuenta no hereda esa selección. No se guardan documentos ni contraseñas en esa preferencia.
 - Mientras se consulta la nube o hay un error, no se muestran ceros como si fueran cifras confirmadas. Las mutaciones y los respaldos locales permanecen en `AppContext`; su separación por dominio puede seguir evolucionando.
 
 ## Persistencia y alcance de la demostración
