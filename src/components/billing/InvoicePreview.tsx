@@ -17,6 +17,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
   const dialogRef = useRef<HTMLDivElement>(null);
   const [showJson, setShowJson] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const hasMissingItems = invoice.items.length === 0;
 
   // Attach a class to body while modal is open to ensure clean CSS print isolation and listen for ESC
   useEffect(() => {
@@ -136,6 +137,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
 
   // Direct High-Resolution PDF Download (Vector-like Quality, 0% print dialog hassle)
   const handleDownloadPdf = async () => {
+    if (hasMissingItems) return;
     if (showJson) setShowJson(false);
     setIsGeneratingPdf(true);
     toast.info('Generando documento PDF...', { description: `${invoice.controlNumber}.pdf` });
@@ -154,6 +156,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
 
   // Native Browser Print (Protected by print:hidden on main layout & custom print media CSS)
   const handlePrint = () => {
+    if (hasMissingItems) return;
     toast.info('Abriendo diálogo de impresión...');
     if (showJson) {
       setShowJson(false);
@@ -209,9 +212,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             <button
               type="button"
               onClick={handleDownloadPdf}
-              disabled={isGeneratingPdf}
+              disabled={isGeneratingPdf || hasMissingItems}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-xs font-bold text-white transition-all shadow-md shadow-emerald-600/30 btn-tactile cursor-pointer"
-              title="Descargar PDF de prueba tamaño Carta"
+              title={hasMissingItems ? 'Recupera las partidas originales para descargar el PDF' : 'Descargar PDF de prueba tamaño Carta'}
             >
               {isGeneratingPdf ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -226,8 +229,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             <button
               type="button"
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-xs font-bold text-white transition-all shadow-md shadow-brand-600/30 btn-tactile cursor-pointer"
-              title="Abrir diálogo de impresión del navegador"
+              disabled={hasMissingItems}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-xs font-bold text-white transition-all shadow-md shadow-brand-600/30 btn-tactile cursor-pointer"
+              title={hasMissingItems ? 'Recupera las partidas originales para imprimir' : 'Abrir diálogo de impresión del navegador'}
             >
               <Printer className="w-4 h-4" />
               <span className="hidden sm:inline">Imprimir</span>
@@ -244,6 +248,13 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
           </div>
         </div>
 
+        {hasMissingItems && (
+          <div role="alert" className="border-b border-amber-300 bg-amber-50 px-6 py-4 text-sm text-amber-950">
+            <p className="font-bold">Documento incompleto · faltan las partidas originales</p>
+            <p className="mt-1">Los importes guardados no permiten reconstruir los productos, cantidades ni precios. Recupera el documento original para completar el registro. La impresión y el PDF están bloqueados.</p>
+          </div>
+        )}
+
         {/* Modal Body */}
         {showJson ? (
           <div className="p-6 bg-slate-900 text-slate-200 font-mono text-xs overflow-x-auto max-h-[75vh]">
@@ -252,8 +263,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  disabled={hasMissingItems}
                   onClick={() => copyToClipboard(JSON.stringify(mhJsonPayload, null, 2), 'Payload JSON copiado al portapapeles')}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer btn-tactile"
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer btn-tactile"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>Copiar JSON</span>

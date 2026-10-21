@@ -13,6 +13,7 @@ export const InvoiceList: React.FC = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const incompleteCount = filteredInvoices.filter(invoice => invoice.items.length === 0).length;
   const invalidRange = Boolean(dateFrom && dateTo && dateFrom > dateTo);
   const hasFilters = Boolean(searchTerm || selectedType !== 'ALL' || selectedStatus !== 'ALL' || dateFrom || dateTo);
   const resetFilters = () => { setSearchTerm(''); setSelectedType('ALL'); setSelectedStatus('ALL'); setDateFrom(''); setDateTo(''); };
@@ -48,6 +49,13 @@ export const InvoiceList: React.FC = () => {
           <span>Nueva factura</span>
         </button>
       </div>
+
+      {incompleteCount > 0 && (
+        <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+          <p className="font-bold">{incompleteCount} {incompleteCount === 1 ? 'documento sin partidas' : 'documentos sin partidas'}</p>
+          <p className="mt-1">Falta el detalle original de productos o servicios. Puedes revisar los registros; su impresión y PDF estarán disponibles cuando se recupere ese detalle.</p>
+        </div>
+      )}
 
       {/* Filters & Search */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
@@ -145,7 +153,7 @@ export const InvoiceList: React.FC = () => {
                           className="btn-tactile px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/20 inline-flex items-center gap-1.5"
                         >
                           <Plus className="w-3.5 h-3.5" />
-                          <span>+ Emitir Primer DTE</span>
+                          <span>Crear primer borrador</span>
                         </button>
                       )}
                     </div>
@@ -205,6 +213,7 @@ export const InvoiceList: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 text-center">
                         <DocumentStatusBadge status={inv.status} />
+                        {inv.items.length === 0 && <p className="mt-1 font-semibold text-amber-800">Incompleto · sin partidas</p>}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <button

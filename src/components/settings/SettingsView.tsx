@@ -123,7 +123,6 @@ export const SettingsView: React.FC = () => {
                   <span className="w-2 h-2 rounded-full bg-amber-500"></span>
                   Sin integrar · demostración
                 </span>
-                <span className="text-[11px] text-slate-400">api.dtes.mh.gob.sv</span>
               </div>
             </div>
 
@@ -165,6 +164,18 @@ export const SettingsView: React.FC = () => {
                   </span>
                 ))}
               </div>
+            </div>
+
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-950">
+              <p className="font-bold">Pendiente para emitir con Hacienda</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-4">
+                <li>Habilitar el ambiente de pruebas del emisor.</li>
+                <li>Obtener el certificado de firma y la contraseña API.</li>
+                <li>Integrar la firma y transmisión, y superar las pruebas requeridas.</li>
+                <li>Obtener la autorización y el certificado para producción.</li>
+              </ol>
+              <p className="mt-2">Guardar un borrador en la nube no lo convierte en un documento fiscal.</p>
+              <a href="https://factura.gob.sv/2020/09/02/ent1/" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block min-h-11 py-3 font-semibold underline">Consultar el proceso oficial de Hacienda</a>
             </div>
           </div>
         </div>

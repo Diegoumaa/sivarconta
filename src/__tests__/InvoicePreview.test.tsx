@@ -150,6 +150,37 @@ describe('InvoicePreview Component', () => {
     expect(onCloseMock).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps incomplete historical records inspectable and blocks PDF, print and JSON copying', () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    renderPreview({ ...mockInvoice01, items: [] });
+    try {
+      expect(screen.getByRole('alert')).toHaveTextContent('faltan las partidas originales');
+      expect(screen.getByText(mockInvoice01.controlNumber)).toBeInTheDocument();
+      const pdf = screen.getByRole('button', { name: /Descargar PDF/i });
+      const printButton = screen.getByRole('button', { name: /Imprimir/i });
+      expect(pdf).toBeDisabled();
+      expect(printButton).toBeDisabled();
+      fireEvent.click(pdf);
+      fireEvent.click(printButton);
+      expect(exportElementToPdf).not.toHaveBeenCalled();
+      expect(print).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: /Ver JSON MH/i }));
+      expect(screen.getByRole('button', { name: /Copiar JSON/i })).toBeDisabled();
+      expect(screen.getByRole('alert')).toHaveTextContent('faltan las partidas originales');
+    } finally {
+      print.mockRestore();
+    }
+  });
+
+  it('permits reviewing and exporting a document with its original items', () => {
+    renderPreview(mockInvoice01);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Descargar PDF/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Imprimir/i })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /Ver JSON MH/i }));
+    expect(screen.getByRole('button', { name: /Copiar JSON/i })).toBeEnabled();
+  });
+
   it('labels a draft as untransmitted and omits invented certification or authorization', () => {
     renderPreview({ ...mockInvoice01, status: 'BORRADOR', mhReceptionStamp: undefined, mhQrUrl: undefined });
     expect(screen.getByText('Borrador · sin transmitir')).toBeInTheDocument();

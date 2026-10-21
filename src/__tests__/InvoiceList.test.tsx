@@ -84,6 +84,24 @@ describe('InvoiceList Component', () => {
     expect(screen.getByRole('status')).toHaveTextContent('1 documentos');
   });
 
+  it('identifies missing items within the active company even when search hides the row', () => {
+    const base = INITIAL_INVOICES[0];
+    localStorage.setItem('sivarconta_invoices', JSON.stringify([
+      { ...base, id: 'missing', clientName: 'Registro incompleto', items: [] },
+      { ...base, id: 'complete', clientName: 'Registro completo' },
+      { ...base, id: 'other-company', companyId: 'other-company', items: [] },
+    ]));
+    renderInvoiceList();
+    expect(screen.getByRole('alert')).toHaveTextContent('1 documento sin partidas');
+    const incompleteRow = screen.getByText('Registro incompleto').closest('tr')!;
+    expect(within(incompleteRow).getByText('Incompleto · sin partidas')).toBeInTheDocument();
+    expect(within(incompleteRow).getByRole('button', { name: 'Ver' })).toBeEnabled();
+    expect(within(screen.getByText('Registro completo').closest('tr')!).queryByText('Incompleto · sin partidas')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: /Buscar facturas/i }), { target: { value: 'Registro completo' } });
+    expect(screen.queryByText('Registro incompleto')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('1 documento sin partidas');
+  });
+
   it('includes both boundaries in the date interval', () => {
     seedInvoices();
     renderInvoiceList();
