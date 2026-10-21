@@ -83,7 +83,7 @@ const MainLayout: React.FC = () => {
           <Sidebar />
           <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full pb-24 md:pb-8">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
-              <span className="flex items-center gap-2">{dataMode === 'cloud' ? <Cloud className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}{dataMode === 'cloud' ? 'Cuenta de empresa · datos en Supabase' : 'Demostración · datos de ejemplo'}</span>
+              <span className="flex items-center gap-2">{dataMode === 'cloud' ? <Cloud className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}{dataMode === 'cloud' ? 'Cuenta de empresa · datos en la nube' : 'Demostración · datos de ejemplo'}</span>
               {dataMode === 'cloud' && <button disabled={dataStatus === 'loading'} onClick={refreshData} className="min-h-11 flex items-center gap-2 rounded-xl px-3 font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50"><RefreshCw className={`h-4 w-4 ${dataStatus === 'loading' ? 'animate-spin' : ''}`} />Actualizar datos</button>}
             </div>
             {currentView !== 'new-invoice' && <div role="note" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><strong>Versión de evaluación.</strong> Borradores sin validez fiscal. Firma y envío a Hacienda pendientes.</div>}

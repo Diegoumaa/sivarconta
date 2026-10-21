@@ -29,7 +29,7 @@ describe('IvaBooksView Component (F07 Books & Export)', () => {
 
   it('renders VAT books header, company info, and action buttons', () => {
     renderIvaBooks();
-    expect(screen.getByText(/Libros de IVA Oficiales \(F07\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Libros de IVA/i)).toBeInTheDocument();
     expect(screen.getByText(/Formato DGII El Salvador/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Exportar CSV \(Excel\)/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Imprimir Libro/i })).toBeInTheDocument();

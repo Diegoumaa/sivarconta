@@ -28,7 +28,7 @@ describe('PurchasesView Component & Calculations', () => {
 
   it('renders purchase documents table and search bar', () => {
     renderPurchases();
-    expect(screen.getByText(/Módulo de Compras & Gastos/i)).toBeInTheDocument();
+    expect(screen.getByText(/Compras y gastos/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Buscar por proveedor o # documento/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Registrar Compra/i })).toBeInTheDocument();
   });

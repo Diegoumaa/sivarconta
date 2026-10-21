@@ -28,7 +28,7 @@ describe('ClientsView Component', () => {
 
   it('renders clients directory title and add button', () => {
     renderClients();
-    expect(screen.getByText(/Directorio de Clientes & Receptores/i)).toBeInTheDocument();
+    expect(screen.getByText(/Clientes/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Nuevo Cliente/i })).toBeInTheDocument();
   });
 

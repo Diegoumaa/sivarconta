@@ -29,8 +29,8 @@ describe('InvoiceList Component', () => {
 
   it('renders invoice list title and emit button', () => {
     renderInvoiceList();
-    expect(screen.getByText(/Documentos Tributarios Emitidos \(DTE\)/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Emitir Nuevo DTE/i })).toBeInTheDocument();
+    expect(screen.getByText(/Facturas y documentos/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Nueva factura/i })).toBeInTheDocument();
   });
 
   it('renders initial mock invoices in table', () => {

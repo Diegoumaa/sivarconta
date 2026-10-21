@@ -16,12 +16,12 @@ describe('Application routes', () => {
     expect(within(screen.getByRole('region', { name: 'Acción principal' })).getByRole('button', { name: 'Nueva factura' })).toBeInTheDocument();
   });
   it.each([
-    ['Facturas', '/facturas', 'Documentos Tributarios Emitidos (DTE)'],
-    ['Productos y servicios', '/productos', 'Catálogo de Productos & Servicios'],
-    ['Clientes', '/clientes', 'Directorio de Clientes & Receptores'],
-    ['Compras y gastos', '/compras', 'Módulo de Compras & Gastos'],
-    ['Libros de IVA', '/libros-iva', 'Libros de IVA Oficiales (F07)'],
-    ['Configuración', '/configuracion', 'Configuración Fiscal & Ministerio de Hacienda']
+    ['Facturas', '/facturas', 'Facturas y documentos'],
+    ['Productos y servicios', '/productos', 'Productos y servicios'],
+    ['Clientes', '/clientes', 'Clientes'],
+    ['Compras y gastos', '/compras', 'Compras y gastos'],
+    ['Libros de IVA', '/libros-iva', 'Libros de IVA'],
+    ['Configuración', '/configuracion', 'Configuración de tu empresa']
   ])('opens %s and updates a shareable URL', async (name, path, heading) => {
     render(<App />);
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Navegación principal' })).getByRole('link', { name }));
@@ -31,12 +31,12 @@ describe('Application routes', () => {
   it('opens a section directly from its URL', async () => {
     window.history.replaceState(null, '', '#/clientes');
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Directorio de Clientes & Receptores' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Clientes' })).toBeInTheDocument();
   });
   it('moves focus to content without replacing the route with a skip-link fragment', async () => {
     window.history.replaceState(null, '', '#/clientes');
     render(<App />);
-    await screen.findByRole('heading', { name: 'Directorio de Clientes & Receptores' });
+    await screen.findByRole('heading', { name: 'Clientes' });
     fireEvent.click(screen.getByRole('link', { name: 'Saltar al contenido' }));
     expect(screen.getByRole('main')).toHaveFocus();
     expect(window.location.hash).toBe('#/clientes');

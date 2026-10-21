@@ -32,7 +32,7 @@ export const SettingsView: React.FC = () => {
       <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Configuración Fiscal & Ministerio de Hacienda
+            Configuración de tu empresa
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Parámetros de conexión DTE, firma digital y sucursales para {safeCompany.tradeName || safeCompany.name}

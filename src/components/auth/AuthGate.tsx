@@ -99,9 +99,9 @@ export function AuthGate({ children }: { children: (access: Access) => React.Rea
       finally { setBusy(false); }
     };
     return <>
-      <div className="no-print flex flex-wrap items-center justify-end gap-3 border-b border-slate-200 bg-white px-4 py-2 text-xs text-slate-600">
-        <span>{demo ? 'Demostración · datos de ejemplo en este navegador' : 'Sesión iniciada'}</span>
-        <button onClick={exit} disabled={busy} className="min-h-10 rounded-lg px-3 font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50">{busy ? 'Espera…' : demo ? 'Volver al acceso' : 'Cerrar sesión'}</button>
+      <div className="no-print flex items-center justify-end gap-3 border-b border-slate-200 bg-white px-4 text-xs text-slate-600">
+        <span className="hidden sm:inline">{demo ? 'Demostración · datos de ejemplo en este navegador' : 'Sesión iniciada'}</span>
+        <button onClick={exit} disabled={busy} className="min-h-11 rounded-lg px-3 font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50">{busy ? 'Espera…' : demo ? 'Volver al acceso' : 'Cerrar sesión'}</button>
       </div>
       {error && <p role="alert" className="no-print bg-red-50 p-3 text-center text-sm text-red-800">{error}</p>}
       {children(demo ? { mode: 'demo' } : { mode: 'cloud', userId: session!.user.id })}

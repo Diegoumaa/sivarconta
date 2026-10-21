@@ -364,7 +364,7 @@ export const DashboardView: React.FC = () => {
           <div>
             <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
               <PlusCircle className="w-4 h-4 text-brand-600" />
-              Emisión Rápida de DTEs
+              Preparar un documento
             </h3>
             <p className="text-xs text-slate-600 mt-0.5">
               Haz clic en el documento que necesitas emitir:
@@ -471,7 +471,7 @@ export const DashboardView: React.FC = () => {
                             <button
                               onClick={() => setActiveDtePreview(inv)}
                               className="p-1.5 rounded-lg text-slate-600 hover:text-brand-600 hover:bg-slate-100 transition-colors active:scale-90 cursor-pointer"
-                              title="Ver DTE Oficial"
+                              title="Ver documento"
                             >
                               <Eye className="w-4 h-4" />
                             </button>

@@ -41,7 +41,7 @@ VITE_SUPABASE_ANON_KEY=tu-clave-publica
 
 Reinicia Vite después de cambiar el archivo. Las variables con prefijo `VITE_` forman parte del JavaScript público entregado al navegador: utiliza únicamente la clave pública del proyecto. Las claves `service_role`, credenciales de Hacienda y llaves privadas deben permanecer en un backend seguro.
 
-`supabase/schema.sql` es el esquema inicial histórico. En una base nueva aplica después `supabase/migrations/20261021_security.sql`; no vuelvas a ejecutar las semillas ni el esquema inicial sobre una base existente. La migración sustituye las reglas piloto abiertas, exige autenticación y membresía, elimina la recursión de miembros y protege la columna `mh_api_key` del acceso desde el navegador. Fue aplicada al proyecto restaurado el 21 de octubre de 2026 con autorización del propietario; después se verificó HTTP 401 para las ocho tablas usando solo la clave pública sin sesión.
+`supabase/schema.sql` es el esquema inicial histórico. En una base nueva aplica después `supabase/migrations/20261021_security.sql` y `supabase/migrations/20261021_table_privileges.sql`; no vuelvas a ejecutar las semillas ni el esquema inicial sobre una base existente. Las migraciones sustituyen las reglas piloto abiertas, exigen autenticación y membresía, eliminan la recursión de miembros y protegen la columna `mh_api_key` del acceso desde el navegador. También retiran privilegios de destrucción de tablas y DDL al rol del navegador. Fueron aplicadas al proyecto restaurado el 21 de octubre de 2026; la sustitución de políticas contó con autorización explícita del propietario. Después se verificó HTTP 401 para las ocho tablas usando solo la clave pública sin sesión.
 
 El registro requiere confirmar el correo cuando Supabase tenga activada esa opción. Configura **Authentication → URL Configuration → Site URL** con la URL de tu despliegue; en el proyecto publicado es `https://sivarconta.vercel.app`. Una cuenta nueva empieza sin empresas. La RPC `create_company` crea la empresa y su propietario en una sola transacción y no permite apropiarse de empresas existentes. Las empresas históricas sin miembros requieren una asignación administrativa explícita.
 
@@ -54,6 +54,8 @@ La demostración explícita utiliza el espacio de almacenamiento `sivarconta_dem
 El aislamiento entre empresas debe aplicarse con usuarios autenticados, membresías verificadas y políticas RLS probadas en PostgreSQL. Las políticas de acceso universal y la desactivación de RLS exponen los registros; no deben utilizarse para resolver errores de permisos. La selección de empresa y los filtros del frontend por sí solos no son una barrera de autorización.
 
 `supabase/tests/tenant-isolation.sql` prepara 27 comprobaciones de RLS con tres usuarios ficticios, dos empresas y registros sintéticos, y termina con `ROLLBACK`. Úsalo primero en una base de pruebas. Un archivo preparado no equivale a un resultado aprobado: consulta el informe de la ejecución para conocer qué comprobaciones se ejecutaron realmente. No confirma el envío de correos ni la recuperación completa de una cuenta real.
+
+`supabase/tests/read-only-guards.sql` sí se ejecutó sobre el proyecto restaurado: aprobó nueve comprobaciones de solo lectura sobre visibilidad de las ocho tablas para una identidad sin membresía y protección de la credencial fiscal. Estas pruebas no sustituyen los casos positivos y de escritura de usuarios miembros.
 
 ## Arquitectura del frontend
 

@@ -105,7 +105,7 @@ export const IvaBooksView: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              Libros de IVA Oficiales (F07)
+              Libros de IVA
             </h1>
             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-50 text-brand-700 border border-brand-200/70">
               Formato DGII El Salvador

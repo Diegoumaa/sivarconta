@@ -65,7 +65,7 @@ describe('DashboardView Component & Fiscal Calculations', () => {
 
   it('renders quick launchpad for all 5 DTE types', () => {
     renderDashboard();
-    expect(screen.getByText(/Emisión Rápida de DTEs/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preparar un documento/i)).toBeInTheDocument();
     expect(screen.getByText(/Factura de Consumidor Final/i)).toBeInTheDocument();
     expect(screen.getByText(/Comprobante de Crédito Fiscal/i)).toBeInTheDocument();
     expect(screen.getByText(/Factura de Sujeto Excluido/i)).toBeInTheDocument();

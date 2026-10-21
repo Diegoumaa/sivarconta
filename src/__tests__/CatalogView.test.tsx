@@ -28,7 +28,7 @@ describe('CatalogView Component', () => {
 
   it('renders catalog header and add button', () => {
     renderCatalog();
-    expect(screen.getByText(/Catálogo de Productos & Servicios/i)).toBeInTheDocument();
+    expect(screen.getByText(/Productos y servicios/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Nuevo Producto \/ Servicio/i })).toBeInTheDocument();
   });
 

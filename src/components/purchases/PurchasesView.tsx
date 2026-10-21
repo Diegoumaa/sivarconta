@@ -153,7 +153,7 @@ export const PurchasesView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Módulo de Compras & Gastos
+            Compras y gastos
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Registro de comprobantes de crédito fiscal recibidos para deducción de IVA

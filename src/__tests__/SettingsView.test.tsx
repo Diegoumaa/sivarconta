@@ -28,7 +28,7 @@ describe('SettingsView Component', () => {
 
   it('renders settings title and active company fiscal parameters', () => {
     renderSettings();
-    expect(screen.getByText(/Configuración Fiscal & Ministerio de Hacienda/i)).toBeInTheDocument();
+    expect(screen.getByText(/Configuración de tu empresa/i)).toBeInTheDocument();
     expect(screen.getByText(/Distribuidora Cuscatlán, S.A. de C.V./i)).toBeInTheDocument();
     expect(screen.getByText('0614-120518-102-1')).toBeInTheDocument();
     expect(screen.getByText('289410-4')).toBeInTheDocument();

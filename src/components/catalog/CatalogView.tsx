@@ -89,7 +89,7 @@ export const CatalogView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
           <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-            Catálogo de Productos & Servicios
+            Productos y servicios
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Administra tu inventario, tarifas y tipos de gravamen según catálogos del MH
