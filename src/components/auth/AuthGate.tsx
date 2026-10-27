@@ -20,6 +20,10 @@ export function AuthGate({ children }: { children: (access: Access) => React.Rea
   const [message, setMessage] = useState('');
 
   useEffect(() => {
+    if (isSupabaseConfigured && !demo && (!session || view === 'new-password')) document.title = 'Acceso · SIVAR FACT';
+  }, [demo, session, view]);
+
+  useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
     let alive = true;
     let receivedEvent = false;
@@ -109,8 +113,8 @@ export function AuthGate({ children }: { children: (access: Access) => React.Rea
   }
 
   return <main className="min-h-screen bg-slate-50 px-5 py-10 sm:px-8 sm:py-16">
-    <div className="mx-auto max-w-5xl">
-      <div className="mb-10 flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white"><Zap className="h-5 w-5 fill-white" /></span><span className="text-xl font-extrabold tracking-tight">SIVAR<span className="text-brand-600">CONTA</span></span></div>
+    <div className="mx-auto max-w-5xl"><a href="#/suite" className="mb-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-700 hover:underline">← Volver a SIVAR SUITE</a>
+      <div className="mb-10 flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white"><Zap className="h-5 w-5 fill-white" /></span><span className="text-xl font-extrabold tracking-tight">SIVAR<span className="text-brand-600">FACT</span></span></div>
       <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-20">
         <section className="order-2 space-y-6 lg:order-1">
           <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-800"><Receipt className="h-4 w-4" />Tu negocio, en orden</span>

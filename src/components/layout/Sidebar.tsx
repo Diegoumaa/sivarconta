@@ -80,7 +80,7 @@ export const Sidebar: React.FC = () => {
       {/* User footer */}
       <div className="p-4 border-t border-slate-100 bg-white">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center font-bold text-xs text-white shadow-xs">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-600 to-blue-600 flex items-center justify-center font-bold text-xs text-white shadow-xs">
             DE
           </div>
           <div className="truncate">

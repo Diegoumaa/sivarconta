@@ -16,7 +16,7 @@
     font-variant-numeric: tabular-nums;
   }
   :focus-visible {
-    outline: 3px solid #4f46e5;
+    outline: 3px solid #0769df;
     outline-offset: 3px;
   }
 }

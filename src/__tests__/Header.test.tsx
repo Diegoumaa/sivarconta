@@ -29,7 +29,7 @@ describe('Header Component & Company Switching', () => {
   it('renders branding and active company indicator', () => {
     renderHeader();
     expect(screen.getByText(/SIVAR/i)).toBeInTheDocument();
-    expect(screen.getByText(/CONTA/i)).toBeInTheDocument();
+    expect(screen.getByText(/^FACT$/i)).toBeInTheDocument();
     expect(screen.getByText(/Distribuidora Cuscatlán/i)).toBeInTheDocument();
   });
 

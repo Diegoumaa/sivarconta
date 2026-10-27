@@ -1,6 +1,8 @@
-# SIVARCONTA
+# SIVAR SUITE · SIVAR FACT
 
-Prototipo web de facturación y gestión contable para El Salvador, construido con React, TypeScript y Vite. Incluye vistas de ventas, clientes, productos, compras y libros de IVA.
+Suite web para negocios de El Salvador, construida con React, TypeScript y Vite. El home presenta cuatro módulos: **SIVAR FACT** está disponible; **SIVAR CONTA**, **SIVAR STOCK** y **SIVAR ADMIN** están deshabilitados y marcados como próximos. Facturación incluye las vistas existentes de ventas, clientes, productos, compras y libros de IVA.
+
+El selector de módulos es público y no monta los datos empresariales. Al entrar a FACT se carga de forma diferida el módulo actual, que mantiene Supabase Auth y los permisos por empresa. Las rutas anteriores (`#/inicio`, `#/facturas`, etc.) siguen funcionando; `#/suite`, `#/modulos` y `#/ayuda` pertenecen al home. Los callbacks de confirmación y recuperación de cuenta llegan al acceso de FACT. El tema principal de facturación es azul, según la referencia del cliente.
 
 **El estado actual es de evaluación. Los documentos nuevos son borradores sin validez fiscal. Incluye registro, acceso y recuperación con Supabase Auth, navegación con URL, permisos por empresa y guardado transaccional de facturas con correlativos del servidor. La firma y emisión fiscal siguen pendientes antes de operar en producción fiscal.**
 
@@ -24,15 +26,25 @@ npm test
 npm run build
 npm run audit:production
 npm run audit:critical
+npx playwright install chromium
+npm run test:e2e
 ```
 
 `npm test` ejecuta Vitest y React Testing Library. La salida del comando determina el número de pruebas y su resultado; el proyecto no mantiene una cifra fija de pruebas aprobadas en esta documentación.
 
 `npm run build` comprueba TypeScript y genera el sitio estático en `dist/`. Una compilación correcta o una suite aprobada no certifican seguridad, cumplimiento fiscal ni comportamiento contra servicios externos.
 
-El workflow `.github/workflows/ci.yml` instala dependencias, audita producción, rechaza avisos críticos de desarrollo, ejecuta pruebas y compila en Node.js 22 para cada push y pull request. Ese workflow no publica ni despliega el sitio.
+El workflow `.github/workflows/ci.yml` instala dependencias, audita producción, rechaza avisos críticos de desarrollo, ejecuta pruebas unitarias y de componentes, compila y ejecuta Playwright en escritorio y móvil para cada push y pull request. Guarda informes y trazas de fallos durante siete días. Ese workflow no publica ni despliega el sitio.
 
-Las versiones de Vite, Vitest y el plugin de React están fijadas en el lockfile. El analizador de selectores CSS usa una versión corregida mediante `overrides`. La auditoría crítica permite los avisos altos de desarrollo que siguen abiertos en la cadena de Tailwind 3; no equivale a una auditoría sin avisos. Antes de migrar Tailwind se deben comprobar el diseño y la exportación PDF.
+Las versiones de Vite, Vitest, Playwright y el plugin de React están fijadas en el lockfile. El analizador de selectores CSS usa una versión corregida mediante `overrides`. El resultado de `npm audit` debe consultarse en cada revisión; pasar su umbral de críticos no equivale a una auditoría sin avisos.
+
+### Alcance de las pruebas end to end
+
+Playwright compila con variables de Supabase vacías y utiliza datos ficticios en contextos de navegador aislados. Cubre el home, módulos bloqueados, búsqueda, navegación, cinco tipos de borrador, altas de cliente/producto/compra/empresa, persistencia local tras recargar, aislamiento visual por empresa, filtros, libros, descarga CSV y un PDF real con firma de archivo `%PDF-`. Se ejecuta en Chromium de escritorio y con una pantalla móvil de 390 píxeles; también comprueba desbordes en 320, 390, 768 y 1440 píxeles.
+
+La configuración `playwright.config.ts` inicia su servidor en el puerto 4173 y requiere ese puerto libre. La revisión visual manual usa el navegador de la aplicación. Estos recorridos no envían documentos a Hacienda, no acreditan correo real, no sustituyen los controles RLS ni una prueba de carga con usuarios simultáneos, y no validan una APP iOS/Android nativa.
+
+El paisaje de `public/images/suite-landscape.webp` fue generado para este proyecto y optimizado a WebP. Las ilustraciones de módulos son SVG editables en `ModuleArtwork.tsx`; los textos y controles son componentes HTML accesibles.
 
 ## Supabase opcional para desarrollo
 

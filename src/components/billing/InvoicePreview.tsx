@@ -212,6 +212,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             <button
               type="button"
               onClick={handleDownloadPdf}
+              aria-label={isGeneratingPdf ? 'Generando PDF...' : 'Descargar PDF'}
               disabled={isGeneratingPdf || hasMissingItems}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-xs font-bold text-white transition-all shadow-md shadow-emerald-600/30 btn-tactile cursor-pointer"
               title={hasMissingItems ? 'Recupera las partidas originales para descargar el PDF' : 'Descargar PDF de prueba tamaño Carta'}
@@ -229,6 +230,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             <button
               type="button"
               onClick={handlePrint}
+              aria-label="Imprimir documento"
               disabled={hasMissingItems}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-xs font-bold text-white transition-all shadow-md shadow-brand-600/30 btn-tactile cursor-pointer"
               title={hasMissingItems ? 'Recupera las partidas originales para imprimir' : 'Abrir diálogo de impresión del navegador'}
@@ -518,7 +520,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                 Documento generado para revisión. Requiere integración y validación fiscal antes de su emisión real.
               </p>
               <p className="text-[8px] text-slate-400">
-                SIVARCONTA · Modo demostración
+                SIVAR FACT · Documento de prueba
               </p>
             </div>
           </div>

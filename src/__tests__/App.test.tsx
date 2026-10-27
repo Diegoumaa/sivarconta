@@ -1,14 +1,14 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import App from '../App';
+import App from '../BillingApp';
 vi.mock('../lib/supabase', () => ({ supabase: null, isSupabaseConfigured: false }));
 
 describe('Application routes', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => { localStorage.clear(); window.history.replaceState(null, '', '#/inicio'); });
   it('shows a clear first action and all primary sections', async () => {
     render(<App />);
-    expect(await screen.findByRole('heading', { name: 'Así va tu negocio' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Así va tu negocio' }, { timeout: 3000 })).toBeInTheDocument();
     const navigation = within(screen.getByRole('navigation', { name: 'Navegación principal' }));
     for (const name of ['Inicio','Facturas','Productos y servicios','Clientes','Compras y gastos','Libros de IVA','Configuración']) {
       expect(navigation.getByRole('link', { name })).toBeInTheDocument();

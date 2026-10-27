@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Building2, Check, ChevronDown, Plus, Search, Zap } from 'lucide-react';
+import { Building2, Check, ChevronDown, Plus, Search, Receipt, LayoutGrid } from 'lucide-react';
 import { NewCompanyModal } from '../companies/NewCompanyModal';
 
 interface HeaderProps { onOpenCommand?: () => void; onOpenNewCompany?: () => void; }
@@ -19,10 +19,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCommand, onOpenNewCompany 
   }, [isDropdownOpen]);
   return <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-md sm:px-6">
     <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3">
-      <button type="button" onClick={() => setCurrentView('dashboard')} aria-label="SIVARCONTA · Inicio" className="mr-auto flex min-h-11 items-center gap-2.5 rounded-xl text-left">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white"><Zap className="h-5 w-5 fill-white" /></span>
-        <span className="text-lg font-extrabold tracking-tight text-slate-900">SIVAR<span className="text-brand-600">CONTA</span><span className="block text-xs font-medium tracking-normal text-slate-600">Tu negocio, en orden</span></span>
+      <button type="button" onClick={() => setCurrentView('dashboard')} aria-label="SIVAR FACT · Inicio" className="mr-auto flex min-h-11 items-center gap-2.5 rounded-xl text-left">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white"><Receipt className="h-5 w-5" /></span>
+        <span className="text-lg font-extrabold tracking-tight text-slate-900">SIVAR<span className="text-brand-600">FACT</span><span className="block text-xs font-medium tracking-normal text-slate-600">Tu negocio, en orden</span></span>
       </button>
+      <a href="#/suite" aria-label="Volver a SIVAR SUITE" className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-brand-100 bg-brand-50 px-3 text-sm font-semibold text-brand-700 hover:bg-brand-100"><LayoutGrid className="h-4 w-4" /><span className="hidden lg:inline">Suite</span></a>
       <button type="button" onClick={onOpenCommand} aria-label="Abrir buscador" title="Buscar (Ctrl+K)" className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm text-slate-600 hover:bg-slate-50">
         <Search className="h-4 w-4" /><span className="hidden xl:inline">Buscar</span><kbd className="hidden xl:inline text-xs">Ctrl K</kbd>
       </button>

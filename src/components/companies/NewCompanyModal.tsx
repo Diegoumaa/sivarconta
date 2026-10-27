@@ -377,7 +377,7 @@ export const NewCompanyModal: React.FC<NewCompanyModalProps> = ({ isOpen, onClos
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex items-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-brand-500/25 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-2 bg-gradient-to-r from-brand-600 to-blue-600 hover:from-brand-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-brand-500/25 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>{isSubmitting ? 'Guardando en la Nube...' : 'Guardar y Activar Empresa'}</span>
