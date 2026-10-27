@@ -165,6 +165,24 @@ test('PDF download produces a nonempty file with a PDF signature', async ({ page
   expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
 });
 
+test('preview actions fit the viewport and its close button dismisses the document', async ({ page }) => {
+  await page.goto('/#/facturas');
+  await page.getByRole('button', { name: 'Ver', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Vista previa del documento' });
+  await expect(dialog).toBeVisible();
+  for (const name of ['Descargar PDF', 'Imprimir documento', 'Cerrar vista previa']) {
+    const button = dialog.getByRole('button', { name, exact: true });
+    await expect(button).toBeVisible();
+    const bounds = await button.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  }
+  await dialog.getByRole('button', { name: 'Cerrar vista previa', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Facturas y documentos', exact: true })).toBeVisible();
+});
+
 test('a purchase saves its concept and amount and can be found after reload', async ({ page }) => {
   await page.goto('/#/compras');
   await page.getByRole('button', { name: 'Registrar Compra', exact: true }).click();

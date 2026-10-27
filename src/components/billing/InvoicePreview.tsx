@@ -184,13 +184,13 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
         className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden border border-slate-200 my-4 sm:my-8 print-document-card animate-in zoom-in-95 duration-150"
       >
         {/* Top Control Bar (Hidden on print) */}
-        <div className="no-print bg-white px-4 sm:px-6 py-3.5 flex items-center justify-between text-slate-900 border-b border-slate-200">
-          <div className="flex items-center gap-2.5">
+        <div className="no-print bg-white px-4 sm:px-6 py-3.5 flex flex-col gap-3 sm:flex-row sm:items-center justify-between text-slate-900 border-b border-slate-200">
+          <div className="flex min-w-0 items-center gap-2.5">
             <span className="p-2 rounded-xl bg-brand-50 text-brand-600 border border-brand-100">
               <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-bold text-xs sm:text-sm text-slate-900">Vista previa del documento</h3>
                 <DocumentStatusBadge status={invoice.status} />
               </div>
@@ -198,7 +198,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
             <button
               type="button"
               onClick={() => setShowJson(!showJson)}
@@ -242,7 +242,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors btn-tactile cursor-pointer"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors btn-tactile cursor-pointer"
               title="Cerrar vista previa"
             >
               <X className="w-5 h-5" />
