@@ -260,6 +260,9 @@ test('switching company isolates lists and a new company persists', async ({ pag
   await dialog.getByRole('button', { name: 'Guardar y Activar Empresa', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Empresa E2E ficticia', exact: true })).toBeVisible();
+  // Dismiss the success notice before using the header it temporarily covers.
+  await expect(page.getByText('Empresa registrada exitosamente', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close toast', exact: true }).click();
   await page.goto('/#/clientes');
   await expect(page.getByText('Directorio de Clientes Vacío')).toBeVisible();
   await page.getByRole('button', { name: 'Empresa E2E ficticia', exact: true }).click();
