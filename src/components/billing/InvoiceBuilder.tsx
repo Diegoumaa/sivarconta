@@ -45,6 +45,11 @@ export const InvoiceBuilder: React.FC = () => {
   const [isTransmitting, setIsTransmitting] = useState<boolean>(false);
   const [transmitStep, setTransmitStep] = useState<string>('');
   const [saveError, setSaveError] = useState('');
+  const [pricesIncludeVat, setPricesIncludeVat] = useState(false);
+  const [referencedDte, setReferencedDte] = useState('');
+  const [goodsForResale, setGoodsForResale] = useState(false);
+  const isAdjustment = selectedDteType === '05' || selectedDteType === '06';
+  // Stored prices remain the fiscal base for CCF/notes; the entry mode is independent.
 
   // Sync if context selected DTE changed
   useEffect(() => {
@@ -84,12 +89,20 @@ export const InvoiceBuilder: React.FC = () => {
   const currentClient = filteredClients.find(c => c.id === selectedClientId) || filteredClients[0];
   const clientIsGranContribuyente = currentClient?.taxpayerType === 'GRAN_CONTRIBUYENTE';
   const companyIsGranContribuyente = currentCompany?.taxpayerType === 'GRAN_CONTRIBUYENTE';
+  useEffect(() => {
+    if (selectedDteType === '14' && currentClient?.nrc) {
+      const excluded = filteredClients.find(client => !client.nrc?.trim());
+      if (excluded) setSelectedClientId(excluded.id);
+    }
+  }, [selectedDteType, currentClient?.nrc, filteredClients]);
 
   const totals = calculateInvoiceTotals(
     selectedDteType,
     items,
     clientIsGranContribuyente,
-    companyIsGranContribuyente
+    companyIsGranContribuyente,
+    goodsForResale,
+    pricesIncludeVat
   );
 
   // Business Rules validation
@@ -107,9 +120,10 @@ export const InvoiceBuilder: React.FC = () => {
   );
   const invalidCredit = condition === 'CREDITO' && (!Number.isInteger(creditDays) || creditDays <= 0);
   const blockers = [...fiscalRules.blockers];
+  if (isAdjustment && !referencedDte.trim()) blockers.push('Indica el comprobante original que modifica la nota.');
   if (invalidItems) blockers.push('Revisa las partidas: descripción, cantidad positiva, precio válido y descuento entre cero y el importe de la partida.');
   if (invalidCredit) blockers.push('El plazo de crédito debe ser un número entero de días mayor que cero.');
-  const rules = { ...fiscalRules, blockers, isReady: fiscalRules.isReady && !invalidItems && !invalidCredit };
+  const rules = { ...fiscalRules, blockers, isReady: blockers.length === 0 };
 
   const handleProductSelect = (index: number, productId: string) => {
     const prod = filteredProducts.find(p => p.id === productId);
@@ -197,9 +211,11 @@ export const InvoiceBuilder: React.FC = () => {
       clientEmail: currentClient.email,
       clientPhone: currentClient.phone,
       items,
-      paymentMethod,
-      condition,
-      creditTermDays: condition === 'CREDITO' ? creditDays : undefined,
+      pricesIncludeIva: pricesIncludeVat && ['03', '05', '06'].includes(selectedDteType),
+      referencedDte: isAdjustment ? referencedDte.trim() : undefined,
+      paymentMethod: isAdjustment ? '99' : paymentMethod,
+      condition: isAdjustment ? 'CONTADO' as const : condition,
+      creditTermDays: !isAdjustment && condition === 'CREDITO' ? creditDays : undefined,
       subtotalGravado: totals.subtotalGravado,
       subtotalExento: totals.subtotalExento,
       subtotalNoSujeto: totals.subtotalNoSujeto,
@@ -207,6 +223,7 @@ export const InvoiceBuilder: React.FC = () => {
       iva13: totals.iva13,
       retencion1: totals.retencion1,
       percepcion1: totals.percepcion1,
+      applyIvaPerception: goodsForResale,
       retencionRenta10: totals.retencionRenta10,
       totalPagar: totals.totalPagar,
       totalLetras: totals.totalLetras,
@@ -227,7 +244,7 @@ export const InvoiceBuilder: React.FC = () => {
   const stepTitles = {
     1: 'Tipo de DTE & Cliente',
     2: 'Productos & Servicios',
-    3: 'Forma de Pago & Plazos',
+    3: isAdjustment ? 'Referencia y ajuste' : 'Forma de Pago & Plazos',
     4: 'Revisión del borrador'
   };
 
@@ -543,6 +560,13 @@ export const InvoiceBuilder: React.FC = () => {
                 </button>
               </div>
 
+              {['03', '05', '06'].includes(selectedDteType) && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pricesIncludeVat} onChange={e => setPricesIncludeVat(e.target.checked)} />Ingresar precios con IVA incluido</label>}
+              <p className="text-xs text-slate-600">{selectedDteType === '01' ? 'Los precios gravados incluyen IVA.' : selectedDteType === '14' ? 'La FSE no genera IVA. Identifica los servicios para calcular la retención de renta.' : pricesIncludeVat ? 'El documento desglosará la base y el IVA sin volver a sumarlo al precio ingresado.' : 'Los precios gravados son base sin IVA; se agregará el 13%.'}</p>
+              <div className="grid gap-3 sm:grid-cols-2">{items.map((item, index) => <div key={item.id} className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 p-3 text-xs">
+                <span className="w-full font-semibold">Partida {index + 1}: {item.description}</span>
+                <label>Bien o servicio<select aria-label={`Naturaleza de partida ${index + 1}`} value={item.unitOfMeasure === '99' ? 'SERVICIO' : 'BIEN'} onChange={e => handleItemChange(index, 'unitOfMeasure', e.target.value === 'SERVICIO' ? '99' : '59')} className="block rounded-lg border p-2"><option value="BIEN">Bien tangible</option><option value="SERVICIO">Servicio</option></select></label>
+                {selectedDteType !== '14' && <label>Tratamiento IVA<select aria-label={`Tratamiento IVA de partida ${index + 1}`} value={item.taxType} onChange={e => handleItemChange(index, 'taxType', e.target.value)} className="block rounded-lg border p-2"><option value="GRAVADO">Gravado</option><option value="EXENTO">Exento</option><option value="NO_SUJETO">No sujeto</option></select></label>}
+              </div>)}</div>
               {/* Mobile View: Clean Item Cards (No cramped table scroll!) */}
               <div className="sm:hidden space-y-3">
                 {items.map((item, index) => (
@@ -754,12 +778,12 @@ export const InvoiceBuilder: React.FC = () => {
             <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm space-y-4 sm:space-y-5">
               <div>
                 <label className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 block">
-                  Paso 3: ¿Cómo pagará tu cliente?
+                  {isAdjustment ? 'Paso 3: Referencia del ajuste' : selectedDteType === '14' ? 'Paso 3: Pago al proveedor' : 'Paso 3: ¿Cómo pagará tu cliente?'}
                 </label>
-                <p className="text-xs text-slate-500 mt-0.5">Define el método de cobro y los términos comerciales</p>
+                <p className="text-xs text-slate-500 mt-0.5">{isAdjustment ? 'La nota modifica una operación anterior. No registra un nuevo cobro.' : 'Define la forma de pago y los términos comerciales'}</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {isAdjustment ? <label className="block text-sm">Comprobante original<input aria-label="Comprobante original" value={referencedDte} onChange={e => setReferencedDte(e.target.value)} placeholder="Número de control o código de generación del CCF" className="mt-1 block w-full rounded-xl border border-slate-300 p-3" /><span className="mt-2 block text-xs">{selectedDteType === '05' ? 'Disminuye' : 'Aumenta'} la base y el IVA del comprobante referenciado.</span></label> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {/* Payment method selector */}
                 <div>
                   <label htmlFor="billing-payment" className="text-xs font-semibold text-slate-700 block mb-1">
@@ -813,8 +837,9 @@ export const InvoiceBuilder: React.FC = () => {
                 </div>
               </div>
 
+              }
               {/* Progressive Disclosure: Credit Days */}
-              {condition === 'CREDITO' && (
+              {!isAdjustment && condition === 'CREDITO' && (
                 <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-indigo-50/70 border border-indigo-200/80 space-y-2">
                   <div className="flex items-center gap-1.5 text-indigo-900 font-bold text-xs">
                     <Calendar className="w-4 h-4 text-brand-600" />
@@ -852,6 +877,7 @@ export const InvoiceBuilder: React.FC = () => {
                 </div>
               )}
 
+              {companyIsGranContribuyente && !clientIsGranContribuyente && ['03', '05', '06'].includes(selectedDteType) && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={goodsForResale} onChange={e => setGoodsForResale(e.target.checked)} />Los bienes gravados se destinan a la reventa del cliente: aplicar percepción IVA 1% sobre esos bienes cuando la base sea al menos $100.</label>}
               {/* Observations */}
               <div>
                 <label htmlFor="billing-notes" className="text-xs font-semibold text-slate-700 block mb-1">
@@ -933,7 +959,7 @@ export const InvoiceBuilder: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="flex items-start gap-1.5 text-slate-600 pt-1 border-t border-indigo-100/60 text-[10px] sm:text-[11px]">
+                  {!isAdjustment && <div className="flex items-start gap-1.5 text-slate-600 pt-1 border-t border-indigo-100/60 text-[10px] sm:text-[11px]">
                     <span className="font-bold text-slate-800">
                       {condition === 'CONTADO' ? 'Operación al Contado:' : `Venta al Crédito (${creditDays} días):`}
                     </span>
@@ -942,7 +968,7 @@ export const InvoiceBuilder: React.FC = () => {
                         ? 'El pago se recibe de inmediato.'
                         : 'El IVA generado debe declararse en el mes de emisión.'}
                     </span>
-                  </div>
+                  </div>}
                 </div>
               </div>
             </div>
@@ -1055,14 +1081,14 @@ export const InvoiceBuilder: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[9px] uppercase font-bold">Condición</span>
-                  <strong className="text-slate-800 text-xs block">{condition} {condition === 'CREDITO' ? `(${creditDays}d)` : ''}</strong>
+                  <strong className="text-slate-800 text-xs block">{isAdjustment ? 'Ajuste de base e IVA' : `${condition} ${condition === 'CREDITO' ? `(${creditDays}d)` : ''}`}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Método Pago</span>
-                  <strong className="text-slate-800 text-xs block">{paymentMethod === '01' ? 'Efectivo' : paymentMethod === '04' ? 'Transferencia' : 'Tarjeta'}</strong>
+                  <span className="text-slate-400 block text-[9px] uppercase font-bold">{isAdjustment ? 'Comprobante original' : 'Método Pago'}</span>
+                  <strong className="text-slate-800 text-xs block break-all">{isAdjustment ? referencedDte : paymentMethod === '01' ? 'Efectivo' : paymentMethod === '04' ? 'Transferencia' : 'Tarjeta'}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[9px] uppercase font-bold">Total a Cobrar</span>
+                  <span className="text-slate-400 block text-[9px] uppercase font-bold">{isAdjustment ? 'Monto del ajuste' : selectedDteType === '14' ? 'Total a pagar al proveedor' : 'Total a Cobrar'}</span>
                   <span className="text-lg sm:text-xl font-extrabold font-mono text-brand-700 block">
                     ${totals.totalPagar.toFixed(2)}
                   </span>

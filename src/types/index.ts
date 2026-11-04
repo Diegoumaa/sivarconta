@@ -33,7 +33,7 @@ export const DTE_NAMES: Record<DteType, { code: DteType; name: string; short: st
     code: '14', 
     name: 'Factura de Sujeto Excluido', 
     short: 'Sujeto Excluido (14)', 
-    description: 'Para compras de servicios a personas no inscritas en IVA (plomeros, albañiles, etc.). Retiene 10% Renta.',
+    description: 'Para compras a personas no inscritas en IVA. La retención de renta depende de la operación.',
     badgeColor: 'bg-emerald-100 text-emerald-700 border-emerald-200' 
   },
 };
@@ -85,6 +85,8 @@ export interface InvoiceDocument {
   iva13: number;
   retencion1: number;
   percepcion1?: number;
+  applyIvaPerception?: boolean;
+  pricesIncludeIva?: boolean;
   retencionRenta10: number;
   totalPagar: number;
   totalLetras: string;
@@ -127,6 +129,7 @@ export interface Client {
 }
 
 export interface PurchaseDocument {
+  documentClass?: '1' | '2' | '4';
   id: string;
   companyId: string;
   docType: 'CCF' | 'FACTURA' | 'SUJETO_EXCLUIDO' | 'NOTA_CREDITO';
@@ -164,4 +167,20 @@ export interface Company {
   mhUser: string;
   establishmentCode: string;
   posCode: string;
+  settings?: CompanySettings;
+}
+
+export interface CompanySettings {
+  logoDataUrl?: string;
+  ivaOpeningPeriod?: string;
+  ivaOpeningBalance?: number;
+}
+
+export interface Supplier {
+  id: string;
+  companyId: string;
+  name: string;
+  docType: 'DUI' | 'NIT';
+  docNumber: string;
+  nrc?: string;
 }

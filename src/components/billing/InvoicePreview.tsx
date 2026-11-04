@@ -13,11 +13,15 @@ interface InvoicePreviewProps {
 }
 
 export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose }) => {
-  const { currentCompany, companies } = useApp();
+  const { currentCompany, companies, filteredClients = [] } = useApp();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [showJson, setShowJson] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const hasMissingItems = invoice.items.length === 0;
+  const displayItems = invoice.items.map(item => {
+    const factor = invoice.pricesIncludeIva && ['03', '05', '06'].includes(invoice.dteType) && item.taxType === 'GRAVADO' ? 1.13 : 1;
+    return { ...item, unitPrice: item.unitPrice / factor, discount: item.discount / factor, total: Number((item.total / factor).toFixed(2)) };
+  });
 
   // Attach a class to body while modal is open to ensure clean CSS print isolation and listen for ESC
   useEffect(() => {
@@ -100,9 +104,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
         complemento: invoice.clientAddress
       }
     },
-    cuerpoDocumento: invoice.items.map((item, idx) => ({
+    cuerpoDocumento: displayItems.map((item, idx) => ({
       numItem: idx + 1,
-      tipoItem: 1,
+      tipoItem: item.unitOfMeasure === '99' ? 2 : 1,
       cantidad: item.quantity,
       codigo: item.code,
       uniMedida: parseInt(item.unitOfMeasure) || 59,
@@ -284,6 +288,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             <div className="grid grid-cols-1 sm:grid-cols-12 print:grid-cols-12 gap-6 pb-5 border-b-2 border-slate-900 items-start">
               {/* Emisor Info */}
               <div className="sm:col-span-7 print:col-span-7 space-y-1.5">
+                {safeCompany.settings?.logoDataUrl && <img src={safeCompany.settings.logoDataUrl} alt={`Logo de ${safeCompany.name}`} className="mb-3 h-20 max-w-48 object-contain" />}
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   Datos del emisor
                 </span>
@@ -374,6 +379,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                   <span className="text-slate-500 block text-[10px]">{invoice.clientDocType}:</span>
                   <p className="font-mono font-bold text-slate-800 mt-0.5">{invoice.clientDocNumber}</p>
                 </div>
+                <div><span className="text-slate-500 block text-[10px]">Correo electrónico:</span><p className="break-words">{invoice.clientEmail || 'Sin registrar'}</p></div>
+                <div><span className="text-slate-500 block text-[10px]">Teléfono:</span><p>{invoice.clientPhone || 'Sin registrar'}</p></div>
+                <div><span className="text-slate-500 block text-[10px]">Actividad económica:</span><p>{filteredClients.find(client => client.id === invoice.clientId)?.economicActivity || 'Sin registrar'}</p></div>
                 {invoice.clientNrc && (
                   <div>
                     <span className="text-slate-500 block text-[10px]">NRC:</span>
@@ -385,9 +393,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                   <p className="text-slate-800 leading-normal break-words mt-0.5">{invoice.clientAddress}, {invoice.clientMunicipality}, {invoice.clientDepartment}</p>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Condición / Pago:</span>
+                  <span className="text-slate-500 block text-[10px]">{['05', '06'].includes(invoice.dteType) ? 'Ajuste del comprobante:' : 'Condición / Pago:'}</span>
                   <p className="font-semibold text-slate-800 mt-0.5">
-                    {invoice.condition} {invoice.condition === 'CREDITO' ? `(${invoice.creditTermDays || 30} días)` : ''} ({invoice.paymentMethod === '01' ? 'Efectivo' : invoice.paymentMethod === '04' ? 'Transferencia' : 'Tarjeta'})
+                    {['05', '06'].includes(invoice.dteType) ? `${invoice.dteType === '05' ? 'Disminución' : 'Aumento'} de base e IVA. No registra un nuevo cobro. Referencia: ${invoice.referencedDte || 'Sin referencia registrada'}` : `${invoice.condition} ${invoice.condition === 'CREDITO' ? `(${invoice.creditTermDays || 30} días)` : ''} (${invoice.paymentMethod === '01' ? 'Efectivo' : invoice.paymentMethod === '04' ? 'Transferencia' : invoice.paymentMethod === '05' ? 'Cheque' : 'Tarjeta'})`}
                   </p>
                 </div>
               </div>
@@ -395,19 +403,21 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
 
             {/* Items Table */}
             <div className="py-4">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full table-fixed text-left text-[10px] border-collapse invoice-format-table">
                 <thead>
                   <tr className="border-b-2 border-slate-400 text-slate-700 font-bold uppercase text-[9px]">
-                    <th className="py-2 text-center w-8">#</th>
-                    <th className="py-2 text-center w-12">Cant.</th>
-                    <th className="py-2">Descripción del Producto / Servicio</th>
-                    <th className="py-2 text-right w-24">Precio Unit.</th>
-                    <th className="py-2 text-right w-20">Descuento</th>
-                    <th className="py-2 text-right w-24">Ventas Gravadas</th>
+                    <th className="py-2 text-center w-[4%]">#</th>
+                    <th className="py-2 text-center w-[7%]">Cant.</th>
+                    <th className="py-2 w-[29%]">Descripción del Producto / Servicio</th>
+                    <th className="py-2 text-right w-[12%]">Precio Unit.</th>
+                    <th className="py-2 text-right w-[12%]">Descuento</th>
+                    <th className="py-2 text-right">Ventas no sujetas</th>
+                    <th className="py-2 text-right">Ventas exentas</th>
+                    <th className="py-2 text-right">{invoice.dteType === '14' ? 'Compras' : 'Ventas gravadas'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {invoice.items.map((item, idx) => (
+                  {displayItems.map((item, idx) => (
                     <tr key={item.id}>
                       <td className="py-2 text-center font-mono text-slate-500">{idx + 1}</td>
                       <td className="py-2 text-center font-mono font-bold text-slate-900">{item.quantity}</td>
@@ -417,9 +427,11 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                           <span className="text-[9px] text-slate-400 font-mono block mt-0.5">Código: {item.code}</span>
                         )}
                       </td>
-                      <td className="py-2 text-right font-mono">${item.unitPrice.toFixed(2)}</td>
+                      <td className="py-2 text-right font-mono">${item.unitPrice.toFixed(invoice.pricesIncludeIva ? 4 : 2)}</td>
                       <td className="py-2 text-right font-mono text-slate-500">${(item.discount || 0).toFixed(2)}</td>
-                      <td className="py-2 text-right font-mono font-bold text-slate-900">${item.total.toFixed(2)}</td>
+                      <td className="py-2 text-right font-mono">${(item.taxType === 'NO_SUJETO' ? item.total : 0).toFixed(2)}</td>
+                      <td className="py-2 text-right font-mono">${(item.taxType === 'EXENTO' ? item.total : 0).toFixed(2)}</td>
+                      <td className="py-2 text-right font-mono font-bold text-slate-900">${(item.taxType === 'GRAVADO' ? item.total : 0).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -434,6 +446,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
               <div className="sm:col-span-6 print:col-span-6 bg-amber-50 p-3.5 rounded-xl border border-amber-200 text-sm text-amber-900 space-y-2">
                 <p className="font-bold">Consulta fiscal no disponible</p>
                 <p>Este documento de demostración no incluye un QR fiscal verificable. La firma y la recepción oficial requieren una integración con Hacienda.</p>
+                <div className="mt-4 border-t border-slate-300 pt-3 text-xs text-slate-800"><p className="font-bold">EXTENSIÓN</p><p className="mt-2">Nombre entrega: __________________</p><p>Documento: ______________________</p><p className="mt-2">Nombre recibe: ___________________</p><p>Documento: ______________________</p></div>
               </div>
 
               {/* Totals Breakdown */}
@@ -448,10 +461,11 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                     <span className="font-mono">${invoice.subtotalExento.toFixed(2)}</span>
                   </div>
                 )}
+                <div className="flex justify-between text-slate-600"><span>Suma de ventas no sujetas:</span><span className="font-mono">${invoice.subtotalNoSujeto.toFixed(2)}</span></div>
                 {invoice.descuentoTotal > 0 && (
                   <div className="flex justify-between text-slate-600">
-                    <span>(-) Monto de Descuentos:</span>
-                    <span className="font-mono text-red-600">-${invoice.descuentoTotal.toFixed(2)}</span>
+                    <span>Descuentos ya aplicados:</span>
+                    <span className="font-mono">${invoice.descuentoTotal.toFixed(2)}</span>
                   </div>
                 )}
                 
@@ -493,7 +507,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                 )}
 
                 <div className="border-t-2 border-slate-900 pt-2 mt-1.5 flex justify-between items-center">
-                  <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">Monto Total a Pagar:</span>
+                  <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">{['05', '06'].includes(invoice.dteType) ? 'Monto del ajuste:' : 'Monto Total a Pagar:'}</span>
                   <span className="text-lg sm:text-xl font-black font-mono text-slate-900">
                     ${invoice.totalPagar.toFixed(2)}
                   </span>

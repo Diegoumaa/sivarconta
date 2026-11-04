@@ -11,14 +11,14 @@ $$;
 CREATE FUNCTION pg_temp.fixture_draft(cid UUID,iid UUID,clientid UUID,productid UUID,kind TEXT DEFAULT '03') RETURNS JSONB LANGUAGE sql AS $$
 SELECT jsonb_build_object('id',iid,'company_id',cid,'dte_type',kind,'generation_code',gen_random_uuid(),
  'client_id',clientid,'client_name','Fixture cliente','client_doc_type','NIT','client_doc_number','0000-000000-000-0',
- 'client_nrc','1','client_email','fixture@example.invalid','client_phone','0000','client_address','Fixture dirección',
+ 'client_nrc',CASE WHEN kind='14' THEN NULL ELSE '1' END,'client_email','fixture@example.invalid','client_phone','0000','client_address','Fixture dirección',
  'client_department','Santa Ana','client_municipality','Santa Ana Centro','condition','CREDITO','credit_term_days',45,
  'payment_method','04','subtotal_gravado',100,'subtotal_exento',0,'subtotal_no_sujeto',0,'descuento_total',0,
  'iva13',CASE WHEN kind='14' THEN 0 WHEN kind='01' THEN 11.50 ELSE 13 END,'retencion1',0,'percepcion1',0,
  'retencion_renta10',CASE WHEN kind='14' THEN 10 ELSE 0 END,'total_pagar',CASE WHEN kind='14' THEN 90 WHEN kind='01' THEN 100 ELSE 113 END,
  'total_letras','Importe de prueba','observations','Notas conservadas','referenced_dte','Referencia de prueba',
  'items',jsonb_build_array(jsonb_build_object('product_id',productid,'description','Servicio conservado','code','FIX-001',
- 'quantity',2,'unit_price',50,'discount',0,'tax_type','GRAVADO','unit_of_measure','59','total',100)));
+ 'quantity',2,'unit_price',50,'discount',0,'tax_type','GRAVADO','unit_of_measure',CASE WHEN kind='14' THEN '99' ELSE '59' END,'total',100)));
 $$;
 INSERT INTO auth.users(id,email,raw_user_meta_data) VALUES
  ('11111111-1111-4111-8111-111111111111','rls-a@example.invalid','{}'),

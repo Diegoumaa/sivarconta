@@ -134,6 +134,7 @@ export function checkDteRules(
 
   // Regla Sujeto Excluido DTE-14
   if (dteType === '14') {
+    if (clientNrc?.trim()) blockers.push('La FSE corresponde a un proveedor no inscrito en IVA. Selecciona un receptor sin NRC.');
     if (!clientDocNumber || clientDocNumber.trim() === '') {
       blockers.push('Para compras a Sujetos Excluidos (DTE-14), el documento (DUI/NIT) del proveedor es obligatorio.');
     }

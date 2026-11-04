@@ -58,7 +58,7 @@ describe('Company repository', () => {
     const result = await loadCompanySnapshot(client, 'a');
     expect(result.clients.map(client => client.id)).toEqual(['a']);
     expect(result.invoices[0].items[0].quantity).toBe(2);
-    expect(calls).toHaveLength(4);
+    expect(calls).toHaveLength(5);
     expect(calls.every(call => call.company === 'a')).toBe(true);
     expect(calls.find(call => call.table === 'invoices')?.columns).toContain('invoice_items');
   });

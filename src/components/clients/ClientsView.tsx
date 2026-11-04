@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
+import { MUNICIPALITIES } from '../../data/municipalities';
 import { Client } from '../../types';
 import { SALVADOR_DEPARTMENTS } from '../../data/mockData';
 import { Users, Plus, Search, Building, Phone, Mail, MapPin, X, AlertCircle, Copy } from 'lucide-react';
@@ -415,7 +416,7 @@ export const ClientsView: React.FC = () => {
                   <select
                     id="client-dept"
                     value={department}
-                    onChange={e => setDepartment(e.target.value)}
+                    onChange={e => { setDepartment(e.target.value); setMunicipality(''); }}
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     {SALVADOR_DEPARTMENTS.map(d => (
@@ -425,14 +426,17 @@ export const ClientsView: React.FC = () => {
                 </div>
                 <div>
                   <label htmlFor="client-muni" className="text-xs font-semibold text-slate-700 block mb-1">Municipio</label>
-                  <input
+                  <select
                     id="client-muni"
-                    type="text"
                     required
                     value={municipality}
                     onChange={e => setMunicipality(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-                  />
+                  >
+                    <option value="">Selecciona un municipio</option>
+                    {municipality && !MUNICIPALITIES[department]?.includes(municipality) && <option value={municipality}>{municipality} (registrado)</option>}
+                    {(MUNICIPALITIES[department] || []).map(m => <option key={m}>{m}</option>)}
+                  </select>
                 </div>
               </div>
 

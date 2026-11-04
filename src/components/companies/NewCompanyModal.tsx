@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
+import { MUNICIPALITIES } from '../../data/municipalities';
 import { Building2, X, Plus, AlertCircle } from 'lucide-react';
 import { Company } from '../../types';
 import { validateNit, validateNrc } from '../../utils/svTaxValidators';
@@ -330,7 +331,7 @@ export const NewCompanyModal: React.FC<NewCompanyModalProps> = ({ isOpen, onClos
               <select
                 id="comp-department"
                 value={formData.department}
-                onChange={e => setFormData(prev => ({ ...prev, department: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, department: e.target.value, municipality: '' }))}
                 className="w-full px-3 py-2 text-xs text-slate-900 bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
               >
                 <option value="San Salvador">San Salvador</option>
@@ -354,14 +355,17 @@ export const NewCompanyModal: React.FC<NewCompanyModalProps> = ({ isOpen, onClos
               <label htmlFor="comp-muni" className="text-xs font-bold text-slate-700 block">
                 Municipio
               </label>
-              <input
+              <select
                 id="comp-muni"
-                type="text"
-                placeholder="San Salvador Centro"
+                required
                 value={formData.municipality}
                 onChange={e => setFormData(prev => ({ ...prev, municipality: e.target.value }))}
                 className="w-full px-3 py-2 text-xs text-slate-900 bg-white placeholder:text-slate-400 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-              />
+              >
+                <option value="">Selecciona un municipio</option>
+                {formData.municipality && !MUNICIPALITIES[formData.department]?.includes(formData.municipality) && <option value={formData.municipality}>{formData.municipality} (registrado)</option>}
+                {(MUNICIPALITIES[formData.department] || []).map(m => <option key={m}>{m}</option>)}
+              </select>
             </div>
           </div>
 

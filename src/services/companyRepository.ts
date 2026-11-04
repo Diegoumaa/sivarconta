@@ -1,11 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Company, Client, Product, InvoiceDocument, PurchaseDocument } from '../types';
+import type { Company, Client, Product, InvoiceDocument, PurchaseDocument, Supplier } from '../types';
 
 // The REST boundary is mapped here; components receive domain objects only.
 type CloudRow = Record<string, any>;
 export const PAGE_SIZE = 500;
-export const COMPANY_COLUMNS = 'id,name,trade_name,nit,nrc,economic_activity_code,economic_activity_desc,phone,email,address,department_code,municipality_code,establishment_code,pos_code,is_gran_contribuyente,mh_environment,department,municipality,taxpayer_type,mh_user,created_at,updated_at';
+export const COMPANY_COLUMNS = 'id,name,trade_name,nit,nrc,economic_activity_code,economic_activity_desc,phone,email,address,department_code,municipality_code,establishment_code,pos_code,is_gran_contribuyente,mh_environment,department,municipality,taxpayer_type,mh_user,settings,created_at,updated_at';
 export interface CompanySnapshot {
+  suppliers?: Supplier[];
   clients: Client[]; products: Product[]; invoices: InvoiceDocument[]; purchases: PurchaseDocument[];
 }
 
@@ -34,11 +35,12 @@ export async function loadCompanies(client: SupabaseClient): Promise<Company[]> 
 }
 
 export async function loadCompanySnapshot(client: SupabaseClient, companyId: string): Promise<CompanySnapshot> {
-  const [clients, products, invoices, purchases] = await Promise.all([
+  const [clients, products, invoices, purchases, suppliers] = await Promise.all([
     readPages(client, 'clients', companyId), readPages(client, 'products', companyId),
-    readPages(client, 'invoices', companyId, '*, invoice_items(*)'), readPages(client, 'purchases', companyId)
+    readPages(client, 'invoices', companyId, '*, invoice_items(*)'), readPages(client, 'purchases', companyId), readPages(client, 'suppliers', companyId)
   ]);
   return {
+    suppliers: suppliers.map(s => ({ id: s.id, companyId: s.company_id, name: s.name, docType: s.doc_type, docNumber: s.doc_number, nrc: s.nrc || undefined })),
     clients: mapClients(clients), products: mapProducts(products),
     invoices: mapInvoices(invoices).sort((a, b) => `${b.emissionDate || ''}${b.emissionTime || ''}`.localeCompare(`${a.emissionDate || ''}${a.emissionTime || ''}`)),
     purchases: mapPurchases(purchases).sort((a, b) => String(b.emissionDate || '').localeCompare(String(a.emissionDate || '')))
@@ -48,6 +50,7 @@ export async function loadCompanySnapshot(client: SupabaseClient, companyId: str
 export function mapCompanies(rows: CloudRow[]): Company[] {
   return rows.map(c => ({
             id: c.id,
+            settings: c.settings || {},
             name: c.name,
             tradeName: c.trade_name || c.name,
             nit: c.nit,
@@ -106,6 +109,7 @@ export function mapInvoices(rows: CloudRow[]): InvoiceDocument[] {
             id: inv.id,
             companyId: inv.company_id,
             dteType: inv.dte_type as any,
+            pricesIncludeIva: Boolean(inv.prices_include_iva),
             generationCode: inv.generation_code,
             controlNumber: inv.control_number,
             emissionDate: inv.emission_date,
@@ -170,6 +174,7 @@ export function mapPurchases(rows: CloudRow[]): PurchaseDocument[] {
             generationCode: pur.generation_code,
             emissionDate: pur.date,
             supplierName: pur.supplier_name,
+            documentClass: pur.document_class || undefined,
             supplierNit: pur.supplier_nit,
             supplierNrc: pur.supplier_nrc || '',
             concept: pur.concept ?? 'Compra de inventario / servicios',

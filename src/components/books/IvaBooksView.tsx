@@ -2,9 +2,15 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { BookOpen, Download, Printer, Filter, Calendar, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { calculateIvaLedger } from '../../utils/ivaLedger';
+import { buildBookXlsx, downloadBlob, type ReportCell } from '../../utils/reportExport';
+import { exportBookPdf } from '../../utils/bookPdfExport';
+import { buildIvaBookReport, bookSpreadsheetRows } from '../../utils/ivaBookReport';
+import { IvaBookTable } from './IvaBookTable';
+import { AnnexExport } from './AnnexExport';
 
 export const IvaBooksView: React.FC = () => {
-  const { currentCompany, filteredInvoices, filteredPurchases } = useApp();
+  const { currentCompany, filteredInvoices, filteredPurchases, dataMode } = useApp();
   const [activeTab, setActiveTab] = useState<'ventas_contribuyente' | 'ventas_consumidor' | 'compras'>('ventas_contribuyente');
   const [selectedPeriod, setSelectedPeriod] = useState(() => {
     const parts = new Intl.DateTimeFormat('en', {
@@ -46,7 +52,16 @@ export const IvaBooksView: React.FC = () => {
   // Overall IVA Balance for F07
   const debitoTotalPeriodo = totalDebitoContrib + totalIvaConsum;
   const creditoTotalPeriodo = totalCreditoFiscal;
-  const saldoF07 = debitoTotalPeriodo - creditoTotalPeriodo;
+  const ledger = calculateIvaLedger(filteredInvoices, filteredPurchases, selectedPeriod, currentCompany?.settings);
+  const saldoF07 = ledger.payable > 0 ? ledger.payable : -ledger.carry;
+  const bookTitle = activeTab === 'ventas_contribuyente' ? 'LIBRO DE VENTAS A CONTRIBUYENTES' : activeTab === 'ventas_consumidor' ? 'LIBRO DE VENTAS A CONSUMIDOR FINAL' : 'LIBRO DE COMPRAS';
+  const report = { ...buildIvaBookReport(activeTab, periodInvoices, periodPurchases), notice: dataMode === 'local-demo' ? 'DATOS DE DEMOSTRACIÓN · SIN VALIDEZ FISCAL' : undefined };
+  const exportExcel = () => {
+    try {
+      const bytes = buildBookXlsx(bookSpreadsheetRows(report, currentCompany, periodLabel));
+      downloadBlob(new Blob([bytes as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Libro_IVA_${activeTab}_${selectedPeriod}.xlsx`);
+    } catch { toast.error('No se pudo generar el libro de Excel.'); }
+  };
 
   const exportCsv = () => {
     // Quote text, escape embedded quotes, and prevent spreadsheet formula execution.
@@ -94,12 +109,13 @@ export const IvaBooksView: React.FC = () => {
   };
 
   const handlePrint = () => {
-    toast.info('Abriendo vista de impresión de libros oficiales...');
+    toast.info('Abriendo vista de impresión del libro...');
     window.print();
   };
 
   return (
     <div className="space-y-6 pb-20 md:pb-8">
+      <style media="print">{'@page { size: letter landscape; margin: 8mm; }'}</style>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm no-print">
         <div>
@@ -117,14 +133,16 @@ export const IvaBooksView: React.FC = () => {
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={exportExcel} className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">Descargar Excel</button>
+          <button type="button" onClick={async () => { try { await exportBookPdf(report, currentCompany, periodLabel, `Libro_IVA_${activeTab}_${selectedPeriod}.pdf`); } catch { toast.error('No se pudo generar el PDF.'); } }} className="rounded-xl bg-brand-50 px-3 py-2 text-xs font-bold text-brand-800">Descargar PDF</button>
           <button
             type="button"
             onClick={exportCsv}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors btn-tactile cursor-pointer"
           >
             <Download className="w-4 h-4 text-emerald-600" />
-            <span>Exportar CSV (Excel)</span>
+            <span>Exportar CSV del libro</span>
           </button>
           <button
             type="button"
@@ -157,7 +175,7 @@ export const IvaBooksView: React.FC = () => {
               </div>
               <div className="text-slate-400 font-bold text-xl">=</div>
               <div>
-                <span className="text-slate-500 block font-medium">Resultado F07 a Declarar:</span>
+                <span className="text-slate-500 block font-medium">Resultado estimado de IVA:</span>
                 <span className={`text-xl font-mono font-extrabold ${saldoF07 > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
                   {saldoF07 > 0 ? `A Pagar: $${saldoF07.toFixed(2)}` : `Remanente a Favor: $${Math.abs(saldoF07).toFixed(2)}`}
                 </span>
@@ -175,6 +193,12 @@ export const IvaBooksView: React.FC = () => {
         </div>
       </div>
 
+      <div className="no-print rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 space-y-2">
+        <p>Remanente anterior calculado: <strong>${ledger.opening.toFixed(2)}</strong> · Retenciones de IVA recibidas: <strong>${ledger.retained.toFixed(2)}</strong></p>
+        <p>Retenciones practicadas a proveedores por enterar: <strong>${ledger.withholdingToPay.toFixed(2)}</strong> · Percepciones cobradas por enterar: <strong>${ledger.perceptionToPay.toFixed(2)}</strong></p>
+        <p className="text-xs">El cálculo arrastra saldos anteriores de los registros disponibles{currentCompany?.settings?.ivaOpeningPeriod ? ` desde ${currentCompany.settings.ivaOpeningPeriod}` : ''}. Configura el saldo inicial declarado si migraste de otro sistema. Las obligaciones como agente se muestran por separado. No sustituye el F-07 ni contempla proporcionalidad, reintegros u otras casillas especiales.</p>
+      </div>
+      <AnnexExport key={`${activeTab}:${selectedPeriod}:${currentCompany?.id}`} kind={activeTab} invoices={periodInvoices} purchases={periodPurchases} period={selectedPeriod} />
       {/* Tabs for the 3 Books */}
       <div className="flex border-b border-slate-200 gap-2 no-print overflow-x-auto">
         <button
@@ -185,7 +209,7 @@ export const IvaBooksView: React.FC = () => {
               : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          1. Libro de Ventas a Contribuyentes (DTE-03 CCF)
+          1. Libro de Ventas a Contribuyentes
         </button>
         <button
           onClick={() => setActiveTab('ventas_consumidor')}
@@ -195,7 +219,7 @@ export const IvaBooksView: React.FC = () => {
               : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          2. Libro de Ventas a Consumidor Final (DTE-01)
+          2. Libro de Ventas a Consumidor Final
         </button>
         <button
           onClick={() => setActiveTab('compras')}
@@ -205,188 +229,26 @@ export const IvaBooksView: React.FC = () => {
               : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          3. Libro de Compras (Crédito Fiscal)
+          3. Libro de Compras
         </button>
       </div>
 
       {/* Table Container */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden p-4 sm:p-6 print:p-0 print:border-none print:shadow-none">
+      <div id="printable-iva-book" className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden p-4 sm:p-6 print:p-0 print:border-none print:shadow-none">
         {/* Printable Official Header */}
-        <div className="hidden print:block text-center mb-6 pb-4 border-b-2 border-slate-900">
+        {report.notice && <p className="mb-3 text-center text-xs font-bold text-amber-800">{report.notice}</p>}
+        <div className="text-center mb-6 pb-4 border-b-2 border-slate-900">
           <h2 className="font-black text-lg uppercase tracking-tight text-slate-900">{currentCompany?.name || 'Empresa No Configurada'}</h2>
           <p className="text-xs font-mono">NIT: {currentCompany?.nit || '---'} • NRC: {currentCompany?.nrc || '---'}</p>
           <h3 className="font-extrabold text-sm uppercase text-slate-800 mt-2">
-            {activeTab === 'ventas_contribuyente' && 'LIBRO DE VENTAS A CONTRIBUYENTES (CRÉDITO FISCAL)'}
-            {activeTab === 'ventas_consumidor' && 'LIBRO DE VENTAS A CONSUMIDOR FINAL (FACTURAS)'}
+            {activeTab === 'ventas_contribuyente' && 'LIBRO DE VENTAS A CONTRIBUYENTES'}
+            {activeTab === 'ventas_consumidor' && 'LIBRO DE VENTAS A CONSUMIDOR FINAL'}
             {activeTab === 'compras' && 'LIBRO DE COMPRAS'}
           </h3>
-          <p className="text-xs text-slate-600">Período: {periodLabel} (Valores expresados en USD)</p>
+          <p className="text-xs text-slate-600">Período: {periodLabel}</p><p className="text-xs text-slate-600">Valores expresados en USD</p>
         </div>
 
-        {/* Tab 1: Ventas a Contribuyentes */}
-        {activeTab === 'ventas_contribuyente' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="bg-purple-50/60 border-b border-purple-200 text-purple-900 font-bold uppercase text-[10px]">
-                  <th className="py-2.5 px-3">Fecha</th>
-                  <th className="py-2.5 px-3">Número de Control DTE</th>
-                  <th className="py-2.5 px-3">Nombre del Cliente</th>
-                  <th className="py-2.5 px-3">NRC Cliente</th>
-                  <th className="py-2.5 px-3 text-right">Venta Gravada</th>
-                  <th className="py-2.5 px-3 text-right">Débito Fiscal (13%)</th>
-                  <th className="py-2.5 px-3 text-right">Retención (1%)</th>
-                  <th className="py-2.5 px-3 text-right">Total Facturado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {ventasContribuyente.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400 font-sans">
-                      No hay ventas a contribuyentes registradas en este período.
-                    </td>
-                  </tr>
-                ) : (
-                  ventasContribuyente.map(v => {
-                    const isNC = v.dteType === '05';
-                    return (
-                      <tr key={v.id} className={`hover:bg-slate-50 font-mono text-[11px] ${isNC ? 'bg-amber-50/40 text-amber-900' : ''}`}>
-                        <td className="py-2.5 px-3 text-slate-600">{v.emissionDate}</td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-800">
-                          {v.controlNumber}
-                          {isNC && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-800 font-bold rounded">NC</span>}
-                        </td>
-                        <td className="py-2.5 px-3 font-sans font-medium text-slate-800 max-w-[180px] truncate">{v.clientName}</td>
-                        <td className="py-2.5 px-3 text-purple-700">{v.clientNrc || '---'}</td>
-                        <td className={`py-2.5 px-3 text-right ${isNC ? 'text-amber-700 font-bold' : 'text-slate-700'}`}>
-                          {isNC ? `-$${v.subtotalGravado.toFixed(2)}` : `$${v.subtotalGravado.toFixed(2)}`}
-                        </td>
-                        <td className={`py-2.5 px-3 text-right font-bold ${isNC ? 'text-rose-600' : 'text-purple-700'}`}>
-                          {isNC ? `-$${v.iva13.toFixed(2)}` : `+$${v.iva13.toFixed(2)}`}
-                        </td>
-                        <td className="py-2.5 px-3 text-right text-amber-700">
-                          {v.retencion1 > 0 ? (isNC ? `+$${v.retencion1.toFixed(2)}` : `-$${v.retencion1.toFixed(2)}`) : '$0.00'}
-                        </td>
-                        <td className={`py-2.5 px-3 text-right font-bold ${isNC ? 'text-amber-800' : 'text-slate-900'}`}>
-                          {isNC ? `-$${v.totalPagar.toFixed(2)}` : `$${v.totalPagar.toFixed(2)}`}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-              <tfoot>
-                <tr className="bg-purple-50/80 font-mono font-bold text-xs border-t-2 border-purple-300">
-                  <td colSpan={4} className="py-3 px-3 uppercase text-purple-900 font-sans">
-                    TOTALES DEL PERÍODO (VENTAS CONTRIBUYENTE):
-                  </td>
-                  <td className="py-3 px-3 text-right">${totalGravadasContrib.toFixed(2)}</td>
-                  <td className="py-3 px-3 text-right text-purple-800">${totalDebitoContrib.toFixed(2)}</td>
-                  <td className="py-3 px-3 text-right text-amber-800">${totalRetenidoContrib.toFixed(2)}</td>
-                  <td className="py-3 px-3 text-right text-slate-900 text-sm">${totalVentasContrib.toFixed(2)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-
-        {/* Tab 2: Ventas a Consumidor Final */}
-        {activeTab === 'ventas_consumidor' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="bg-blue-50/60 border-b border-blue-200 text-blue-900 font-bold uppercase text-[10px]">
-                  <th className="py-2.5 px-3">Fecha</th>
-                  <th className="py-2.5 px-3">Número de Control DTE</th>
-                  <th className="py-2.5 px-3">Cliente / Consumidor</th>
-                  <th className="py-2.5 px-3 text-right">Ventas Gravadas Locales</th>
-                  <th className="py-2.5 px-3 text-right">IVA Implícito (13%)</th>
-                  <th className="py-2.5 px-3 text-right">Total Ventas Diarias</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {ventasConsumidor.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-400 font-sans">
-                      No hay ventas a consumidor final registradas en este período.
-                    </td>
-                  </tr>
-                ) : (
-                  ventasConsumidor.map(v => (
-                    <tr key={v.id} className="hover:bg-slate-50 font-mono text-[11px]">
-                      <td className="py-2.5 px-3 text-slate-600">{v.emissionDate}</td>
-                      <td className="py-2.5 px-3 font-semibold text-slate-800">{v.controlNumber}</td>
-                      <td className="py-2.5 px-3 font-sans font-medium text-slate-800">{v.clientName}</td>
-                      <td className="py-2.5 px-3 text-right text-slate-700">${v.subtotalGravado.toFixed(2)}</td>
-                      <td className="py-2.5 px-3 text-right text-blue-700">${v.iva13.toFixed(2)}</td>
-                      <td className="py-2.5 px-3 text-right font-bold text-slate-900">${v.totalPagar.toFixed(2)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-              <tfoot>
-                <tr className="bg-blue-50/80 font-mono font-bold text-xs border-t-2 border-blue-300">
-                  <td colSpan={3} className="py-3 px-3 uppercase text-blue-900 font-sans">
-                    TOTALES DEL PERÍODO (CONSUMIDOR FINAL):
-                  </td>
-                  <td className="py-3 px-3 text-right">${totalGravadasConsum.toFixed(2)}</td>
-                  <td className="py-3 px-3 text-right text-blue-800">${totalIvaConsum.toFixed(2)}</td>
-                  <td className="py-3 px-3 text-right text-slate-900 text-sm">${totalVentasConsum.toFixed(2)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-
-        {/* Tab 3: Libro de Compras */}
-        {activeTab === 'compras' && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="bg-emerald-50/60 border-b border-emerald-200 text-emerald-900 font-bold uppercase text-[10px]">
-                  <th className="py-2.5 px-3">Fecha</th>
-                  <th className="py-2.5 px-3">Comprobante CCF</th>
-                  <th className="py-2.5 px-3">Proveedor</th>
-                  <th className="py-2.5 px-3">NRC Proveedor</th>
-                  <th className="py-2.5 px-3 text-right">Compras Gravadas</th>
-                  <th className="py-2.5 px-3 text-right">Crédito Fiscal (13%)</th>
-                  <th className="py-2.5 px-3 text-right">Total Factura</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {periodPurchases.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400 font-sans">
-                      No hay compras registradas en este período.
-                    </td>
-                  </tr>
-                ) : (
-                  periodPurchases.map(p => (
-                    <tr key={p.id} className="hover:bg-slate-50 font-mono text-[11px]">
-                      <td className="py-2.5 px-3 text-slate-600">{p.emissionDate}</td>
-                      <td className="py-2.5 px-3 font-semibold text-slate-800">{p.docNumber}</td>
-                      <td className="py-2.5 px-3 font-sans font-medium text-slate-800 max-w-[200px] truncate">{p.supplierName}</td>
-                      <td className="py-2.5 px-3 text-emerald-700">{p.supplierNrc || '---'}</td>
-                      <td className="py-2.5 px-3 text-right text-slate-700">${((p.docType === 'NOTA_CREDITO' ? -1 : 1) * p.purchasesGravadas).toFixed(2)}</td>
-                      <td className="py-2.5 px-3 text-right font-bold text-emerald-700">${((p.docType === 'NOTA_CREDITO' ? -1 : 1) * p.creditoFiscal).toFixed(2)}</td>
-                      <td className="py-2.5 px-3 text-right font-bold text-slate-900">${((p.docType === 'NOTA_CREDITO' ? -1 : 1) * p.totalPagar).toFixed(2)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-              <tfoot>
-                <tr className="bg-emerald-50/80 font-mono font-bold text-xs border-t-2 border-emerald-300">
-                  <td colSpan={4} className="py-3 px-3 uppercase text-emerald-900 font-sans">
-                    TOTALES DEL PERÍODO (COMPRAS):
-                  </td>
-                  <td className="py-3 px-3 text-right">${totalComprasGravadas.toFixed(2)}</td>
-                  <td className="py-3 px-3 text-right text-emerald-800">${totalCreditoFiscal.toFixed(2)}</td>
-                  <td className="py-3 px-3 text-right text-slate-900 text-sm">${totalComprasPagar.toFixed(2)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+        <IvaBookTable report={report} />
       </div>
     </div>
   );

@@ -31,7 +31,7 @@ describe('IvaBooksView Component (F07 Books & Export)', () => {
     renderIvaBooks();
     expect(screen.getByText(/Libros de IVA/i)).toBeInTheDocument();
     expect(screen.getByText(/Formato DGII El Salvador/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Exportar CSV \(Excel\)/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Exportar CSV del libro/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Imprimir Libro/i })).toBeInTheDocument();
   });
 
@@ -40,24 +40,24 @@ describe('IvaBooksView Component (F07 Books & Export)', () => {
     expect(screen.getByText(/Resumen para Declaración de Impuestos F07/i)).toBeInTheDocument();
     expect(screen.getByText(/Total Débito Fiscal \(Ventas\):/i)).toBeInTheDocument();
     expect(screen.getByText(/Total Crédito Fiscal \(Compras\):/i)).toBeInTheDocument();
-    expect(screen.getByText(/Resultado F07 a Declarar:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Resultado estimado de IVA:/i)).toBeInTheDocument();
   });
 
   it('switches between all 3 books (Contribuyentes, Consumidor, Compras)', () => {
     renderIvaBooks();
 
     // Default tab: Ventas Contribuyente
-    expect(screen.getByText(/TOTALES DEL PERÍODO \(VENTAS CONTRIBUYENTE\):/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'LIBRO DE VENTAS A CONTRIBUYENTES' })).toBeInTheDocument();
 
     // Switch to Ventas Consumidor
     const consumidorTab = screen.getByRole('button', { name: /Libro de Ventas a Consumidor Final/i });
     fireEvent.click(consumidorTab);
-    expect(screen.getByText(/TOTALES DEL PERÍODO \(CONSUMIDOR FINAL\):/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'LIBRO DE VENTAS A CONSUMIDOR FINAL' })).toBeInTheDocument();
 
     // Switch to Compras
     const comprasTab = screen.getByRole('button', { name: /Libro de Compras/i });
     fireEvent.click(comprasTab);
-    expect(screen.getByText(/TOTALES DEL PERÍODO \(COMPRAS\):/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'LIBRO DE COMPRAS' })).toBeInTheDocument();
   });
 
   it('triggers CSV export download without throwing errors', () => {
@@ -71,7 +71,7 @@ describe('IvaBooksView Component (F07 Books & Export)', () => {
     window.URL.createObjectURL = createObjectUrlMock;
     window.URL.revokeObjectURL = revokeObjectUrlMock;
 
-    const exportBtn = screen.getByRole('button', { name: /Exportar CSV \(Excel\)/i });
+    const exportBtn = screen.getByRole('button', { name: /Exportar CSV del libro/i });
     fireEvent.click(exportBtn);
 
     expect(createObjectUrlMock).toHaveBeenCalled();

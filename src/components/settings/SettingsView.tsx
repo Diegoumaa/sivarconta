@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Settings, ShieldCheck, KeyRound, Building2, Store, CheckCircle2, Copy } from 'lucide-react';
 import { NewCompanyModal } from '../companies/NewCompanyModal';
+import { DocumentSettings } from './DocumentSettings';
 import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
 
@@ -47,6 +48,7 @@ export const SettingsView: React.FC = () => {
         </button>
       </div>
 
+      <DocumentSettings />
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Company Info */}

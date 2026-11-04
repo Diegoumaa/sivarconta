@@ -69,6 +69,8 @@ describe('PurchasesView Component & Calculations', () => {
 
     const docTypeSelect = screen.getByLabelText(/Tipo de Documento/i) as HTMLSelectElement;
     fireEvent.change(docTypeSelect, { target: { value: 'SUJETO_EXCLUIDO' } });
+    fireEvent.change(screen.getByLabelText('Naturaleza de la compra'), { target: { value: 'SERVICIO' } });
+    fireEvent.click(screen.getByLabelText(/Proveedor persona natural domiciliada/));
 
     const amountInput = screen.getByLabelText(/Monto Gravado/i) as HTMLInputElement;
     fireEvent.change(amountInput, { target: { value: '200.00' } });

@@ -125,9 +125,9 @@ test('new client and product survive reload and are used in a saved draft', asyn
   const preview = page.getByRole('dialog', { name: 'Vista previa del documento' });
   await expect(preview).toContainText('Cliente E2E ficticio');
   await expect(preview).toContainText('Servicio E2E ficticio');
-  // The demo issuer is a large taxpayer: this fixture includes 1% perception.
-  await expect(preview).toContainText('Percepción IVA 1%');
-  await expect(preview).toContainText('171.00');
+  // A large taxpayer must not add perception without a resale operation.
+  await expect(preview).not.toContainText('Percepción IVA 1%');
+  await expect(preview).toContainText('169.50');
 });
 
 for (const type of ['01', '03', '05', '06', '14']) {
@@ -135,8 +135,10 @@ for (const type of ['01', '03', '05', '06', '14']) {
     await page.goto('/#/inicio');
     await page.getByRole('button', { name: new RegExp('^' + type + ' ') }).click();
     await expect(page.getByRole('heading', { name: 'Nueva factura', exact: true })).toBeVisible();
+    if (type === '14') await page.getByLabel('Cliente Registrado', { exact: true }).selectOption('cli-2');
     await page.getByRole('button', { name: 'Continuar a Productos', exact: true }).click();
     await page.getByRole('button', { name: 'Continuar a Pago', exact: true }).click();
+    if (type === '05' || type === '06') await page.getByLabel('Comprobante original', { exact: true }).fill('DTE-03-M001P001-000000000000104');
     await page.getByRole('button', { name: 'Revisar borrador', exact: true }).click();
     await page.getByRole('button', { name: 'Guardar borrador de prueba', exact: true }).click();
     const preview = page.getByRole('dialog', { name: 'Vista previa del documento' });
@@ -236,7 +238,7 @@ test('IVA book exports the selected period as a CSV file', async ({ page }, test
   await page.goto('/#/libros-iva');
   await page.getByLabel('Período', { exact: true }).fill('2026-09');
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Exportar CSV (Excel)', exact: true }).click();
+  await page.getByRole('button', { name: 'Exportar CSV del libro', exact: true }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toContain('_09_2026.csv');
   const file = testInfo.outputPath('libro-de-prueba.csv');

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { PurchaseDocument } from '../../types';
 import { ShoppingBag, Plus, Search, FileText, X, AlertCircle, Copy } from 'lucide-react';
-import { validateNit, validateNrc } from '../../utils/svTaxValidators';
+import { validateNit, validateNrc, validateDui } from '../../utils/svTaxValidators';
 import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
 
@@ -13,7 +13,7 @@ const currentSvDate = () => {
 };
 
 export const PurchasesView: React.FC = () => {
-  const { filteredPurchases, addPurchase } = useApp();
+  const { filteredPurchases, addPurchase, filteredSuppliers = [], addSupplier } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
@@ -23,7 +23,15 @@ export const PurchasesView: React.FC = () => {
   const [supplierName, setSupplierName] = useState('');
   const [supplierNit, setSupplierNit] = useState('');
   const [supplierNrc, setSupplierNrc] = useState('');
+  const [supplierDocType, setSupplierDocType] = useState<'NIT' | 'DUI'>('NIT');
+  const [isService, setIsService] = useState(false);
+  const [retainRenta, setRetainRenta] = useState(false);
+  const [retainVat, setRetainVat] = useState(false);
+  const [purchasesExentas, setPurchasesExentas] = useState(0);
+  const suppliers = [...new Map([...filteredPurchases.filter(p => p.supplierNit), ...filteredSuppliers.map(s => ({ supplierName: s.name, supplierNit: s.docNumber, supplierNrc: s.nrc }))].map(p => [p.supplierNit, p])).values()];
   const [docNumber, setDocNumber] = useState('');
+  const [documentClass, setDocumentClass] = useState<'1' | '2' | '4'>('1');
+  const [generationCode, setGenerationCode] = useState('');
   const [docType, setDocType] = useState<'CCF' | 'FACTURA' | 'SUJETO_EXCLUIDO' | 'NOTA_CREDITO'>('CCF');
   const [concept, setConcept] = useState('');
   const [purchasesGravadas, setPurchasesGravadas] = useState<number>(0);
@@ -69,27 +77,24 @@ export const PurchasesView: React.FC = () => {
     ? Number((purchasesGravadas * 0.13).toFixed(2))
     : 0;
 
-  const retencionRenta10 = docType === 'SUJETO_EXCLUIDO'
+  const retencionRenta10 = isService && retainRenta && (docType === 'SUJETO_EXCLUIDO' || docType === 'CCF')
     ? Number((purchasesGravadas * 0.10).toFixed(2))
     : 0;
 
-  const totalPagar = docType === 'SUJETO_EXCLUIDO'
-    ? Number((purchasesGravadas - retencionRenta10).toFixed(2))
-    : docType === 'FACTURA'
-    ? Number(purchasesGravadas.toFixed(2))
-    : Number((purchasesGravadas + creditoFiscal).toFixed(2));
+  const retencion1 = retainVat && (docType === 'CCF' || docType === 'NOTA_CREDITO') && purchasesGravadas >= 100 ? Number((purchasesGravadas * 0.01).toFixed(2)) : 0;
+  const totalPagar = Number((purchasesGravadas + purchasesExentas + creditoFiscal - retencionRenta10 - retencion1).toFixed(2));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (savingRef.current) return;
     setErrorMessage('');
-    if (!supplierName.trim() || !Number.isFinite(purchasesGravadas) || purchasesGravadas <= 0) {
+    if (!supplierName.trim() || !Number.isFinite(purchasesGravadas) || !Number.isFinite(purchasesExentas) || purchasesGravadas < 0 || purchasesExentas < 0 || purchasesGravadas + purchasesExentas <= 0) {
       setErrorMessage('Por favor ingrese el nombre del proveedor y un monto gravado mayor a $0.00.');
       return;
     }
 
     if (supplierNit.trim()) {
-      const nitRes = validateNit(supplierNit.trim());
+      const nitRes = supplierDocType === 'DUI' ? validateDui(supplierNit.trim()) : validateNit(supplierNit.trim());
       if (!nitRes.isValid) {
         setErrorMessage(nitRes.error || 'El NIT del proveedor es inválido.');
         return;
@@ -97,6 +102,7 @@ export const PurchasesView: React.FC = () => {
     }
 
     if (supplierNrc.trim()) {
+      if (docType === 'SUJETO_EXCLUIDO') { setErrorMessage('Una FSE corresponde a un proveedor sin NRC.'); return; }
       const nrcRes = validateNrc(supplierNrc.trim());
       if (!nrcRes.isValid) {
         setErrorMessage(nrcRes.error || 'El NRC del proveedor es inválido.');
@@ -113,6 +119,8 @@ export const PurchasesView: React.FC = () => {
     setIsSaving(true);
     try {
       await addPurchase({
+      documentClass,
+      generationCode: documentClass === '4' ? generationCode.trim().toUpperCase() : undefined,
       docType,
       docNumber: docNumber.trim(),
       emissionDate,
@@ -121,9 +129,9 @@ export const PurchasesView: React.FC = () => {
       supplierNrc: supplierNrc.trim() || undefined,
       concept: concept.trim() || 'Compra de mercadería / gasto operativo',
       purchasesGravadas,
-      purchasesExentas: 0,
+      purchasesExentas,
       creditoFiscal,
-      retencion1: 0,
+      retencion1,
       retencionRenta10: retencionRenta10 > 0 ? retencionRenta10 : undefined,
       totalPagar,
       paymentMethod
@@ -136,6 +144,7 @@ export const PurchasesView: React.FC = () => {
     setDocNumber('');
     setConcept('');
     setPurchasesGravadas(0);
+    setPurchasesExentas(0); setIsService(false); setRetainRenta(false); setRetainVat(false);
     setErrorMessage('');
       setEmissionDate(currentSvDate());
       setShowModal(false);
@@ -342,6 +351,10 @@ export const PurchasesView: React.FC = () => {
                 </div>
               )}
 
+              <div className="space-y-2 text-xs">
+                <label className="block">Clase del comprobante<select aria-label="Clase del comprobante" value={documentClass} onChange={e => setDocumentClass(e.target.value as '1' | '2' | '4')} className="mt-1 block w-full rounded-xl border p-2"><option value="1">Impreso por imprenta</option><option value="2">Formulario único</option><option value="4">Documento electrónico</option></select></label>
+                {documentClass === '4' && <label className="block">Código de generación del proveedor<input aria-label="Código de generación del proveedor" required pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}" value={generationCode} onChange={e => setGenerationCode(e.target.value)} className="mt-1 block w-full rounded-xl border p-2" /></label>}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="purchase-date" className="mb-1 block text-xs font-semibold text-slate-700">Fecha de compra</label>
@@ -384,6 +397,7 @@ export const PurchasesView: React.FC = () => {
                 </div>
               </div>
 
+              <label className="block text-xs font-semibold">Seleccionar proveedor de compras anteriores<select aria-label="Proveedor guardado" value="" onChange={e => { const p = suppliers.find(p => p.supplierNit === e.target.value); if (p) { setSupplierName(p.supplierName); setSupplierNit(p.supplierNit); setSupplierNrc(p.supplierNrc || ''); setSupplierDocType(p.supplierNit.replace(/\D/g, '').length === 9 ? 'DUI' : 'NIT'); } }} className="mt-1 w-full rounded-xl border p-2"><option value="">Nuevo proveedor o seleccionar guardado</option>{suppliers.map(p => <option key={p.supplierNit} value={p.supplierNit}>{p.supplierName} · {p.supplierNit}</option>)}</select><span className="mt-1 block font-normal text-slate-500">Los proveedores quedan disponibles al guardar su primera compra.</span></label>
               <div>
                 <label htmlFor="purchase-supplier" className="text-xs font-semibold text-slate-700 block mb-1">Nombre del Proveedor</label>
                 <input
@@ -399,12 +413,13 @@ export const PurchasesView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="purchase-nit" className="text-xs font-semibold text-slate-700 block mb-1">NIT Proveedor</label>
+                  <label htmlFor="purchase-idtype" className="block text-xs font-semibold">Documento del proveedor<select id="purchase-idtype" aria-label="Documento del proveedor" value={supplierDocType} onChange={e => { setSupplierDocType(e.target.value as 'NIT' | 'DUI'); setSupplierNit(''); }} className="mb-2 block w-full rounded-xl border p-2"><option>NIT</option><option>DUI</option></select></label>
+                  <label htmlFor="purchase-nit" className="text-xs font-semibold text-slate-700 block mb-1">{supplierDocType} Proveedor</label>
                   <input
                     id="purchase-nit"
                     type="text"
                     required
-                    placeholder="0614-XXXXXX-XXX-X"
+                    placeholder={supplierDocType === 'DUI' ? '00000000-0' : '0614-XXXXXX-XXX-X'}
                     value={supplierNit}
                     onChange={e => setSupplierNit(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
@@ -475,6 +490,14 @@ export const PurchasesView: React.FC = () => {
                 </div>
               </div>
 
+              <label className="block text-xs">Compras exentas ($)<input aria-label="Compras exentas ($)" type="number" min="0" step="0.01" value={purchasesExentas} onChange={e => setPurchasesExentas(Number(e.target.value))} className="mt-1 w-full rounded-xl border p-2" /></label>
+              <div className="space-y-3 rounded-xl border border-slate-200 p-3 text-xs">
+                <button type="button" className="rounded-xl bg-brand-50 px-3 py-2 font-semibold text-brand-800" onClick={async () => { setErrorMessage(''); const check = supplierDocType === 'DUI' ? validateDui(supplierNit) : validateNit(supplierNit); if (!supplierName.trim() || !check.isValid || (supplierNrc && !validateNrc(supplierNrc).isValid)) { setErrorMessage('Completa el nombre y una identificación válida para guardar el proveedor.'); return; } try { await addSupplier({ name: supplierName.trim(), docType: supplierDocType, docNumber: supplierNit.trim(), nrc: supplierNrc.trim() || undefined }); } catch (e) { setErrorMessage(e instanceof Error ? e.message : 'No se pudo guardar el proveedor.'); } }}>Guardar proveedor para próximas compras</button>
+                <label className="block">Naturaleza de la compra<select aria-label="Naturaleza de la compra" value={isService ? 'SERVICIO' : 'BIEN'} onChange={e => { setIsService(e.target.value === 'SERVICIO'); setRetainRenta(false); }} className="mt-1 block w-full rounded-lg border p-2"><option value="BIEN">Bien tangible</option><option value="SERVICIO">Servicio</option></select></label>
+                {isService && ['CCF', 'SUJETO_EXCLUIDO'].includes(docType) && <label className="flex items-start gap-2"><input type="checkbox" checked={retainRenta} onChange={e => setRetainRenta(e.target.checked)} />Proveedor persona natural domiciliada: aplicar retención ISR 10% sobre el servicio, cuando corresponda.</label>}
+                {['CCF', 'NOTA_CREDITO'].includes(docType) && <label className="flex items-start gap-2"><input type="checkbox" checked={retainVat} onChange={e => setRetainVat(e.target.checked)} />Aplicar retención IVA 1% como agente retenedor (base desde $100).</label>}
+                <p>Renta retenida: <strong>${retencionRenta10.toFixed(2)}</strong> · IVA retenido: <strong>${retencion1.toFixed(2)}</strong></p>
+              </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
                 <span className="font-bold text-slate-800">Total a Pagar al Proveedor:</span>
                 <span className="font-mono font-extrabold text-base text-slate-900">${totalPagar.toFixed(2)}</span>

@@ -56,7 +56,7 @@ describe('InvoiceList Component', () => {
     renderInvoiceList();
 
     // Click DTE-01 filter
-    const dte01Btn = screen.getByRole('button', { name: 'DTE-01' });
+    const dte01Btn = screen.getByRole('button', { name: 'Factura' });
     fireEvent.click(dte01Btn);
 
     // Click 'Todos' to restore

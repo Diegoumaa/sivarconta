@@ -127,12 +127,15 @@ export function calculateInvoiceTotals(
   dteType: DteType,
   items: InvoiceItem[],
   clientIsGranContribuyente = false,
-  companyIsGranContribuyente = false
+  companyIsGranContribuyente = false,
+  goodsForResale = false,
+  pricesIncludeIva = false
 ) {
   let rawGravado = 0;
   let rawExento = 0;
   let rawNoSujeto = 0;
   let rawDescuento = 0;
+  let rawGravadoWithIva = 0;
 
   items.forEach(item => {
     // Keep the live preview finite while a numeric field is being edited.
@@ -141,11 +144,13 @@ export function calculateInvoiceTotals(
     const price = nonNegative(item.unitPrice);
     const lineTotal = Number.isFinite(qty * price) ? qty * price : 0;
     const disc = Math.min(lineTotal, nonNegative(item.discount));
-    const lineNet = lineTotal - disc;
-    rawDescuento += disc;
+    const factor = pricesIncludeIva && ['03', '05', '06'].includes(dteType) && item.taxType === 'GRAVADO' ? 1.13 : 1;
+    const lineNet = (lineTotal - disc) / factor;
+    rawDescuento += disc / factor;
 
     if (item.taxType === 'GRAVADO') {
       rawGravado += lineNet;
+      rawGravadoWithIva += lineTotal - disc;
     } else if (item.taxType === 'EXENTO') {
       rawExento += lineNet;
     } else {
@@ -166,7 +171,7 @@ export function calculateInvoiceTotals(
 
   if (dteType === '03' || dteType === '05' || dteType === '06') {
     // Comprobante de Crédito Fiscal / Nota Crédito / Débito: IVA 13% explícito
-    iva13 = Number((subtotalGravado * 0.13).toFixed(2));
+    iva13 = pricesIncludeIva ? Number((rawGravadoWithIva - rawGravado).toFixed(2)) : Number((subtotalGravado * 0.13).toFixed(2));
     
     // Regla de Retención y Percepción 1% en El Salvador (Art. 162-163 Código Tributario):
     // Aplica únicamente si la operación gravada es >= $100.00 USD
@@ -174,9 +179,12 @@ export function calculateInvoiceTotals(
       if (clientIsGranContribuyente && !companyIsGranContribuyente) {
         // El cliente (comprador) es Gran Contribuyente: Retiene 1% de IVA
         retencion1 = Number((subtotalGravado * 0.01).toFixed(2));
-      } else if (companyIsGranContribuyente && !clientIsGranContribuyente) {
-        // La empresa emisora (vendedora) es Gran Contribuyente: Percibe 1% de IVA
-        percepcion1 = Number((subtotalGravado * 0.01).toFixed(2));
+      } else if (companyIsGranContribuyente && !clientIsGranContribuyente && goodsForResale) {
+        const goodsBase = items.filter(item => item.taxType === 'GRAVADO' && item.unitOfMeasure !== '99').reduce((sum, item) => {
+          const net = item.quantity * item.unitPrice - item.discount;
+          return sum + (Number.isFinite(net) ? Math.max(0, net) / (pricesIncludeIva ? 1.13 : 1) : 0);
+        }, 0);
+        if (goodsBase >= 100) percepcion1 = Number((goodsBase * 0.01).toFixed(2));
       }
     }
     
@@ -186,7 +194,11 @@ export function calculateInvoiceTotals(
   } else if (dteType === '14') {
     // Factura Sujeto Excluido: Retención 10% de Impuesto sobre la Renta (Art. 156 CT)
     // No causa IVA
-    retencionRenta10 = Number((subtotalGravado * 0.10).toFixed(2));
+    // A physical good does not acquire ISR retention merely because the document is an FSE.
+    // Unit 99 explicitly identifies a service; retain only its net amount.
+    const serviceBase = items.filter(item => item.unitOfMeasure === '99').reduce((sum, item) =>
+      sum + Math.max(0, item.quantity * item.unitPrice - item.discount), 0);
+    retencionRenta10 = Number((serviceBase * 0.10).toFixed(2));
     totalPagar = Number(
       (subtotalGravado + subtotalExento + subtotalNoSujeto - retencionRenta10).toFixed(2)
     );

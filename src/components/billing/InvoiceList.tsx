@@ -89,7 +89,7 @@ export const InvoiceList: React.FC = () => {
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {t === 'ALL' ? 'Todos' : `DTE-${t}`}
+              {({ ALL: 'Todos', '01': 'Factura', '03': 'CCF', '14': 'FSE', '05': 'Nota de crédito', '06': 'Nota de débito' } as Record<string, string>)[t]}
             </button>
           ))}
         </div>

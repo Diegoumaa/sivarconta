@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { Company, Product, Client, InvoiceDocument, PurchaseDocument, DteType } from '../types';
+import { Company, CompanySettings, Product, Client, InvoiceDocument, PurchaseDocument, DteType, Supplier } from '../types';
 import { INITIAL_COMPANIES, INITIAL_PRODUCTS, INITIAL_CLIENTS, INITIAL_INVOICES, INITIAL_PURCHASES } from '../data/mockData';
 import { generateUUID, generateControlNumber } from '../utils/dteUtils';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -29,6 +29,9 @@ interface AppDataContextType {
   addProduct: (product: Omit<Product, 'id' | 'companyId'>) => Promise<void>;
   addClient: (client: Omit<Client, 'id' | 'companyId'>) => Promise<void>;
   addPurchase: (purchase: Omit<PurchaseDocument, 'id' | 'companyId'>) => Promise<void>;
+  updateCompanySettings: (settings: CompanySettings) => Promise<void>;
+  filteredSuppliers: Supplier[];
+  addSupplier: (data: Omit<Supplier, 'id' | 'companyId'>) => Promise<void>;
   filteredProducts: Product[];
   filteredClients: Client[];
   filteredInvoices: InvoiceDocument[];
@@ -86,6 +89,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
   });
 
   const [isCloudSyncActive, setIsCloudSyncActive] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => useCloud ? [] : readLocalBackup('sivarconta_suppliers', []));
   const reservedCorrelatives = useRef(new Map<string, number>());
   const pendingCloudDrafts = useRef(new Map<string, InvoiceDocument>());
 
@@ -128,6 +132,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
     let alive = true;
     const applySnapshot = (snapshot: CompanySnapshot) => {
       setClients(snapshot.clients); setProducts(snapshot.products);
+      setSuppliers(snapshot.suppliers || []);
       setInvoices(snapshot.invoices); setPurchases(snapshot.purchases);
       setDataStatus('ready'); setIsCloudSyncActive(true);
     };
@@ -137,7 +142,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
       return;
     }
     setDataStatus('loading'); setIsCloudSyncActive(false);
-    setClients([]); setProducts([]); setInvoices([]); setPurchases([]);
+    setClients([]); setProducts([]); setInvoices([]); setPurchases([]); setSuppliers([]);
     loadCompanySnapshot(supabase, currentCompanyId).then(snapshot => {
       if (!alive) return; // A late response from another company must never replace this view.
       snapshotCache.current.set(currentCompanyId, { snapshot, fetchedAt: Date.now() });
@@ -292,6 +297,19 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
     });
   };
 
+  const updateCompanySettings = async (settings: CompanySettings) => {
+    const id = getEffectiveCompanyId();
+    if (useCloud && supabase) {
+      const { data, error } = await supabase.from('companies').update({ settings }).eq('id', id).select('id');
+      if (error || !data?.length) throw new Error('No se pudo guardar la configuración. Revisa tus permisos y la conexión.');
+      snapshotCache.current.delete(id);
+    }
+    const next = companies.map(c => c.id === id ? { ...c, settings } : c);
+    persistDemo('sivarconta_companies', next);
+    setCompanies(next);
+    toast.success('Configuración guardada');
+  };
+
   const addClient = async (clientData: Omit<Client, 'id' | 'companyId'>) => {
     const effCompanyId = getEffectiveCompanyId();
     const newCli: Client = {
@@ -346,6 +364,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
           control_number: purchaseData.docNumber,
           generation_code: purchaseData.generationCode || generateUUID(),
           supplier_name: purchaseData.supplierName,
+          document_class: purchaseData.documentClass || null,
           supplier_nit: purchaseData.supplierNit,
           supplier_nrc: purchaseData.supplierNrc || '',
           date: purchaseData.emissionDate,
@@ -366,6 +385,16 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
     toast.success('Compra registrada en Libros de IVA', {
       description: `${newPur.supplierName} • Total: $${newPur.totalPagar.toFixed(2)}`
     });
+  };
+
+  const addSupplier = async (data: Omit<Supplier, 'id' | 'companyId'>) => {
+    const companyId = getEffectiveCompanyId();
+    if (suppliers.some(s => s.companyId === companyId && s.docNumber.replace(/\D/g, '') === data.docNumber.replace(/\D/g, ''))) throw new Error('Este proveedor ya está registrado en la empresa.');
+    const next: Supplier = { ...data, id: generateUUID(), companyId };
+    await persistRows('suppliers', [{ id: next.id, company_id: companyId, name: next.name, doc_type: next.docType, doc_number: next.docNumber, nrc: next.nrc || null }]);
+    persistDemo('sivarconta_suppliers', [next, ...suppliers]);
+    setSuppliers(s => [next, ...s]);
+    toast.success('Proveedor guardado');
   };
 
   const createInvoice = async (invoicePayload: InvoiceDraft): Promise<InvoiceDocument> => {
@@ -447,6 +476,8 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
           iva13: newInvoice.iva13,
           retencion1: newInvoice.retencion1,
           percepcion1: newInvoice.percepcion1 || 0,
+          apply_iva_perception: newInvoice.applyIvaPerception || false,
+          prices_include_iva: newInvoice.pricesIncludeIva || false,
           retencion_renta10: newInvoice.retencionRenta10,
           total_pagar: newInvoice.totalPagar,
           total_letras: newInvoice.totalLetras,
@@ -509,6 +540,8 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
         addProduct,
         addClient,
         addPurchase,
+        updateCompanySettings,
+        filteredSuppliers: suppliers.filter(s => s.companyId === currentCompanyId), addSupplier,
         filteredProducts,
         filteredClients,
         filteredInvoices,

@@ -140,3 +140,15 @@
   #main-content .text-slate-400 { color: #475569; }
   #main-content .text-slate-500 { color: #475569; }
 }
+
+.iva-book-table { min-width: 1100px; table-layout: fixed; }
+.iva-book-table th:first-child, .iva-book-table td:first-child { width: 3%; }
+.iva-book-table td:nth-child(3) { overflow-wrap: anywhere; }
+.invoice-format-table td, .invoice-format-table th { overflow-wrap: anywhere; padding-left: 3px; padding-right: 3px; border: 1px solid #cbd5e1; }
+@media print {
+  body:has(#printable-iva-book) #main-content { padding: 0 !important; max-width: none !important; }
+  body:has(#printable-iva-book) .book-table-scroll { overflow: visible !important; }
+  body:has(#printable-iva-book) .iva-book-table { min-width: 0; font-size: 7px; }
+  body:has(#printable-iva-book) .iva-book-table th { font-size: 7px; padding: 3px; }
+  body:has(#printable-iva-book) .iva-book-table td { padding: 3px; }
+}
