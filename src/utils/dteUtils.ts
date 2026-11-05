@@ -136,6 +136,8 @@ export function calculateInvoiceTotals(
   let rawNoSujeto = 0;
   let rawDescuento = 0;
   let rawGravadoWithIva = 0;
+  let serviceBase = 0;
+  let goodsBase = 0;
 
   items.forEach(item => {
     // Keep the live preview finite while a numeric field is being edited.
@@ -147,6 +149,8 @@ export function calculateInvoiceTotals(
     const factor = pricesIncludeIva && ['03', '05', '06'].includes(dteType) && item.taxType === 'GRAVADO' ? 1.13 : 1;
     const lineNet = (lineTotal - disc) / factor;
     rawDescuento += disc / factor;
+    if (item.unitOfMeasure === '99') serviceBase += lineNet;
+    else if (item.taxType === 'GRAVADO') goodsBase += lineNet;
 
     if (item.taxType === 'GRAVADO') {
       rawGravado += lineNet;
@@ -180,10 +184,6 @@ export function calculateInvoiceTotals(
         // El cliente (comprador) es Gran Contribuyente: Retiene 1% de IVA
         retencion1 = Number((subtotalGravado * 0.01).toFixed(2));
       } else if (companyIsGranContribuyente && !clientIsGranContribuyente && goodsForResale) {
-        const goodsBase = items.filter(item => item.taxType === 'GRAVADO' && item.unitOfMeasure !== '99').reduce((sum, item) => {
-          const net = item.quantity * item.unitPrice - item.discount;
-          return sum + (Number.isFinite(net) ? Math.max(0, net) / (pricesIncludeIva ? 1.13 : 1) : 0);
-        }, 0);
         if (goodsBase >= 100) percepcion1 = Number((goodsBase * 0.01).toFixed(2));
       }
     }
@@ -196,8 +196,6 @@ export function calculateInvoiceTotals(
     // No causa IVA
     // A physical good does not acquire ISR retention merely because the document is an FSE.
     // Unit 99 explicitly identifies a service; retain only its net amount.
-    const serviceBase = items.filter(item => item.unitOfMeasure === '99').reduce((sum, item) =>
-      sum + Math.max(0, item.quantity * item.unitPrice - item.discount), 0);
     retencionRenta10 = Number((serviceBase * 0.10).toFixed(2));
     totalPagar = Number(
       (subtotalGravado + subtotalExento + subtotalNoSujeto - retencionRenta10).toFixed(2)
@@ -211,6 +209,7 @@ export function calculateInvoiceTotals(
   }
 
   return {
+    baseBienesGravados: goodsBase,
     subtotalGravado,
     subtotalExento,
     subtotalNoSujeto,

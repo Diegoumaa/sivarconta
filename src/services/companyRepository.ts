@@ -1,11 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Company, Client, Product, InvoiceDocument, PurchaseDocument, Supplier } from '../types';
 
+import type { IvaAnnexRecord } from '../types/ivaAnnex';
+
 // The REST boundary is mapped here; components receive domain objects only.
 type CloudRow = Record<string, any>;
 export const PAGE_SIZE = 500;
 export const COMPANY_COLUMNS = 'id,name,trade_name,nit,nrc,economic_activity_code,economic_activity_desc,phone,email,address,department_code,municipality_code,establishment_code,pos_code,is_gran_contribuyente,mh_environment,department,municipality,taxpayer_type,mh_user,settings,created_at,updated_at';
 export interface CompanySnapshot {
+  annexRecords?: IvaAnnexRecord[];
   suppliers?: Supplier[];
   clients: Client[]; products: Product[]; invoices: InvoiceDocument[]; purchases: PurchaseDocument[];
 }
@@ -35,11 +38,12 @@ export async function loadCompanies(client: SupabaseClient): Promise<Company[]> 
 }
 
 export async function loadCompanySnapshot(client: SupabaseClient, companyId: string): Promise<CompanySnapshot> {
-  const [clients, products, invoices, purchases, suppliers] = await Promise.all([
+  const [clients, products, invoices, purchases, suppliers, annexRecords] = await Promise.all([
     readPages(client, 'clients', companyId), readPages(client, 'products', companyId),
-    readPages(client, 'invoices', companyId, '*, invoice_items(*)'), readPages(client, 'purchases', companyId), readPages(client, 'suppliers', companyId)
+    readPages(client, 'invoices', companyId, '*, invoice_items(*)'), readPages(client, 'purchases', companyId), readPages(client, 'suppliers', companyId), readPages(client, 'iva_annex_records', companyId)
   ]);
   return {
+    annexRecords: annexRecords.map(r => ({ id: r.id, companyId: r.company_id, annex: r.annex_code, emissionDate: r.emission_date, data: r.data, relatedInvoiceIds: r.related_invoice_ids || [], relatedPurchaseIds: r.related_purchase_ids || [], voided: r.voided })),
     suppliers: suppliers.map(s => ({ id: s.id, companyId: s.company_id, name: s.name, docType: s.doc_type, docNumber: s.doc_number, nrc: s.nrc || undefined })),
     clients: mapClients(clients), products: mapProducts(products),
     invoices: mapInvoices(invoices).sort((a, b) => `${b.emissionDate || ''}${b.emissionTime || ''}`.localeCompare(`${a.emissionDate || ''}${a.emissionTime || ''}`)),
@@ -182,6 +186,10 @@ export function mapPurchases(rows: CloudRow[]): PurchaseDocument[] {
             purchasesExentas: Number(pur.subtotal_exento || 0),
             creditoFiscal: Number(pur.iva13 || 0),
             retencion1: Number(pur.retencion1 || 0),
+            percepcion1: Number(pur.percepcion1 || 0),
+            retencionIva13: Number(pur.retencion_iva13 || 0),
+            perceptionBase: pur.perception_base == null ? undefined : Number(pur.perception_base),
+            documentSeries: pur.document_series || undefined,
             retencionRenta10: Number(pur.retencion_renta10 || 0),
             totalPagar: Number(pur.total || 0),
             paymentMethod: pur.payment_method || '01'

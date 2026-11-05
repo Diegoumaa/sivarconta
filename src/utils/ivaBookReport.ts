@@ -25,7 +25,7 @@ export function buildIvaBookReport(kind: AnnexKind, invoices: InvoiceDocument[],
     groups = [{ label: 'Identificación del documento y proveedor', span: 5 }, { label: 'Compras exentas', span: 2 }, { label: 'Compras gravadas', span: 3 }, { label: 'Retenciones y totales', span: 5 }];
     rows = [...purchases].sort((a, b) => `${a.emissionDate}${a.docNumber}`.localeCompare(`${b.emissionDate}${b.docNumber}`)).map((p, index) => {
       const s = p.docType === 'NOTA_CREDITO' ? -1 : 1, fse = p.docType === 'SUJETO_EXCLUIDO';
-      return [index + 1, p.emissionDate, p.documentClass === '4' && p.generationCode ? p.generationCode : p.docNumber, p.supplierNit, p.supplierName, fse ? 0 : p.purchasesExentas * s, 0, fse ? 0 : p.purchasesGravadas * s, 0, p.creditoFiscal * s, 0, fse ? 0 : (p.purchasesGravadas + p.purchasesExentas + p.creditoFiscal) * s, fse ? p.purchasesGravadas + p.purchasesExentas : 0, p.retencion1 * s, (p.retencionRenta10 || 0) * s];
+      return [index + 1, p.emissionDate, p.documentClass === '4' && p.generationCode ? p.generationCode : p.docNumber, p.supplierNit, p.supplierName, fse ? 0 : p.purchasesExentas * s, 0, fse ? 0 : p.purchasesGravadas * s, 0, p.creditoFiscal * s, (p.percepcion1 || 0) * s, fse ? 0 : (p.purchasesGravadas + p.purchasesExentas + p.creditoFiscal) * s, fse ? p.purchasesGravadas + p.purchasesExentas : 0, p.retencion1 * s, (p.retencionRenta10 || 0) * s];
     });
   }
   const firstMoney = kind === 'ventas_consumidor' ? 7 : 5;

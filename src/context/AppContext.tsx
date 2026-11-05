@@ -8,7 +8,12 @@ import { toast } from 'sonner';
 import { NavigationProvider, useNavigation, useNavigationActions } from './NavigationContext';
 import { loadCompanies, loadCompanySnapshot, mapInvoices, type CompanySnapshot } from '../services/companyRepository';
 
+import type { IvaAnnexDraft, IvaAnnexRecord } from '../types/ivaAnnex';
+import { specialAnnexRow } from '../utils/specialF07';
+
 interface AppDataContextType {
+  filteredAnnexRecords: IvaAnnexRecord[];
+  saveAnnexRecord: (draft: IvaAnnexDraft, id?: string) => Promise<void>;
   companies: Company[];
   currentCompany: Company;
   currentCompanyId: string;
@@ -88,6 +93,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
     return useCloud ? [] : readLocalBackup('sivarconta_purchases', INITIAL_PURCHASES);
   });
 
+  const [annexRecords, setAnnexRecords] = useState<IvaAnnexRecord[]>(() => useCloud ? [] : readLocalBackup('sivarconta_annex_records', []));
   const [isCloudSyncActive, setIsCloudSyncActive] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => useCloud ? [] : readLocalBackup('sivarconta_suppliers', []));
   const reservedCorrelatives = useRef(new Map<string, number>());
@@ -133,6 +139,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
     const applySnapshot = (snapshot: CompanySnapshot) => {
       setClients(snapshot.clients); setProducts(snapshot.products);
       setSuppliers(snapshot.suppliers || []);
+      setAnnexRecords(snapshot.annexRecords || []);
       setInvoices(snapshot.invoices); setPurchases(snapshot.purchases);
       setDataStatus('ready'); setIsCloudSyncActive(true);
     };
@@ -142,7 +149,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
       return;
     }
     setDataStatus('loading'); setIsCloudSyncActive(false);
-    setClients([]); setProducts([]); setInvoices([]); setPurchases([]); setSuppliers([]);
+    setClients([]); setProducts([]); setInvoices([]); setPurchases([]); setSuppliers([]); setAnnexRecords([]);
     loadCompanySnapshot(supabase, currentCompanyId).then(snapshot => {
       if (!alive) return; // A late response from another company must never replace this view.
       snapshotCache.current.set(currentCompanyId, { snapshot, fetchedAt: Date.now() });
@@ -372,6 +379,10 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
           subtotal_exento: purchaseData.purchasesExentas,
           iva13: purchaseData.creditoFiscal,
           retencion1: purchaseData.retencion1,
+          percepcion1: purchaseData.percepcion1 || 0,
+          retencion_iva13: purchaseData.retencionIva13 || 0,
+          perception_base: purchaseData.perceptionBase || null,
+          document_series: purchaseData.documentSeries || null,
           total: purchaseData.totalPagar,
           concept: purchaseData.concept,
           payment_method: purchaseData.paymentMethod,
@@ -385,6 +396,27 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
     toast.success('Compra registrada en Libros de IVA', {
       description: `${newPur.supplierName} • Total: $${newPur.totalPagar.toFixed(2)}`
     });
+  };
+
+  const saveAnnexRecord = async (draft: IvaAnnexDraft, id?: string) => {
+    const companyId = getEffectiveCompanyId();
+    const next: IvaAnnexRecord = { ...draft, id: id || generateUUID(), companyId };
+    specialAnnexRow(next);
+    if (annexRecords.some(r => r.id === next.id && r.companyId !== companyId)) throw new Error('Registro de otra empresa.');
+    if (next.relatedInvoiceIds.some(id => !filteredInvoices.some(i => i.id === id && i.status === 'PROCESADO_MH')) || next.relatedPurchaseIds.some(id => !filteredPurchases.some(p => p.id === id))) throw new Error('Los vínculos deben corresponder a documentos confirmados de esta empresa.');
+    const key = (r: IvaAnnexRecord) => [r.annex,r.data.partyDocType,r.data.partyDoc.replace(/[-/]/g,''),r.data.docType,r.data.documentClass,r.data.documentClass === '4' ? r.data.generationCode : r.data.series + ':' + r.data.documentNumber].join('|').toUpperCase();
+    const peers = annexRecords.filter(r => r.companyId === companyId && r.id !== next.id && !r.voided);
+    if (!next.voided && peers.some(r => key(r) === key(next))) throw new Error('Este comprobante ya está registrado en el anexo.');
+    if (!next.voided && peers.some(r => r.annex === next.annex && (r.relatedInvoiceIds.some(id => next.relatedInvoiceIds.includes(id)) || r.relatedPurchaseIds.some(id => next.relatedPurchaseIds.includes(id))))) throw new Error('Un documento vinculado ya fue informado en esta casilla. Corrige el comprobante existente.');
+    if (useCloud && supabase) {
+      const { error } = await supabase.rpc('save_iva_annex', { record_data: { id: next.id, company_id: companyId, annex_code: next.annex, emission_date: next.emissionDate, data: next.data, related_invoice_ids: next.relatedInvoiceIds, related_purchase_ids: next.relatedPurchaseIds, voided: Boolean(next.voided) } });
+      if (error) { setIsCloudSyncActive(false); throw new Error('La nube no confirmó el comprobante. Revisa los permisos, los vínculos o si ya existe y reintenta.'); }
+      snapshotCache.current.delete(companyId);
+    }
+    const rows = [next, ...annexRecords.filter(r => r.id !== next.id)];
+    persistDemo('sivarconta_annex_records', rows);
+    setAnnexRecords(previous => [next, ...previous.filter(r => r.id !== next.id)]);
+    toast.success(next.voided ? 'Registro excluido del anexo' : 'Comprobante de anexo guardado');
   };
 
   const addSupplier = async (data: Omit<Supplier, 'id' | 'companyId'>) => {
@@ -542,6 +574,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
         addPurchase,
         updateCompanySettings,
         filteredSuppliers: suppliers.filter(s => s.companyId === currentCompanyId), addSupplier,
+        filteredAnnexRecords: annexRecords.filter(r => r.companyId === currentCompanyId), saveAnnexRecord,
         filteredProducts,
         filteredClients,
         filteredInvoices,

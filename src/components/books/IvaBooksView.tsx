@@ -7,10 +7,11 @@ import { buildBookXlsx, downloadBlob, type ReportCell } from '../../utils/report
 import { exportBookPdf } from '../../utils/bookPdfExport';
 import { buildIvaBookReport, bookSpreadsheetRows } from '../../utils/ivaBookReport';
 import { IvaBookTable } from './IvaBookTable';
+import { SpecialAnnexes } from './SpecialAnnexes';
 import { AnnexExport } from './AnnexExport';
 
 export const IvaBooksView: React.FC = () => {
-  const { currentCompany, filteredInvoices, filteredPurchases, dataMode } = useApp();
+  const { currentCompany, filteredInvoices, filteredPurchases, filteredAnnexRecords = [], dataMode } = useApp();
   const [activeTab, setActiveTab] = useState<'ventas_contribuyente' | 'ventas_consumidor' | 'compras'>('ventas_contribuyente');
   const [selectedPeriod, setSelectedPeriod] = useState(() => {
     const parts = new Intl.DateTimeFormat('en', {
@@ -52,7 +53,7 @@ export const IvaBooksView: React.FC = () => {
   // Overall IVA Balance for F07
   const debitoTotalPeriodo = totalDebitoContrib + totalIvaConsum;
   const creditoTotalPeriodo = totalCreditoFiscal;
-  const ledger = calculateIvaLedger(filteredInvoices, filteredPurchases, selectedPeriod, currentCompany?.settings);
+  const ledger = calculateIvaLedger(filteredInvoices, filteredPurchases, selectedPeriod, currentCompany?.settings, filteredAnnexRecords);
   const saldoF07 = ledger.payable > 0 ? ledger.payable : -ledger.carry;
   const bookTitle = activeTab === 'ventas_contribuyente' ? 'LIBRO DE VENTAS A CONTRIBUYENTES' : activeTab === 'ventas_consumidor' ? 'LIBRO DE VENTAS A CONSUMIDOR FINAL' : 'LIBRO DE COMPRAS';
   const report = { ...buildIvaBookReport(activeTab, periodInvoices, periodPurchases), notice: dataMode === 'local-demo' ? 'DATOS DE DEMOSTRACIÓN · SIN VALIDEZ FISCAL' : undefined };
@@ -194,10 +195,12 @@ export const IvaBooksView: React.FC = () => {
       </div>
 
       <div className="no-print rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 space-y-2">
-        <p>Remanente anterior calculado: <strong>${ledger.opening.toFixed(2)}</strong> · Retenciones de IVA recibidas: <strong>${ledger.retained.toFixed(2)}</strong></p>
-        <p>Retenciones practicadas a proveedores por enterar: <strong>${ledger.withholdingToPay.toFixed(2)}</strong> · Percepciones cobradas por enterar: <strong>${ledger.perceptionToPay.toFixed(2)}</strong></p>
-        <p className="text-xs">El cálculo arrastra saldos anteriores de los registros disponibles{currentCompany?.settings?.ivaOpeningPeriod ? ` desde ${currentCompany.settings.ivaOpeningPeriod}` : ''}. Configura el saldo inicial declarado si migraste de otro sistema. Las obligaciones como agente se muestran por separado. No sustituye el F-07 ni contempla proporcionalidad, reintegros u otras casillas especiales.</p>
+        <p>A favor del período · Anticipo 2 % (161): <strong>${ledger.advance.toFixed(2)}</strong> · Retención 1 % (162): <strong>${ledger.retained.toFixed(2)}</strong> · Percepción 1 % (163): <strong>${ledger.perceived.toFixed(2)}</strong></p>
+        <p>Como agente · Percepción 1 % (169): <strong>${ledger.perceptionToPay.toFixed(2)}</strong> · Retención 1 % (170): <strong>${ledger.withholdingToPay.toFixed(2)}</strong> · Anticipo 2 % (171): <strong>${ledger.advanceToPay.toFixed(2)}</strong> · Retención IVA 13 % (172): <strong>${ledger.withholding13ToPay.toFixed(2)}</strong></p>
+        <p>Saldos anteriores · Crédito fiscal: <strong>${ledger.creditOpening.toFixed(2)}</strong> · Pagos a cuenta: <strong>${ledger.paymentOpening.toFixed(2)}</strong>. Para el siguiente mes · Crédito fiscal: <strong>${ledger.creditCarry.toFixed(2)}</strong> · Pagos a cuenta: <strong>${ledger.paymentCarry.toFixed(2)}</strong>.</p>
+        <p className="text-xs">Estimación a partir de los documentos registrados. Los comprobantes vinculados sustituyen los importes de origen en la casilla correspondiente. La liquidación oficial se completa en Hacienda, incluidos los ajustes que correspondan.</p>
       </div>
+      <SpecialAnnexes key={`${currentCompany?.id}:${selectedPeriod}`} period={selectedPeriod} />
       <AnnexExport key={`${activeTab}:${selectedPeriod}:${currentCompany?.id}`} kind={activeTab} invoices={periodInvoices} purchases={periodPurchases} period={selectedPeriod} />
       {/* Tabs for the 3 Books */}
       <div className="flex border-b border-slate-200 gap-2 no-print overflow-x-auto">

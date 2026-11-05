@@ -5,6 +5,7 @@ import { PurchaseDocument } from '../../types';
 import { ShoppingBag, Plus, Search, FileText, X, AlertCircle, Copy } from 'lucide-react';
 import { validateNit, validateNrc, validateDui } from '../../utils/svTaxValidators';
 import { copyToClipboard } from '../../utils/clipboard';
+import { purchaseTaxes } from '../../utils/purchaseTaxes';
 import { toast } from 'sonner';
 
 const currentSvDate = () => {
@@ -26,6 +27,10 @@ export const PurchasesView: React.FC = () => {
   const [supplierDocType, setSupplierDocType] = useState<'NIT' | 'DUI'>('NIT');
   const [isService, setIsService] = useState(false);
   const [retainRenta, setRetainRenta] = useState(false);
+  const [perceiveVat, setPerceiveVat] = useState(false);
+  const [perceptionBase, setPerceptionBase] = useState('');
+  const [documentSeries, setDocumentSeries] = useState('');
+  const [retain13, setRetain13] = useState(false);
   const [retainVat, setRetainVat] = useState(false);
   const [purchasesExentas, setPurchasesExentas] = useState(0);
   const suppliers = [...new Map([...filteredPurchases.filter(p => p.supplierNit), ...filteredSuppliers.map(s => ({ supplierName: s.name, supplierNit: s.docNumber, supplierNrc: s.nrc }))].map(p => [p.supplierNit, p])).values()];
@@ -69,27 +74,21 @@ export const PurchasesView: React.FC = () => {
     p.concept.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Tax calculations per El Salvador DGII regulations:
-  // - CCF & NOTA_CREDITO: 13% IVA Crédito Fiscal
-  // - FACTURA: Consumidor final invoice does not break down tax credit for buyer (0%)
-  // - SUJETO_EXCLUIDO: 0% IVA, but 10% Retención de Impuesto sobre la Renta withheld
-  const creditoFiscal = docType === 'CCF' || docType === 'NOTA_CREDITO'
-    ? Number((purchasesGravadas * 0.13).toFixed(2))
-    : 0;
-
-  const retencionRenta10 = isService && retainRenta && (docType === 'SUJETO_EXCLUIDO' || docType === 'CCF')
-    ? Number((purchasesGravadas * 0.10).toFixed(2))
-    : 0;
-
-  const retencion1 = retainVat && (docType === 'CCF' || docType === 'NOTA_CREDITO') && purchasesGravadas >= 100 ? Number((purchasesGravadas * 0.01).toFixed(2)) : 0;
-  const totalPagar = Number((purchasesGravadas + purchasesExentas + creditoFiscal - retencionRenta10 - retencion1).toFixed(2));
+  const previewAmount = (value: number) => Number.isFinite(value) && value >= 0 && value <= 9999999.99 ? value : 0;
+  const hasFiscalCredit = docType === 'CCF' || docType === 'NOTA_CREDITO';
+  const subjectToPerception = perceptionBase === '' ? purchasesGravadas : Number(perceptionBase);
+  const taxes = purchaseTaxes(previewAmount(purchasesGravadas), previewAmount(purchasesExentas), docType, {
+    renta: retainRenta, retain: retainVat, perceive: perceiveVat && !retainVat,
+    perceptionBase: subjectToPerception, retain13, service: isService
+  });
+  const { creditoFiscal, retencion1, retencionRenta10, percepcion1, retencionIva13, totalPagar } = taxes;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (savingRef.current) return;
     setErrorMessage('');
-    if (!supplierName.trim() || !Number.isFinite(purchasesGravadas) || !Number.isFinite(purchasesExentas) || purchasesGravadas < 0 || purchasesExentas < 0 || purchasesGravadas + purchasesExentas <= 0) {
-      setErrorMessage('Por favor ingrese el nombre del proveedor y un monto gravado mayor a $0.00.');
+    if (!supplierName.trim() || ![purchasesGravadas, purchasesExentas].every(n => Number.isFinite(n) && n >= 0 && n <= 9999999.99) || purchasesGravadas + purchasesExentas <= 0) {
+      setErrorMessage('Ingresa el nombre del proveedor y montos de compra válidos, con un total mayor a $0.00.');
       return;
     }
 
@@ -114,12 +113,22 @@ export const PurchasesView: React.FC = () => {
       setErrorMessage('Ingresa el número de documento y una fecha válida.');
       return;
     }
+    if (hasFiscalCredit && perceiveVat && (!percepcion1 || !supplierNit.trim() || !documentSeries.trim())) {
+      setErrorMessage('Para registrar la percepción, ingresa la identificación, la serie o sello y una base de bienes desde $100 que no supere la compra gravada.');
+      return;
+    }
+    if (documentSeries && (/[;"\x00-\x1f]/.test(documentSeries) || /^\s*[=+@-]/.test(documentSeries) || documentSeries.length > 100 || (documentClass === '4' && !/^[A-Z0-9]{40}$/i.test(documentSeries.trim())))) {
+      setErrorMessage('Revisa la serie. Si el comprobante es electrónico, ingresa el sello de recepción real de 40 caracteres.');
+      return;
+    }
 
     savingRef.current = true;
     setIsSaving(true);
     try {
       await addPurchase({
       documentClass,
+      documentSeries: documentSeries.trim().toUpperCase() || undefined,
+      perceptionBase: percepcion1 > 0 ? subjectToPerception : undefined,
       generationCode: documentClass === '4' ? generationCode.trim().toUpperCase() : undefined,
       docType,
       docNumber: docNumber.trim(),
@@ -131,7 +140,7 @@ export const PurchasesView: React.FC = () => {
       purchasesGravadas,
       purchasesExentas,
       creditoFiscal,
-      retencion1,
+      retencion1, percepcion1, retencionIva13,
       retencionRenta10: retencionRenta10 > 0 ? retencionRenta10 : undefined,
       totalPagar,
       paymentMethod
@@ -142,9 +151,11 @@ export const PurchasesView: React.FC = () => {
     setSupplierNit('');
     setSupplierNrc('');
     setDocNumber('');
+    setDocumentSeries('');
+    setPerceptionBase('');
     setConcept('');
     setPurchasesGravadas(0);
-    setPurchasesExentas(0); setIsService(false); setRetainRenta(false); setRetainVat(false);
+    setPurchasesExentas(0); setIsService(false); setRetainRenta(false); setRetainVat(false); setPerceiveVat(false); setRetain13(false);
     setErrorMessage('');
       setEmissionDate(currentSvDate());
       setShowModal(false);
@@ -354,6 +365,7 @@ export const PurchasesView: React.FC = () => {
               <div className="space-y-2 text-xs">
                 <label className="block">Clase del comprobante<select aria-label="Clase del comprobante" value={documentClass} onChange={e => setDocumentClass(e.target.value as '1' | '2' | '4')} className="mt-1 block w-full rounded-xl border p-2"><option value="1">Impreso por imprenta</option><option value="2">Formulario único</option><option value="4">Documento electrónico</option></select></label>
                 {documentClass === '4' && <label className="block">Código de generación del proveedor<input aria-label="Código de generación del proveedor" required pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}" value={generationCode} onChange={e => setGenerationCode(e.target.value)} className="mt-1 block w-full rounded-xl border p-2" /></label>}
+                <label className="block">{documentClass === '4' ? 'Sello de recepción de la compra' : 'Serie de la compra'}<input maxLength={documentClass === '4' ? 40 : 100} value={documentSeries} onChange={e => setDocumentSeries(e.target.value)} className="mt-1 block w-full rounded-xl border p-2" /></label>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -495,8 +507,11 @@ export const PurchasesView: React.FC = () => {
                 <button type="button" className="rounded-xl bg-brand-50 px-3 py-2 font-semibold text-brand-800" onClick={async () => { setErrorMessage(''); const check = supplierDocType === 'DUI' ? validateDui(supplierNit) : validateNit(supplierNit); if (!supplierName.trim() || !check.isValid || (supplierNrc && !validateNrc(supplierNrc).isValid)) { setErrorMessage('Completa el nombre y una identificación válida para guardar el proveedor.'); return; } try { await addSupplier({ name: supplierName.trim(), docType: supplierDocType, docNumber: supplierNit.trim(), nrc: supplierNrc.trim() || undefined }); } catch (e) { setErrorMessage(e instanceof Error ? e.message : 'No se pudo guardar el proveedor.'); } }}>Guardar proveedor para próximas compras</button>
                 <label className="block">Naturaleza de la compra<select aria-label="Naturaleza de la compra" value={isService ? 'SERVICIO' : 'BIEN'} onChange={e => { setIsService(e.target.value === 'SERVICIO'); setRetainRenta(false); }} className="mt-1 block w-full rounded-lg border p-2"><option value="BIEN">Bien tangible</option><option value="SERVICIO">Servicio</option></select></label>
                 {isService && ['CCF', 'SUJETO_EXCLUIDO'].includes(docType) && <label className="flex items-start gap-2"><input type="checkbox" checked={retainRenta} onChange={e => setRetainRenta(e.target.checked)} />Proveedor persona natural domiciliada: aplicar retención ISR 10% sobre el servicio, cuando corresponda.</label>}
-                {['CCF', 'NOTA_CREDITO'].includes(docType) && <label className="flex items-start gap-2"><input type="checkbox" checked={retainVat} onChange={e => setRetainVat(e.target.checked)} />Aplicar retención IVA 1% como agente retenedor (base desde $100).</label>}
-                <p>Renta retenida: <strong>${retencionRenta10.toFixed(2)}</strong> · IVA retenido: <strong>${retencion1.toFixed(2)}</strong></p>
+                {['CCF', 'NOTA_CREDITO'].includes(docType) && <label className="flex items-start gap-2"><input type="checkbox" checked={retainVat} onChange={e => { setRetainVat(e.target.checked); setPerceiveVat(false); }} />Aplicar retención IVA 1% como agente retenedor (base desde $100).</label>}
+                {['CCF', 'NOTA_CREDITO'].includes(docType) && <label className="flex items-start gap-2"><input type="checkbox" checked={perceiveVat} onChange={e => { setPerceiveVat(e.target.checked); setRetainVat(false); }} />El proveedor aplicó percepción IVA 1 % en bienes para reventa (base desde $100).</label>}
+                {hasFiscalCredit && perceiveVat && <label className="block">Base de bienes sujeta a percepción ($)<input type="number" min="100" max={purchasesGravadas} step=".01" value={perceptionBase} placeholder={String(purchasesGravadas)} onChange={e => setPerceptionBase(e.target.value)} className="mt-1 block w-full rounded-xl border p-2" /><span className="text-slate-500">Si todos los bienes gravados están sujetos, usa el monto gravado completo.</span></label>}
+                {docType === 'SUJETO_EXCLUIDO' && <label className="flex items-start gap-2"><input type="checkbox" checked={retain13} onChange={e => setRetain13(e.target.checked)} />Aplicar retención IVA 13 % únicamente si la operación y la designación como agente lo requieren (Art. 162 C.T.).</label>}
+                <p>Renta retenida: <strong>${retencionRenta10.toFixed(2)}</strong> · IVA retenido 1 %: <strong>${retencion1.toFixed(2)}</strong> · IVA percibido: <strong>${percepcion1.toFixed(2)}</strong> · IVA retenido 13 %: <strong>${retencionIva13.toFixed(2)}</strong></p>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
                 <span className="font-bold text-slate-800">Total a Pagar al Proveedor:</span>

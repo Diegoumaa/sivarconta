@@ -129,6 +129,10 @@ export interface Client {
 }
 
 export interface PurchaseDocument {
+  percepcion1?: number;
+  retencionIva13?: number;
+  perceptionBase?: number;
+  documentSeries?: string;
   documentClass?: '1' | '2' | '4';
   id: string;
   companyId: string;
@@ -174,6 +178,7 @@ export interface CompanySettings {
   logoDataUrl?: string;
   ivaOpeningPeriod?: string;
   ivaOpeningBalance?: number;
+  ivaPaymentOpeningBalance?: number;
 }
 
 export interface Supplier {

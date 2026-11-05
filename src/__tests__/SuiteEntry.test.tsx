@@ -18,7 +18,7 @@ describe('Public suite entry and existing billing routes', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('link', { name: 'Entrar a SIVAR FACT' }));
     expect(await screen.findByRole('heading', { name: 'Así va tu negocio' }, { timeout: 3000 })).toBeInTheDocument();
-    expect(document.title).toBe('Inicio · SIVAR FACT');
+    await waitFor(() => expect(document.title).toBe('Inicio · SIVAR FACT'));
     fireEvent.click(screen.getByRole('link', { name: 'Volver a SIVAR SUITE' }));
     expect(await screen.findByRole('heading', { name: 'SIVAR SUITE', level: 1 })).toBeInTheDocument();
   });

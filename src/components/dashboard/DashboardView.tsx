@@ -23,12 +23,14 @@ import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
 import { getReportRange, isInReportRange, ReportPeriod } from './reportPeriod';
 import { DocumentStatusBadge } from '../ui/DocumentStatusBadge';
+import { calculateIvaLedger } from '../../utils/ivaLedger';
 
 export const DashboardView: React.FC = () => {
   const {
     currentCompany,
     filteredInvoices: allInvoices,
     filteredPurchases: allPurchases,
+    filteredAnnexRecords = [],
     filteredProducts,
     filteredClients,
     setCurrentView,
@@ -66,10 +68,10 @@ export const DashboardView: React.FC = () => {
     0
   );
 
-  // F07 IVA Balance (El Salvador)
   const balanceIva = debitoFiscalTotal - creditoFiscalTotal;
-  const saldoAPagar = balanceIva > 0 ? balanceIva : 0;
-  const remanenteCredito = balanceIva < 0 ? Math.abs(balanceIva) : 0;
+  const ledger = period === 'mes' ? calculateIvaLedger(allInvoices, allPurchases, range.start.slice(0,7), currentCompany?.settings, filteredAnnexRecords) : undefined;
+  const saldoAPagar = ledger?.payable ?? Math.max(0, balanceIva);
+  const remanenteCredito = ledger?.carry ?? Math.max(0, -balanceIva);
 
   // Group by DTE type
   const countByType: Record<string, number> = {};
@@ -224,21 +226,22 @@ export const DashboardView: React.FC = () => {
             <span className="px-2 py-0.5 rounded text-xs font-bold bg-brand-50 text-brand-700 border border-brand-200/60 font-mono">
               FORMULARIO F07 MINISTERIO DE HACIENDA
             </span>
-            <span className="text-xs text-slate-600 font-medium">Liquidación Proyectada</span>
+            <span className="text-xs text-slate-600 font-medium">{ledger ? 'Estimación de IVA propio' : 'Resumen del rango'}</span>
           </div>
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Liquidación de IVA del período</h2>
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">{ledger ? 'Liquidación de IVA del período' : 'Diferencia de IVA del rango'}</h2>
           <p className="text-xs text-slate-600 leading-relaxed max-w-2xl">
-            Débito Fiscal (${debitoFiscalTotal.toFixed(2)}) − Crédito Fiscal (${creditoFiscalTotal.toFixed(2)}) =
+            Débito fiscal (${debitoFiscalTotal.toFixed(2)}) · Crédito fiscal (${creditoFiscalTotal.toFixed(2)})
             {saldoAPagar > 0 ? (
               <span className="text-amber-700 font-bold ml-1 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60">
-                Impuesto a Pagar a Hacienda: ${saldoAPagar.toFixed(2)}
+                {ledger ? 'IVA propio estimado a pagar' : 'Débito por encima del crédito'}: ${saldoAPagar.toFixed(2)}
               </span>
             ) : (
               <span className="text-emerald-700 font-bold ml-1 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-                Remanente de Crédito Fiscal a Favor: ${remanenteCredito.toFixed(2)}
+                {ledger ? 'Saldo estimado a favor' : 'Crédito por encima del débito'}: ${remanenteCredito.toFixed(2)}
               </span>
             )}
           </p>
+          {ledger && <p className="text-xs text-slate-600">Incluye saldos anteriores, retenciones, percepciones y anticipos a favor. Revisa las obligaciones como agente en los libros de IVA.</p>}
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <button
