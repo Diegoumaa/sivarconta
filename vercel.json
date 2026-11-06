@@ -1,7 +1,8 @@
 {
+  "functions": { "api/invoice-email.ts": { "maxDuration": 60 } },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

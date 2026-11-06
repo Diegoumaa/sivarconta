@@ -94,6 +94,7 @@ export interface InvoiceDocument {
   referencedDte?: string;
   status: DocumentStatus;
   mhReceptionStamp?: string;
+  mhProductionReception?: boolean;
   mhResponseDate?: string;
   mhQrUrl?: string;
 }

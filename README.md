@@ -105,6 +105,16 @@ El aislamiento entre empresas debe aplicarse con usuarios autenticados, membres�
 5. Integrar firma y transmisión fiscal en un backend. Validar cada tipo de documento y las reglas de negocio contra las especificaciones vigentes de Hacienda, con respuestas reales del entorno de pruebas, antes de habilitar producción.
 6. Completar los flujos funcionales pendientes de los requisitos, incluidos edición/historial de clientes y compras, anulación/reenvío y administración de usuarios.
 
+## Envío de documentos por correo
+
+En **Facturas y documentos → Enviar por correo** se puede revisar y confirmar un lote de hasta 20 documentos. Cada documento se envía como PDF al correo guardado en su propio registro. La demostración simula la operación sin contactar al proveedor. Para enviar en producción se necesitan partidas completas y la respuesta de aceptación del ambiente 01 de Hacienda, con su sello y código de generación.
+
+1. Aplica `supabase/migrations/20261105_invoice_email.sql`.
+2. Verifica el remitente y autentica su dominio en [Brevo](https://help.brevo.com/hc/en-us/articles/12163873383186-Authenticate-your-domain-with-Brevo-Brevo-code-DKIM-DMARC).
+3. En las variables de entorno **Production** del proyecto en Vercel, configura `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` y `SUPABASE_SERVICE_ROLE_KEY` del mismo proyecto Supabase. `BREVO_SENDER_NAME` es opcional. Estas variables son del servidor. Conserva las variables públicas de Supabase de la aplicación y vuelve a desplegar. `GET /api/invoice-email` indica si el servidor tiene la configuración.
+
+El cupo de esta instalación es de 300 intentos en 24 horas, compartido entre empresas. Brevo puede tener menos cupo disponible si la misma cuenta también envía desde otros sistemas. El resultado «Aceptado por el proveedor» indica que Brevo aceptó el mensaje, y su panel registra la entrega final. Si un intento queda «Por verificar», el administrador puede consultar la actividad de Brevo por el identificador del intento antes de resolver el registro en `invoice_email_jobs`. Un intento aceptado o sin confirmación no se repite automáticamente.
+
 ## Estructura principal
 
 ```text

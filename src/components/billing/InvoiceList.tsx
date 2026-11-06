@@ -5,9 +5,10 @@ import { Receipt, Search, Filter, Plus, Eye, CheckCircle2, ShieldAlert, Copy, Ch
 import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
 import { DocumentStatusBadge } from '../ui/DocumentStatusBadge';
+import { InvoiceEmailPanel } from './InvoiceEmailPanel';
 
 export const InvoiceList: React.FC = () => {
-  const { filteredInvoices, setCurrentView, setActiveDtePreview } = useApp();
+  const { filteredInvoices, setCurrentView, setActiveDtePreview, currentCompany, dataMode } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<string>('ALL');
   const [dateFrom, setDateFrom] = useState('');
@@ -103,6 +104,8 @@ export const InvoiceList: React.FC = () => {
         <p role="status" className="text-sm text-slate-600 py-2">{filtered.length} documentos</p>
         {invalidRange && <p role="alert" className="w-full text-sm text-red-700">La fecha inicial debe ser anterior o igual a la final.</p>}
       </div>
+
+      {currentCompany?.id && <InvoiceEmailPanel key={currentCompany.id} company={currentCompany} invoices={filtered} demo={dataMode === 'local-demo'} />}
 
       {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">

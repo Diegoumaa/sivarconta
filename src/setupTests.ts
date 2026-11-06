@@ -9,4 +9,6 @@ declare module 'vitest' {
 }
 
 expect.extend(domMatchers);
-beforeEach(() => window.history.replaceState(null, '', '/'));
+beforeEach(() => {
+  if (typeof window !== 'undefined') window.history.replaceState(null, '', '/');
+});

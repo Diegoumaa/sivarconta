@@ -164,6 +164,11 @@ export function mapInvoices(rows: CloudRow[]): InvoiceDocument[] {
             observations: inv.observations || undefined,
             referencedDte: inv.referenced_dte || undefined,
             mhReceptionStamp: inv.mh_reception_stamp || undefined,
+            mhProductionReception: inv.mh_response_json?.ambiente === '01' &&
+              inv.mh_response_json?.estado === 'PROCESADO' &&
+              typeof inv.mh_response_json?.codigoGeneracion === 'string' &&
+              inv.mh_response_json.codigoGeneracion.toUpperCase() === String(inv.generation_code).toUpperCase() &&
+              inv.mh_response_json?.selloRecibido === inv.mh_reception_stamp,
             mhResponseDate: inv.mh_reception_stamp ? inv.created_at : undefined
           }));
 }
