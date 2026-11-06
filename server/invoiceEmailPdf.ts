@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { DTE_NAMES, type Company, type InvoiceDocument } from '../src/types/index';
+import { DTE_NAMES, type Company, type InvoiceDocument } from '../src/types/index.js';
 
 const usd = (amount: number) => `$${amount.toFixed(2)}`;
 const clean = (value: string | undefined) => (value || '').replace(/[\x00-\x1f\x7f]/g, ' ').trim();

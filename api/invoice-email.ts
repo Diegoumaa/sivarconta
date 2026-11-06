@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { COMPANY_COLUMNS, mapCompanies, mapInvoices } from '../src/services/companyRepository';
-import { isRecipientEmail } from '../src/types/invoiceEmail';
-import { handleInvoiceEmail, InvoiceEmailError, sendInvoiceViaBrevo, type InvoiceEmailDependencies } from '../server/invoiceEmail';
+import { COMPANY_COLUMNS, mapCompanies, mapInvoices } from '../src/services/companyRepository.js';
+import { isRecipientEmail } from '../src/types/invoiceEmail.js';
+import { handleInvoiceEmail, InvoiceEmailError, sendInvoiceViaBrevo, type InvoiceEmailDependencies } from '../server/invoiceEmail.js';
 
 const clientOptions = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
 const roles = ['owner', 'admin', 'accountant', 'billing'];

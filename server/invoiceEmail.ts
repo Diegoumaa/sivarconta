@@ -1,6 +1,6 @@
-import { DTE_NAMES, type Company, type InvoiceDocument } from '../src/types/index';
-import { invoiceEmailIssue, isRecipientEmail, MAX_INVOICE_EMAIL_BATCH, type InvoiceEmailSelection, type InvoiceEmailResult } from '../src/types/invoiceEmail';
-import { invoiceEmailPdf } from './invoiceEmailPdf';
+import { DTE_NAMES, type Company, type InvoiceDocument } from '../src/types/index.js';
+import { invoiceEmailIssue, isRecipientEmail, MAX_INVOICE_EMAIL_BATCH, type InvoiceEmailSelection, type InvoiceEmailResult } from '../src/types/invoiceEmail.js';
+import { invoiceEmailPdf } from './invoiceEmailPdf.js';
 
 const uuidPattern = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
 type Job = { invoiceId: string; jobId: string | null; previousState: string | null };

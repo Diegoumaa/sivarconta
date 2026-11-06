@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Company, Client, Product, InvoiceDocument, PurchaseDocument, Supplier } from '../types';
+import type { Company, Client, Product, InvoiceDocument, PurchaseDocument, Supplier } from '../types/index.js';
 
-import type { IvaAnnexRecord } from '../types/ivaAnnex';
+import type { IvaAnnexRecord } from '../types/ivaAnnex.js';
 
 // The REST boundary is mapped here; components receive domain objects only.
 type CloudRow = Record<string, any>;

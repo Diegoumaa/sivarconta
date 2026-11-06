@@ -1,4 +1,4 @@
-import type { InvoiceDocument } from './index';
+import type { InvoiceDocument } from './index.js';
 
 export const MAX_INVOICE_EMAIL_BATCH = 20;
 export const INVOICE_EMAIL_ENDPOINT = '/api/invoice-email';
