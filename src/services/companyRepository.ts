@@ -163,6 +163,7 @@ export function mapInvoices(rows: CloudRow[]): InvoiceDocument[] {
             totalPagar: Number(inv.total_pagar || 0),
             totalLetras: inv.total_letras || '',
             observations: inv.observations || undefined,
+            f07Renta: inv.f07_renta || undefined,
             referencedDte: inv.referenced_dte || undefined,
             mhReceptionStamp: inv.mh_reception_stamp || undefined,
             mhProductionReception: inv.mh_response_json?.ambiente === '01' &&
@@ -185,6 +186,7 @@ export function mapPurchases(rows: CloudRow[]): PurchaseDocument[] {
             emissionDate: pur.date,
             supplierName: pur.supplier_name,
             documentClass: pur.document_class || undefined,
+            f07Renta: pur.f07_renta || undefined,
             supplierNit: pur.supplier_nit,
             supplierNrc: pur.supplier_nrc || '',
             concept: pur.concept ?? 'Compra de inventario / servicios',

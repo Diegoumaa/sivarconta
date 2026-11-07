@@ -1,31 +1,100 @@
-import React, { useState } from 'react';
-import type { InvoiceDocument, PurchaseDocument } from '../../types';
-import { buildF07Annex, type AnnexKind, type RentaCodes } from '../../utils/f07Export';
+import { useState } from 'react';
+import type { F07Renta, InvoiceDocument, PurchaseDocument } from '../../types';
+import { useApp } from '../../context/AppContext';
+import { buildF07Annex, type AnnexKind } from '../../utils/f07Export';
+import { f07SaleKind, isF07Purchase, needsF07Renta, validF07Renta } from '../../utils/f07Renta';
 import { downloadBlob } from '../../utils/reportExport';
+import { F07RentaFields } from './F07RentaFields';
 
-export function AnnexExport({ kind, invoices, purchases, period }: { kind: AnnexKind; invoices: InvoiceDocument[]; purchases: PurchaseDocument[]; period: string }) {
-  const [codes, setCodes] = useState<RentaCodes>({ operation: '' });
+export function AnnexExport({ kind, invoices, purchases, period }: {
+  kind: AnnexKind; invoices: InvoiceDocument[]; purchases: PurchaseDocument[]; period: string;
+}) {
+  const { saveF07Renta } = useApp();
+  const classificationKind = kind === 'compras' ? 'purchase' : 'sale';
+  const [editingId, setEditingId] = useState('');
+  const [codes, setCodes] = useState<F07Renta>({ operation: '' });
   const [error, setError] = useState('');
   const [reviewed, setReviewed] = useState(false);
-  const select = (key: keyof RentaCodes, label: string, options: [string, string][]) => <label className="text-xs">{label}<select aria-label={label} value={codes[key] || ''} onChange={e => { setCodes(s => ({ ...s, [key]: e.target.value })); setReviewed(false); }} className="mt-1 block w-full rounded-lg border p-2"><option value="">Selecciona</option>{options.map(([id, name]) => <option key={id} value={id}>{id} · {name}</option>)}</select></label>;
+  const [saving, setSaving] = useState(false);
+  const documents = kind === 'compras'
+    ? purchases.filter(p => isF07Purchase(p.docType)).map(p => ({ ...p, label: p.docNumber, party: p.supplierName }))
+    : invoices.filter(i => i.status === 'PROCESADO_MH' && f07SaleKind(i.dteType) === kind)
+      .map(i => ({ ...i, label: i.controlNumber, party: i.clientName }));
+  const classifiable = documents.filter(doc => needsF07Renta(classificationKind, doc.emissionDate));
+  const pending = classifiable.filter(doc => !validF07Renta(classificationKind, doc.f07Renta));
+
+  const editDocument = (id: string) => {
+    setEditingId(id);
+    setCodes(classifiable.find(doc => doc.id === id)?.f07Renta ?? { operation: '' });
+    setReviewed(false);
+    setError('');
+  };
+
+  const saveClassification = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await saveF07Renta(classificationKind, editingId, codes);
+      editDocument('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar la clasificación.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const download = () => {
+    setError('');
+    try {
+      const csv = buildF07Annex(kind, invoices, purchases);
+      const number = kind === 'ventas_contribuyente' ? 1 : kind === 'ventas_consumidor' ? 2 : 3;
+      downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `F07_A${number}_${period.replace('-', '')}.csv`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo generar el anexo.');
+    }
+  };
+
   return <details className="no-print rounded-2xl border border-slate-200 bg-white p-4">
     <summary className="cursor-pointer font-semibold">Anexo CSV F-07 del libro seleccionado</summary>
     <div className="mt-4 space-y-3">
-      {kind === 'compras'
-        ? <p className="text-sm text-slate-600"><strong>Anexo 3 · Detalle de Compras.</strong> El CSV para Hacienda contiene 21 columnas, separadas por punto y coma y sin encabezados. Incluye CCF y notas de crédito. Carga el archivo descargado directamente en el portal para conservar el formato.</p>
-        : <p className="text-sm text-slate-600">Formato F-07 v14: separado por punto y coma, sin encabezados. Las ventas usan documentos aceptados; el consumidor final se agrupa por día.</p>}
-      <p className="text-xs text-slate-600">Los códigos siguientes se aplicarán a todos los registros de este archivo. Si requieren clasificaciones diferentes, prepara el anexo con tu contador; esta exportación admite una clasificación común por archivo. No incluye exportaciones ni importaciones. Las casillas especiales se registran y descargan en la sección correspondiente de esta página.</p>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {select('operation', 'Tipo de operación de renta', [['1', 'Gravada'], ['2', 'No gravada o exenta'], ['3', 'Excluido o no constituye renta'], ['4', 'Mixta'], ...(kind === 'compras' ? [['8', 'Informada en más de un anexo'], ['9', 'Excepciones']] as [string, string][] : [['12', 'Ingresos sujetos a retención informados'], ['13', 'Sujetos pasivos excluidos']] as [string, string][])])}
-        {kind !== 'compras' ? select('income', 'Tipo de ingreso de renta', [['1', 'Profesiones, artes y oficios'], ['2', 'Servicios'], ['3', 'Comercio'], ['4', 'Industria'], ['5', 'Agropecuarias'], ['6', 'Utilidades y dividendos'], ['7', 'Exportaciones'], ['8', 'Servicios del exterior'], ['9', 'Exportaciones de servicios'], ['10', 'Otras rentas gravables'], ['12', 'Ingresos sujetos a retención'], ['13', 'Sujetos pasivos excluidos']]) : <>
-          {select('classification', 'Clasificación de renta', [['1', 'Costo'], ['2', 'Gasto'], ['9', 'Excepciones']])}
-          {select('sector', 'Sector de renta', [['1', 'Industria'], ['2', 'Comercio'], ['3', 'Agropecuaria'], ['4', 'Servicios, profesiones, artes y oficios'], ['9', 'Excepciones']])}
-          {select('cost', 'Tipo de costo o gasto', [['1', 'Gastos de venta sin donación'], ['2', 'Administración sin donación'], ['3', 'Financieros sin donación'], ['4', 'Costo artículos producidos/comprados'], ['5', 'Costo artículos producidos/comprados interno'], ['6', 'Costos indirectos de fabricación'], ['7', 'Mano de obra'], ['8', 'Informada en más de un anexo'], ['9', 'Excepciones']])}
+      <p className="text-sm text-slate-600">
+        {kind === 'compras' ? 'Anexo 3 · Detalle de Compras. Incluye CCF y notas de crédito.'
+          : 'Formato F-07 v14. Incluye las ventas aceptadas del libro seleccionado.'}
+        {' '}El archivo usa los códigos de cada comprobante, con punto y coma y sin encabezados.
+      </p>
+      {kind === 'ventas_consumidor' && <p className="text-xs text-slate-600">Las ventas consecutivas del mismo día con la misma clasificación comparten una fila.</p>}
+      {pending.length > 0 && <p role="status" className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
+        {pending.length === 1 ? 'Hay 1 comprobante pendiente de clasificar.' : `Hay ${pending.length} comprobantes pendientes de clasificar.`}
+        {' '}Completa su clasificación para descargar el anexo.
+      </p>}
+      {classifiable.length > 0 && <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <label className="block text-sm font-medium text-slate-800">
+          Revisar clasificación de un comprobante
+          <select aria-label="Revisar clasificación de un comprobante" value={editingId} disabled={saving} onChange={e => editDocument(e.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-xs">
+            <option value="">Selecciona el comprobante</option>
+            {classifiable.map(doc => <option key={doc.id} value={doc.id}>
+              {`${doc.emissionDate} · ${doc.label} · ${doc.party}${validF07Renta(classificationKind, doc.f07Renta) ? '' : ' · Pendiente'}`}
+            </option>)}
+          </select>
+        </label>
+        {editingId && <>
+          <F07RentaFields kind={classificationKind} value={codes} onChange={setCodes} disabled={saving} />
+          <button type="button" disabled={saving || !validF07Renta(classificationKind, codes)} onClick={saveClassification}
+            className="rounded-lg border border-brand-300 bg-white px-3 py-2 text-sm font-bold text-brand-800 disabled:opacity-50">
+            {saving ? 'Guardando…' : 'Guardar clasificación del comprobante'}
+          </button>
         </>}
-      </div>
-      <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={reviewed} onChange={e => setReviewed(e.target.checked)} />Revisé que todos los registros comparten estos códigos y corresponden al período.</label>
+      </div>}
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" checked={reviewed} disabled={pending.length > 0 || !!editingId || !documents.length}
+          onChange={e => setReviewed(e.target.checked)} />
+        Revisé las clasificaciones y el período del anexo.
+      </label>
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-      <button disabled={!reviewed} onClick={() => { setError(''); try { const csv = buildF07Annex(kind, invoices, purchases, codes); downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `F07_${kind === 'ventas_contribuyente' ? 'A1' : kind === 'ventas_consumidor' ? 'A2' : 'A3'}_${period.replace('-', '')}.csv`); } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo generar el anexo.'); } }} className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Descargar anexo F-07 CSV</button>
+      <button type="button" disabled={!reviewed || pending.length > 0 || !!editingId || !documents.length} onClick={download}
+        className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+        Descargar anexo F-07 CSV
+      </button>
       <a href="https://www.transparenciafiscal.gob.sv/downloads/pdf/700-DGII-MN-2021-26031.pdf" target="_blank" rel="noreferrer" className="ml-3 text-sm text-brand-700 underline">Consultar manual de Hacienda</a>
     </div>
   </details>;

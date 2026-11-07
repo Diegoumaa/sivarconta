@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { Company, CompanySettings, Product, Client, InvoiceDocument, PurchaseDocument, DteType, Supplier } from '../types';
+import { Company, CompanySettings, Product, Client, InvoiceDocument, PurchaseDocument, DteType, Supplier, F07Renta } from '../types';
 import { INITIAL_COMPANIES, INITIAL_PRODUCTS, INITIAL_CLIENTS, INITIAL_INVOICES, INITIAL_PURCHASES } from '../data/mockData';
 import { generateUUID, generateControlNumber } from '../utils/dteUtils';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -10,6 +10,7 @@ import { loadCompanies, loadCompanySnapshot, mapInvoices, type CompanySnapshot }
 
 import type { IvaAnnexDraft, IvaAnnexRecord } from '../types/ivaAnnex';
 import { specialAnnexRow } from '../utils/specialF07';
+import { f07SaleKind, isF07Purchase, validF07Renta } from '../utils/f07Renta';
 
 interface AppDataContextType {
   filteredAnnexRecords: IvaAnnexRecord[];
@@ -34,6 +35,7 @@ interface AppDataContextType {
   addProduct: (product: Omit<Product, 'id' | 'companyId'>) => Promise<void>;
   addClient: (client: Omit<Client, 'id' | 'companyId'>) => Promise<void>;
   addPurchase: (purchase: Omit<PurchaseDocument, 'id' | 'companyId'>) => Promise<void>;
+  saveF07Renta: (kind: 'purchase' | 'sale', id: string, codes: F07Renta) => Promise<void>;
   updateCompanySettings: (settings: CompanySettings) => Promise<void>;
   filteredSuppliers: Supplier[];
   addSupplier: (data: Omit<Supplier, 'id' | 'companyId'>) => Promise<void>;
@@ -372,6 +374,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
           generation_code: purchaseData.generationCode || generateUUID(),
           supplier_name: purchaseData.supplierName,
           document_class: purchaseData.documentClass || null,
+          ...(purchaseData.f07Renta ? { f07_renta: purchaseData.f07Renta } : {}),
           supplier_nit: purchaseData.supplierNit,
           supplier_nrc: purchaseData.supplierNrc || '',
           date: purchaseData.emissionDate,
@@ -396,6 +399,30 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
     toast.success('Compra registrada en Libros de IVA', {
       description: `${newPur.supplierName} • Total: $${newPur.totalPagar.toFixed(2)}`
     });
+  };
+
+  const saveF07Renta: AppDataContextType['saveF07Renta'] = async (kind, id, codes) => {
+    const companyId = getEffectiveCompanyId();
+    const eligible = kind === 'purchase'
+      ? filteredPurchases.some(p => p.id === id && isF07Purchase(p.docType))
+      : filteredInvoices.some(i => i.id === id && f07SaleKind(i.dteType));
+    if (!eligible || !validF07Renta(kind, codes)) throw new Error('Revisa el comprobante y sus códigos de renta.');
+    if (useCloud && supabase) {
+      const { error } = await supabase.rpc('set_f07_renta', { p_kind: kind, p_company: companyId, p_document: id, p_codes: codes });
+      if (error) throw new Error(error.code === '42501'
+        ? 'Solo el propietario, administrador o contador puede cambiar la clasificación de un comprobante guardado.'
+        : 'No se guardó la clasificación. Revisa la conexión y vuelve a intentarlo.');
+      snapshotCache.current.delete(companyId);
+    }
+    const apply = <T extends { id: string; companyId: string; f07Renta?: F07Renta },>(rows: T[]) =>
+      rows.map(row => row.id === id && row.companyId === companyId ? { ...row, f07Renta: codes } : row);
+    if (kind === 'purchase') {
+      persistDemo('sivarconta_purchases', apply(purchases));
+      setPurchases(apply);
+    } else {
+      persistDemo('sivarconta_invoices', apply(invoices));
+      setInvoices(apply);
+    }
   };
 
   const saveAnnexRecord = async (draft: IvaAnnexDraft, id?: string) => {
@@ -519,6 +546,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
           mh_reception_stamp: null,
           observations: newInvoice.observations || null,
           referenced_dte: newInvoice.referencedDte || null,
+          ...(newInvoice.f07Renta ? { f07_renta: newInvoice.f07Renta } : {}),
           items: newInvoice.items.map((item, index) => ({
           num_item: index + 1,
           product_id: item.productId && filteredProducts.some(product => product.id === item.productId)
@@ -573,6 +601,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
         addProduct,
         addClient,
         addPurchase,
+        saveF07Renta,
         updateCompanySettings,
         filteredSuppliers: suppliers.filter(s => s.companyId === currentCompanyId), addSupplier,
         filteredAnnexRecords: annexRecords.filter(r => r.companyId === currentCompanyId), saveAnnexRecord,

@@ -73,13 +73,15 @@ test('FSE applies the 10% only when a service is marked', async ({ page }, info)
   await expect(page.getByText(/Retienes \$/)).toHaveCount(0);
 });
 
-test('inclusive CCF prices split the IVA once and preserve the document tax categories', async ({ page }) => {
+test('inclusive CCF saves its F07 classification without changing its IVA', async ({ page }) => {
   await page.goto('/#/inicio');
   await page.getByRole('button', { name: /^03 / }).click();
   await page.getByRole('button', { name: 'Continuar a Productos', exact: true }).click();
   await page.getByLabel('Ingresar precios con IVA incluido', { exact: true }).check();
   await page.getByLabel('Precio unitario de partida 1', { exact: true }).filter({ visible: true }).fill('113');
   await page.getByRole('button', { name: 'Continuar a Pago', exact: true }).click();
+  await page.getByLabel('Tipo de operación de renta', { exact: true }).selectOption('1');
+  await page.getByLabel('Tipo de ingreso de renta', { exact: true }).selectOption('2');
   await page.getByRole('button', { name: 'Revisar borrador', exact: true }).click();
   await page.getByRole('button', { name: 'Guardar borrador de prueba', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Vista previa del documento' });
@@ -88,6 +90,10 @@ test('inclusive CCF prices split the IVA once and preserve the document tax cate
   await expect(dialog).toContainText('$13.00');
   await expect(dialog.getByRole('columnheader', { name: 'Ventas no sujetas', exact: true })).toBeVisible();
   await expect(dialog.getByRole('columnheader', { name: 'Ventas exentas', exact: true })).toBeVisible();
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('sivarconta_demo_v2_invoices') ?? localStorage.getItem('sivarconta_invoices') ?? '[]')
+    .find((invoice: { status: string; totalPagar: number }) => invoice.status === 'BORRADOR' && invoice.totalPagar === 113)?.f07Renta))
+    .toEqual({ operation: '1', income: '2' });
 });
 
 test('credit note identifies its original document and presents an adjustment', async ({ page }) => {
@@ -148,9 +154,21 @@ test('F07 export requires classification review and downloads semicolon data', a
   await page.getByLabel('Período', { exact: true }).fill('2026-09');
   await page.getByText('Anexo CSV F-07 del libro seleccionado', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Descargar anexo F-07 CSV', exact: true })).toBeDisabled();
-  await page.getByLabel('Tipo de operación de renta', { exact: true }).selectOption('1');
-  await page.getByLabel('Tipo de ingreso de renta', { exact: true }).selectOption('3');
-  await page.getByLabel('Revisé que todos los registros comparten estos códigos y corresponden al período.', { exact: true }).check();
+  const picker = page.getByLabel('Revisar clasificación de un comprobante', { exact: true });
+  const pending = await picker.locator('option').filter({ hasText: 'Pendiente' }).all();
+  expect(pending.length).toBeGreaterThan(0);
+  const pendingIds = await Promise.all(pending.map(option => option.getAttribute('value')));
+  for (const [index, id] of pendingIds.entries()) {
+    await picker.selectOption(id!);
+    await page.getByLabel('Tipo de operación de renta', { exact: true }).selectOption('1');
+    await page.getByLabel('Tipo de ingreso de renta', { exact: true }).selectOption(index === 0 ? '2' : '3');
+    await page.getByRole('button', { name: 'Guardar clasificación del comprobante' }).click();
+  }
+  await page.reload();
+  await page.getByLabel('Período', { exact: true }).fill('2026-09');
+  await page.getByText('Anexo CSV F-07 del libro seleccionado', { exact: true }).click();
+  await expect(picker.locator('option').filter({ hasText: 'Pendiente' })).toHaveCount(0);
+  await page.getByLabel('Revisé las clasificaciones y el período del anexo.', { exact: true }).check();
   await page.locator('details', { hasText: 'Anexo CSV F-07 del libro seleccionado' }).screenshot({ path: info.outputPath('anexo-f07.png') });
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar anexo F-07 CSV', exact: true }).click();
@@ -160,6 +178,8 @@ test('F07 export requires classification review and downloads semicolon data', a
   await file.saveAs(path);
   const data = (await readFile(path, 'utf8')).trim().split(/\r?\n/);
   expect(data.length).toBeGreaterThan(0);
+  expect(data.map(line => line.split(';')[18])).toContain('2');
+  if (pendingIds.length > 1) expect(data.map(line => line.split(';')[18])).toContain('3');
   for (const line of data) {
     expect(line).toMatch(/^\d{2}\/\d{2}\/\d{4};/);
     expect(line.split(';')).toHaveLength(20);
@@ -177,8 +197,27 @@ test('October purchase downloads the fiscal Annex 3 separately from the IVA book
   await page.getByLabel('Fecha de compra', { exact: true }).fill('2026-10-27');
   await page.getByLabel('Concepto del Gasto', { exact: true }).fill('Suministros de oficina');
   await page.getByLabel('Monto Gravado ($)', { exact: true }).fill('100');
+  await page.getByLabel('Tipo de operación de renta', { exact: true }).selectOption('1');
+  await page.getByLabel('Clasificación de renta', { exact: true }).selectOption('2');
+  await page.getByLabel('Sector de renta', { exact: true }).selectOption('2');
+  await page.getByLabel('Tipo de costo o gasto', { exact: true }).selectOption('2');
   await page.getByRole('button', { name: 'Guardar Compra', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Registrar Compra', exact: true }).click();
+  await page.getByLabel('Nombre del Proveedor', { exact: true }).fill('Proveedor de materiales E2E');
+  await page.getByLabel('NIT Proveedor', { exact: true }).fill('0000-000000-000-0');
+  await page.getByLabel('Clase del comprobante', { exact: true }).selectOption('1');
+  await page.getByLabel('Número de Documento', { exact: true }).fill('CCF-E2E-COSTO');
+  await page.getByLabel('Fecha de compra', { exact: true }).fill('2026-10-28');
+  await page.getByLabel('Concepto del Gasto', { exact: true }).fill('Materiales de obra');
+  await page.getByLabel('Monto Gravado ($)', { exact: true }).fill('50');
+  await page.getByLabel('Tipo de operación de renta', { exact: true }).selectOption('1');
+  await page.getByLabel('Clasificación de renta', { exact: true }).selectOption('1');
+  await page.getByLabel('Sector de renta', { exact: true }).selectOption('4');
+  await page.getByLabel('Tipo de costo o gasto', { exact: true }).selectOption('5');
+  await page.getByRole('button', { name: 'Guardar Compra', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.reload();
 
   await page.goto('/#/libros-iva');
   await page.getByLabel('Período', { exact: true }).fill('2026-10');
@@ -205,11 +244,7 @@ test('October purchase downloads the fiscal Annex 3 separately from the IVA book
   expect(await readFile(bookPath, 'utf8')).toMatch(/^\uFEFF"Fecha","Tipo_Doc","Numero_Documento"/);
 
   await page.getByText('Anexo CSV F-07 del libro seleccionado', { exact: true }).click();
-  await page.getByLabel('Tipo de operación de renta', { exact: true }).selectOption('1');
-  await page.getByLabel('Clasificación de renta', { exact: true }).selectOption('2');
-  await page.getByLabel('Sector de renta', { exact: true }).selectOption('2');
-  await page.getByLabel('Tipo de costo o gasto', { exact: true }).selectOption('2');
-  await page.getByLabel('Revisé que todos los registros comparten estos códigos y corresponden al período.', { exact: true }).check();
+  await page.getByLabel('Revisé las clasificaciones y el período del anexo.', { exact: true }).check();
   await page.locator('details', { hasText: 'Anexo CSV F-07 del libro seleccionado' }).screenshot({ path: info.outputPath('anexo-f07-compras.png') });
   pending = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar anexo F-07 CSV', exact: true }).click();
@@ -218,5 +253,9 @@ test('October purchase downloads the fiscal Annex 3 separately from the IVA book
   const annexPath = info.outputPath(annex.suggestedFilename());
   await annex.saveAs(annexPath);
   const data = await readFile(annexPath, 'utf8');
-  expect(data).toBe('27/10/2026;4;03;12345678123442348234123456789ABC;00000000000000;Proveedor ficticio E2E;0.00;0.00;0.00;100.00;0.00;0.00;0.00;13.00;100.00;;1;2;2;2;3\r\n');
+  expect(data.trim().split('\r\n')).toEqual(expect.arrayContaining([
+    '27/10/2026;4;03;12345678123442348234123456789ABC;00000000000000;Proveedor ficticio E2E;0.00;0.00;0.00;100.00;0.00;0.00;0.00;13.00;100.00;;1;2;2;2;3',
+    '28/10/2026;1;03;CCFE2ECOSTO;00000000000000;Proveedor de materiales E2E;0.00;0.00;0.00;50.00;0.00;0.00;0.00;6.50;50.00;;1;1;4;5;3',
+  ]));
+  expect(data.trim().split('\r\n')).toHaveLength(2);
 });

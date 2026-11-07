@@ -10,8 +10,8 @@ import { MUNICIPALITIES } from '../data/municipalities';
 import { INITIAL_INVOICES, INITIAL_PURCHASES } from '../data/mockData';
 import type { InvoiceDocument, InvoiceItem, PurchaseDocument } from '../types';
 
-const sale = (overrides: Partial<InvoiceDocument> = {}): InvoiceDocument => ({ ...INITIAL_INVOICES[0], emissionDate: '2026-11-01', status: 'PROCESADO_MH', subtotalGravado: 100, subtotalExento: 0, subtotalNoSujeto: 0, iva13: 13, retencion1: 0, percepcion1: 0, totalPagar: 113, ...overrides });
-const purchase = (overrides: Partial<PurchaseDocument> = {}): PurchaseDocument => ({ ...INITIAL_PURCHASES[0], documentClass: '1', emissionDate: '2026-11-01', purchasesGravadas: 100, purchasesExentas: 0, creditoFiscal: 13, retencion1: 0, totalPagar: 113, ...overrides });
+const sale = (overrides: Partial<InvoiceDocument> = {}): InvoiceDocument => ({ ...INITIAL_INVOICES[0], emissionDate: '2026-11-01', status: 'PROCESADO_MH', f07Renta: { operation: '1', income: '3' }, subtotalGravado: 100, subtotalExento: 0, subtotalNoSujeto: 0, iva13: 13, retencion1: 0, percepcion1: 0, totalPagar: 113, ...overrides });
+const purchase = (overrides: Partial<PurchaseDocument> = {}): PurchaseDocument => ({ ...INITIAL_PURCHASES[0], documentClass: '1', f07Renta: { operation: '1', classification: '2', sector: '2', cost: '2' }, emissionDate: '2026-11-01', purchasesGravadas: 100, purchasesExentas: 0, creditoFiscal: 13, retencion1: 0, totalPagar: 113, ...overrides });
 const item = (overrides: Partial<InvoiceItem> = {}): InvoiceItem => ({ id: 'i', code: 'i', description: 'Práctica', quantity: 1, unitPrice: 100, discount: 0, taxType: 'GRAVADO', unitOfMeasure: '59', taxAmount: 0, total: 100, ...overrides });
 
 describe('Observaciones fiscales del cliente', () => {
@@ -59,44 +59,73 @@ describe('Observaciones fiscales del cliente', () => {
 
 describe('Anexos F07 v14', () => {
   it('exports 20 columns, no headers, semicolons, and positive NC amounts', () => {
-    const row = buildF07Annex('ventas_contribuyente', [sale({ dteType: '05' })], [], { operation: '1', income: '3' }).trim().split(';');
+    const row = buildF07Annex('ventas_contribuyente', [sale({ dteType: '05' })], []).trim().split(';');
     expect(row).toHaveLength(20); expect(row[0]).toBe('01/11/2026'); expect(row[2]).toBe('05'); expect(row[6]).toBe(''); expect(row[11]).toBe('100.00'); expect(row[15]).toBe('113.00'); expect(row[19]).toBe('1');
   });
   it('keeps IVA retentions out of the fiscal sales total', () => {
-    const row = buildF07Annex('ventas_contribuyente', [sale({ retencion1: 1, totalPagar: 112 })], [], { operation: '1', income: '3' }).trim().split(';');
+    const row = buildF07Annex('ventas_contribuyente', [sale({ retencion1: 1, totalPagar: 112 })], []).trim().split(';');
     expect(row[15]).toBe('113.00');
   });
   it('groups consumer DTE by day and keeps 23 fields with IVA included', () => {
-    const csv = buildF07Annex('ventas_consumidor', [sale({ dteType: '01', subtotalGravado: 113 }), sale({ id: 'b', dteType: '01', subtotalGravado: 226 })], [], { operation: '1', income: '3' });
+    const csv = buildF07Annex('ventas_consumidor', [sale({ dteType: '01', subtotalGravado: 113 }), sale({ id: 'b', dteType: '01', subtotalGravado: 226 })], []);
     const lines = csv.trim().split('\r\n'); expect(lines).toHaveLength(1);
     const row = lines[0].split(';'); expect(row).toHaveLength(23); expect(row[3]).toBe('N/A'); expect(row[13]).toBe('339.00'); expect(row[22]).toBe('2');
   });
+  it('preserves disjoint consumer DTE ranges when codes change within a day', () => {
+    const consumer = (n: number, income: string) => sale({
+      dteType: '01', emissionTime: `08:00:0${n}`, subtotalGravado: 113,
+      generationCode: `11111111-1111-4111-8111-11111111111${n}`, f07Renta: { operation: '1', income },
+    });
+    const rows = buildF07Annex('ventas_consumidor',
+      [consumer(4, '2'), consumer(1, '2'), consumer(2, '2'), consumer(3, '3')], []).trim().split('\r\n').map(line => line.split(';'));
+    expect(rows.map(row => [row[7].slice(-1), row[8].slice(-1), row[13], row[21]])).toEqual([
+      ['1', '2', '226.00', '2'], ['3', '3', '113.00', '3'], ['4', '4', '113.00', '2'],
+    ]);
+  });
+  it('preserves the codes of each purchase and contributor sale in the same period', () => {
+    const cost = purchase({ f07Renta: { operation: '1', classification: '1', sector: '4', cost: '5' } });
+    const service = sale({ f07Renta: { operation: '1', income: '2' } });
+    const fields = (csv: string, start: number) => csv.trim().split('\r\n').map(line => line.split(';').slice(start));
+    expect(fields(buildF07Annex('compras', [], [purchase(), cost]), 16)).toEqual([
+      ['1','2','2','2','3'], ['1','1','4','5','3'],
+    ]);
+    expect(fields(buildF07Annex('ventas_contribuyente', [sale(), service], []), 17)).toEqual([
+      ['1','3','1'], ['1','2','1'],
+    ]);
+  });
+  it('exports zeroes for periods before the renta columns applied and rejects missing or inconsistent current codes', () => {
+    const old = purchase({ emissionDate: '2024-01-10', f07Renta: undefined });
+    expect(buildF07Annex('compras', [], [old]).trim().split(';').slice(16)).toEqual(['0','0','0','0','3']);
+    expect(() => buildF07Annex('compras', [], [purchase({ docNumber: 'PENDIENTE', f07Renta: undefined })])).toThrow('PENDIENTE');
+    const invalid = purchase({ f07Renta: { operation: '1', classification: '2', sector: '4', cost: '5' } });
+    expect(() => buildF07Annex('compras', [], [invalid])).toThrow('clasificación');
+  });
   it('exports purchases with 21 fields and uses pre-IVA base for total purchases', () => {
-    const row = buildF07Annex('compras', [], [purchase()], { operation: '1', classification: '2', sector: '2', cost: '2' }).trim().split(';');
+    const row = buildF07Annex('compras', [], [purchase()]).trim().split(';');
     expect(row).toHaveLength(21); expect(row[13]).toBe('13.00'); expect(row[14]).toBe('100.00'); expect(row[20]).toBe('3');
   });
   it('places a supplier DUI in its own column leaving NIT empty', () => {
-    const row = buildF07Annex('compras', [], [purchase({ supplierNit: '00000000-0' })], { operation: '1', classification: '2', sector: '2', cost: '2' }).trim().split(';');
+    const row = buildF07Annex('compras', [], [purchase({ supplierNit: '00000000-0' })]).trim().split(';');
     expect(row[4]).toBe(''); expect(row[15]).toBe('000000000');
   });
   it('uses the NRC when a legacy supplier NIT is malformed and preserves its leading zeros', () => {
-    const row = buildF07Annex('compras', [], [purchase({ supplierNit: 'NIT PENDIENTE', supplierNrc: '00123-4' })], { operation: '1', classification: '2', sector: '2', cost: '2' }).trim().split(';');
+    const row = buildF07Annex('compras', [], [purchase({ supplierNit: 'NIT PENDIENTE', supplierNrc: '00123-4' })]).trim().split(';');
     expect(row[4]).toBe('001234');
     expect(row[15]).toBe('');
   });
   it('blocks a purchase with no valid identification instead of downloading an invalid row', () => {
-    expect(() => buildF07Annex('compras', [], [purchase({ docNumber: 'COMPRA-42', supplierNit: '1234', supplierNrc: 'NRC PENDIENTE' })], { operation: '1', classification: '2', sector: '2', cost: '2' })).toThrow('COMPRA-42');
+    expect(() => buildF07Annex('compras', [], [purchase({ docNumber: 'COMPRA-42', supplierNit: '1234', supplierNrc: 'NRC PENDIENTE' })])).toThrow('COMPRA-42');
   });
   it('blocks legacy purchases whose document class is unknown', () => {
-    expect(() => buildF07Annex('compras', [], [purchase({ documentClass: undefined })], { operation: '1', classification: '2', sector: '2', cost: '2' })).toThrow('clase');
+    expect(() => buildF07Annex('compras', [], [purchase({ documentClass: undefined })])).toThrow('clase');
   });
   it('does not invent a reception stamp or export a draft', () => {
-    expect(() => buildF07Annex('ventas_contribuyente', [sale({ mhReceptionStamp: undefined })], [], { operation: '1', income: '3' })).toThrow('sello');
-    expect(() => buildF07Annex('ventas_contribuyente', [sale({ status: 'BORRADOR' })], [], { operation: '1', income: '3' })).toThrow('No hay documentos');
+    expect(() => buildF07Annex('ventas_contribuyente', [sale({ mhReceptionStamp: undefined })], [])).toThrow('sello');
+    expect(() => buildF07Annex('ventas_contribuyente', [sale({ status: 'BORRADOR' })], [])).toThrow('No hay documentos');
   });
   it('requires user-selected renta classifications and blocks delimiter injection', () => {
-    expect(() => buildF07Annex('ventas_contribuyente', [sale()], [], { operation: '' })).toThrow('clasificación');
-    expect(() => buildF07Annex('ventas_contribuyente', [sale({ clientName: 'Comercial;otro' })], [], { operation: '1', income: '3' })).toThrow('caracteres');
+    expect(() => buildF07Annex('ventas_contribuyente', [sale({ f07Renta: undefined })], [])).toThrow('clasificación');
+    expect(() => buildF07Annex('ventas_contribuyente', [sale({ clientName: 'Comercial;otro' })], [])).toThrow('caracteres');
   });
 });
 

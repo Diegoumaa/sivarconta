@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { DteType, DTE_NAMES, InvoiceItem } from '../../types';
+import { DteType, DTE_NAMES, F07Renta, InvoiceItem } from '../../types';
 import { calculateInvoiceTotals } from '../../utils/dteUtils';
 import { checkDteRules } from '../../utils/svTaxValidators';
+import { f07SaleKind, validF07Renta } from '../../utils/f07Renta';
+import { F07RentaFields } from '../books/F07RentaFields';
 import { 
   Receipt, 
   Plus, 
@@ -42,6 +44,7 @@ export const InvoiceBuilder: React.FC = () => {
   const [condition, setCondition] = useState<'CONTADO' | 'CREDITO'>('CONTADO');
   const [creditDays, setCreditDays] = useState<number>(30);
   const [observations, setObservations] = useState<string>('');
+  const [f07Renta, setF07Renta] = useState<F07Renta>({ operation: '' });
   const [isTransmitting, setIsTransmitting] = useState<boolean>(false);
   const [transmitStep, setTransmitStep] = useState<string>('');
   const [saveError, setSaveError] = useState('');
@@ -196,6 +199,12 @@ export const InvoiceBuilder: React.FC = () => {
       setSaveError(rules.blockers[0]);
       return;
     }
+    const hasF07Values = f07SaleKind(selectedDteType) && Object.values(f07Renta).some(Boolean);
+    if (hasF07Values && !validF07Renta('sale', f07Renta)) {
+      setSaveError('Completa los dos campos de renta del F‑07 o déjalos vacíos para revisar después.');
+      setCurrentStep(3);
+      return;
+    }
 
     setIsTransmitting(true);
 
@@ -230,6 +239,7 @@ export const InvoiceBuilder: React.FC = () => {
       retencionRenta10: totals.retencionRenta10,
       totalPagar: totals.totalPagar,
       totalLetras: totals.totalLetras,
+      f07Renta: hasF07Values ? f07Renta : undefined,
       observations
     };
 
@@ -903,6 +913,11 @@ export const InvoiceBuilder: React.FC = () => {
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800"
                 />
               </div>
+
+              {f07SaleKind(selectedDteType) && <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <F07RentaFields kind="sale" value={f07Renta} onChange={setF07Renta} />
+                <p className="mt-2 text-xs text-slate-600">Selecciona los códigos de esta venta según la actividad que corresponde al comprobante.</p>
+              </div>}
 
               {/* TUTOR FISCAL SIVARCONTA */}
               <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-50/80 via-slate-50 to-brand-50/40 border border-blue-200/70 shadow-2xs space-y-3">

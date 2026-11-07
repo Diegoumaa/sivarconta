@@ -55,6 +55,14 @@ export interface InvoiceItem {
   total: number;
 }
 
+export interface F07Renta {
+  operation: string;
+  income?: string;
+  classification?: string;
+  sector?: string;
+  cost?: string;
+}
+
 export interface InvoiceDocument {
   id: string;
   companyId: string;
@@ -92,6 +100,7 @@ export interface InvoiceDocument {
   totalPagar: number;
   totalLetras: string;
   observations?: string;
+  f07Renta?: F07Renta;
   referencedDte?: string;
   status: DocumentStatus;
   mhReceptionStamp?: string;
@@ -131,6 +140,7 @@ export interface Client {
 }
 
 export interface PurchaseDocument {
+  f07Renta?: F07Renta;
   percepcion1?: number;
   retencionIva13?: number;
   perceptionBase?: number;

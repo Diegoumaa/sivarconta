@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
-import { PurchaseDocument } from '../../types';
+import { F07Renta, PurchaseDocument } from '../../types';
 import { ShoppingBag, Plus, Search, FileText, X, AlertCircle, Copy } from 'lucide-react';
 import { validateNit, validateNrc, validateDui } from '../../utils/svTaxValidators';
 import { copyToClipboard } from '../../utils/clipboard';
 import { purchaseTaxes } from '../../utils/purchaseTaxes';
+import { isF07Purchase, needsF07Renta, validF07Renta } from '../../utils/f07Renta';
+import { F07RentaFields } from '../books/F07RentaFields';
 import { toast } from 'sonner';
 
 const currentSvDate = () => {
@@ -43,6 +45,7 @@ export const PurchasesView: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState('Transferencia 365');
   const [errorMessage, setErrorMessage] = useState('');
   const [emissionDate, setEmissionDate] = useState(currentSvDate);
+  const [f07Renta, setF07Renta] = useState<F07Renta>({ operation: '' });
   const [isSaving, setIsSaving] = useState(false);
   const savingRef = useRef(false);
 
@@ -76,6 +79,7 @@ export const PurchasesView: React.FC = () => {
 
   const previewAmount = (value: number) => Number.isFinite(value) && value >= 0 && value <= 9999999.99 ? value : 0;
   const hasFiscalCredit = docType === 'CCF' || docType === 'NOTA_CREDITO';
+  const canClassifyF07 = isF07Purchase(docType) && needsF07Renta('purchase', emissionDate);
   const subjectToPerception = perceptionBase === '' ? purchasesGravadas : Number(perceptionBase);
   const taxes = purchaseTaxes(previewAmount(purchasesGravadas), previewAmount(purchasesExentas), docType, {
     renta: retainRenta, retain: retainVat, perceive: perceiveVat && !retainVat,
@@ -87,6 +91,11 @@ export const PurchasesView: React.FC = () => {
     e.preventDefault();
     if (savingRef.current) return;
     setErrorMessage('');
+    const hasF07Values = canClassifyF07 && Object.values(f07Renta).some(Boolean);
+    if (hasF07Values && !validF07Renta('purchase', f07Renta)) {
+      setErrorMessage('Completa los cuatro campos de renta del F‑07 o déjalos vacíos para revisar después.');
+      return;
+    }
     if (!supplierName.trim() || ![purchasesGravadas, purchasesExentas].every(n => Number.isFinite(n) && n >= 0 && n <= 9999999.99) || purchasesGravadas + purchasesExentas <= 0) {
       setErrorMessage('Ingresa el nombre del proveedor y montos de compra válidos, con un total mayor a $0.00.');
       return;
@@ -127,6 +136,7 @@ export const PurchasesView: React.FC = () => {
     try {
       await addPurchase({
       documentClass,
+      f07Renta: hasF07Values ? f07Renta : undefined,
       documentSeries: documentSeries.trim().toUpperCase() || undefined,
       perceptionBase: percepcion1 > 0 ? subjectToPerception : undefined,
       generationCode: documentClass === '4' ? generationCode.trim().toUpperCase() : undefined,
@@ -154,6 +164,7 @@ export const PurchasesView: React.FC = () => {
     setDocumentSeries('');
     setPerceptionBase('');
     setConcept('');
+    setF07Renta({ operation: '' });
     setPurchasesGravadas(0);
     setPurchasesExentas(0); setIsService(false); setRetainRenta(false); setRetainVat(false); setPerceiveVat(false); setRetain13(false);
     setErrorMessage('');
@@ -463,6 +474,10 @@ export const PurchasesView: React.FC = () => {
                 />
               </div>
 
+              {canClassifyF07 && <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <F07RentaFields kind="purchase" value={f07Renta} onChange={setF07Renta} />
+                <p className="mt-2 text-xs text-slate-600">Puedes completarla después en Libros de IVA, antes de descargar el Anexo 3.</p>
+              </div>}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="purchase-gravadas" className="text-xs font-semibold text-slate-700 block mb-1">Monto Gravado ($)</label>
