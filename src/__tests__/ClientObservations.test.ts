@@ -105,9 +105,16 @@ describe('Formatos entregados por el cliente', () => {
     expect(report.rows[0][7]).toBe(0); expect(report.rows[0][9]).toBe(0); expect(report.rows[0][12]).toBe(100); expect(report.rows[0][14]).toBe(10);
   });
   it('exports real Excel XML with text identifiers, escaped text and numeric amounts', () => {
-    const files = unzipSync(buildBookXlsx([['Empresa'], ['Libro'], ['Período'], ['USD'], ['Doc', 'Monto'], ['000001', 13], ['=1+1 & <texto>', 10]]));
+    const files = unzipSync(buildBookXlsx([
+      ['Empresa'], ['Libro'], ['NIT y NRC'], ['Período'], ['USD'], ['Doc', 'Monto'],
+      ['000001', 13], ['=1+1 & <texto>', 10], ['TOTAL', 23], [], ['F. _________________________'], ['CONTADOR'],
+    ], [180, 106], 1));
     expect(files['[Content_Types].xml']).toBeDefined();
     const xml = strFromU8(files['xl/worksheets/sheet1.xml']);
     expect(xml).toContain('000001'); expect(xml).toContain('&amp; &lt;texto&gt;'); expect(xml).toContain('<v>13</v>'); expect(xml).not.toContain('<f>');
+    expect(xml).toContain('paperSize="5"');
+    expect(xml).toContain('mergeCell ref="A1:B1"');
+    expect(xml).toContain('mergeCell ref="A12:B12"');
+    expect(strFromU8(files['xl/styles.xml'])).toContain('horizontal="center"');
   });
 });

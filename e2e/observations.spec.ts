@@ -98,21 +98,39 @@ test('three client book formats download as real Excel and readable PDFs', async
   for (const [tab, label] of [['contribuyentes', /1. Libro de Ventas a Contribuyentes/], ['consumidor', /2. Libro de Ventas a Consumidor Final/], ['compras', /3. Libro de Compras/]] as const) {
     await page.getByRole('button', { name: label }).click();
     await expect(page.getByText('CONTADOR', { exact: true })).toBeVisible();
+    const book = page.locator('#printable-iva-book');
+    const region = book.getByRole('region');
+    const documentCell = region.locator('tbody tr').first().locator('td').nth(2);
+    await expect(documentCell).toBeVisible();
+    expect((await documentCell.boundingBox())?.width).toBeGreaterThan(190);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+    await region.evaluate(element => { element.scrollLeft = 0; });
+    await book.screenshot({ path: info.outputPath(`libro-${tab}.png`) });
+    await region.evaluate(element => { element.scrollLeft = element.scrollWidth; });
+    await book.screenshot({ path: info.outputPath(`libro-${tab}-montos.png`) });
     let download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
     const xlsx = await download, path = info.outputPath(`libro-${tab}.xlsx`); await xlsx.saveAs(path);
     const zip = unzipSync(await readFile(path));
-    expect(strFromU8(zip['xl/worksheets/sheet1.xml'])).toContain('CONTADOR');
-    expect(strFromU8(zip['xl/worksheets/sheet1.xml'])).toContain('Período:');
+    const sheet = strFromU8(zip['xl/worksheets/sheet1.xml']);
+    expect(sheet).toContain('CONTADOR');
+    expect(sheet).toContain('Período:');
+    expect(sheet).toContain('orientation="landscape" paperSize="5"');
+    const signatureRow = sheet.match(/<c r="A(\d+)" s="4" t="inlineStr"><is><t xml:space="preserve">CONTADOR/)?.[1];
+    expect(signatureRow).toBeTruthy();
+    expect(sheet).toContain(`mergeCell ref="A${signatureRow}:${tab === 'consumidor' ? 'N' : 'O'}${signatureRow}"`);
     download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Descargar PDF', exact: true }).click();
     const pdf = await download, pdfPath = info.outputPath(`libro-${tab}.pdf`); await pdf.saveAs(pdfPath);
-    expect((await readFile(pdfPath)).subarray(0, 5).toString()).toBe('%PDF-');
-    await page.screenshot({ path: info.outputPath(`libro-${tab}.png`), fullPage: true });
+    const pdfText = (await readFile(pdfPath)).toString('latin1');
+    expect(pdfText.startsWith('%PDF-')).toBe(true);
+    const dimensions = pdfText.match(/\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/);
+    expect(Number(dimensions?.[1])).toBeCloseTo(1008, 0);
+    expect(Number(dimensions?.[2])).toBeCloseTo(612, 0);
   }
 });
 
-test('F07 export requires classification review and downloads semicolon data', async ({ page }) => {
+test('F07 export requires classification review and downloads semicolon data', async ({ page }, info) => {
   await page.goto('/#/libros-iva');
   await page.getByLabel('Período', { exact: true }).fill('2026-09');
   await page.getByText('Anexo CSV F-07 del libro seleccionado', { exact: true }).click();
@@ -120,7 +138,17 @@ test('F07 export requires classification review and downloads semicolon data', a
   await page.getByLabel('Tipo de operación de renta', { exact: true }).selectOption('1');
   await page.getByLabel('Tipo de ingreso de renta', { exact: true }).selectOption('3');
   await page.getByLabel('Revisé que todos los registros comparten estos códigos y corresponden al período.', { exact: true }).check();
+  await page.locator('details', { hasText: 'Anexo CSV F-07 del libro seleccionado' }).screenshot({ path: info.outputPath('anexo-f07.png') });
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Descargar anexo F-07 CSV', exact: true }).click();
-  expect((await download).suggestedFilename()).toBe('F07_A1_202609.csv');
+  const file = await download;
+  expect(file.suggestedFilename()).toBe('F07_A1_202609.csv');
+  const path = info.outputPath(file.suggestedFilename());
+  await file.saveAs(path);
+  const data = (await readFile(path, 'utf8')).trim().split(/\r?\n/);
+  expect(data.length).toBeGreaterThan(0);
+  for (const line of data) {
+    expect(line).toMatch(/^\d{2}\/\d{2}\/\d{4};/);
+    expect(line.split(';')).toHaveLength(20);
+  }
 });

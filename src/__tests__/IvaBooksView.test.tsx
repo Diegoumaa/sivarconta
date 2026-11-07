@@ -30,7 +30,7 @@ describe('IvaBooksView Component (F07 Books & Export)', () => {
   it('renders VAT books header, company info, and action buttons', () => {
     renderIvaBooks();
     expect(screen.getByText(/Libros de IVA/i)).toBeInTheDocument();
-    expect(screen.getByText(/Formato DGII El Salvador/i)).toBeInTheDocument();
+    expect(screen.getByText(/Papel legal horizontal/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Exportar CSV del libro/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Imprimir Libro/i })).toBeInTheDocument();
   });
@@ -64,6 +64,7 @@ describe('IvaBooksView Component (F07 Books & Export)', () => {
     vi.useFakeTimers();
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     renderIvaBooks();
+    fireEvent.change(screen.getByLabelText('Período', { exact: true }), { target: { value: '2026-09' } });
 
     // Mock URL.createObjectURL and URL.revokeObjectURL
     const createObjectUrlMock = vi.fn().mockReturnValue('blob:http://localhost/test-blob');
@@ -80,6 +81,15 @@ describe('IvaBooksView Component (F07 Books & Export)', () => {
     expect(revokeObjectUrlMock).toHaveBeenCalled();
     clickSpy.mockRestore();
     vi.useRealTimers();
+  });
+
+  it('does not download an empty book CSV for a period without movements', () => {
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderIvaBooks();
+    fireEvent.change(screen.getByLabelText('Período', { exact: true }), { target: { value: '2042-12' } });
+    fireEvent.click(screen.getByRole('button', { name: /Exportar CSV del libro/i }));
+    expect(clickSpy).not.toHaveBeenCalled();
+    clickSpy.mockRestore();
   });
 
   it('triggers window.print when clicking print button', () => {

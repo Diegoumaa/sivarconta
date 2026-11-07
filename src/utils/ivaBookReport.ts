@@ -2,7 +2,16 @@ import type { Company, InvoiceDocument, PurchaseDocument } from '../types';
 import type { ReportCell } from './reportExport';
 import type { AnnexKind } from './f07Export';
 
-export interface BookReport { title: string; columns: string[]; rows: ReportCell[][]; totals: ReportCell[]; groups: { label: string; span: number }[]; notice?: string }
+export interface BookReport {
+  title: string;
+  columns: string[];
+  widths: number[];
+  firstMoney: number;
+  rows: ReportCell[][];
+  totals: ReportCell[];
+  groups: { label: string; span: number }[];
+  notice?: string;
+}
 export function buildIvaBookReport(kind: AnnexKind, invoices: InvoiceDocument[], purchases: PurchaseDocument[]): BookReport {
   const sales = invoices.filter(i => i.status === 'PROCESADO_MH').sort((a, b) => `${a.emissionDate}${a.emissionTime}${a.controlNumber}`.localeCompare(`${b.emissionDate}${b.emissionTime}${b.controlNumber}`));
   let title: string, columns: string[], rows: ReportCell[][], groups: BookReport['groups'];
@@ -29,9 +38,20 @@ export function buildIvaBookReport(kind: AnnexKind, invoices: InvoiceDocument[],
     });
   }
   const firstMoney = kind === 'ventas_consumidor' ? 7 : 5;
+  const identificationWidths = kind === 'ventas_consumidor'
+    ? [54, 112, 208, 208, 218, 218, 84]
+    : kind === 'compras' ? [54, 112, 226, 142, 214] : [54, 112, 226, 214, 142];
+  const widths = columns.map((_, index) => identificationWidths[index] ?? 106);
   const totals: ReportCell[] = columns.map((_, col) => col === 0 ? 'TOTAL' : col >= firstMoney ? Number(rows.reduce((sum, row) => sum + (typeof row[col] === 'number' ? Number(row[col]) : 0), 0).toFixed(2)) : '');
-  return { title, columns, rows, totals, groups };
+  return { title, columns, widths, firstMoney, rows, totals, groups };
 }
 export function bookSpreadsheetRows(report: BookReport, company: Company, periodLabel: string): ReportCell[][] {
-  return [[company.name], [report.title], [`Período: ${periodLabel}`, '', '', '', `NIT: ${company.nit}`, '', '', '', `NRC: ${company.nrc}`], [`Valores expresados en USD${report.notice ? ' · ' + report.notice : ''}`], report.columns, ...report.rows, report.totals, [], ['F. _________________________'], ['CONTADOR']];
+  return [
+    [company.name],
+    [report.title],
+    [`NIT: ${company.nit}     NRC: ${company.nrc}`],
+    [`Período: ${periodLabel}`],
+    [`Valores expresados en USD${report.notice ? ' · ' + report.notice : ''}`],
+    report.columns, ...report.rows, report.totals, [], ['F. _________________________'], ['CONTADOR'],
+  ];
 }

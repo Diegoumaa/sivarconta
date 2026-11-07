@@ -1,45 +1,118 @@
 import type { BookReport } from './ivaBookReport';
 import type { Company } from '../types';
 
-/** Text PDF with repeated headings and intact table rows across pages. */
-export async function exportBookPdf(report: BookReport, company: Company, period: string, filename: string) {
+/** Report for US Legal paper (14 × 8.5 in), with repeated table headings. */
+export async function buildBookPdf(report: BookReport, company: Company, period: string) {
   const { default: JsPDF } = await import('jspdf');
-  const doc = new JsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
-  const left = 9, width = 261.4, bottom = 198;
-  const weights = report.columns.map((_, c) => c === 0 ? 0.55 : c === 2 || (report.title.includes('CONSUMIDOR') && c <= 5 && c >= 2) ? 2.5 : c === 3 && !report.title.includes('COMPRAS') ? 2.5 : c === 4 && report.title.includes('COMPRAS') ? 2.5 : c === 1 ? 1.25 : 1);
-  const totalWeight = weights.reduce((a, b) => a + b, 0), widths = weights.map(w => w * width / totalWeight);
+  const doc = new JsPDF({ orientation: 'landscape', unit: 'mm', format: 'legal' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 9;
+  const center = pageWidth / 2;
+  const tableWidth = pageWidth - 2 * margin;
+  const bottom = pageHeight - 15;
+  const weight = report.widths.reduce((sum, width) => sum + width, 0);
+  const widths = report.widths.map(width => width / weight * tableWidth);
+  const identificationWidth = widths.slice(0, report.firstMoney).reduce((sum, width) => sum + width, 0);
+  const signatureSpace = 20;
   let y = 0;
-  const tableRow = (cells: (string | number)[], header = false, total = false) => {
-    doc.setFontSize(header ? 7 : 6.8); doc.setFont('helvetica', header || total ? 'bold' : 'normal');
-    const firstMoney = report.title.includes('CONSUMIDOR') ? 7 : 5;
-    const totalLabelWidth = widths.slice(0, firstMoney).reduce((a, b) => a + b, 0);
-    const lines = cells.map((c, col) => doc.splitTextToSize(typeof c === 'number' && col >= firstMoney ? c.toFixed(2) : String(c), (total && col === 0 ? totalLabelWidth : widths[col]) - 2));
-    const height = Math.max(7, ...lines.map(l => l.length * 3 + 2));
-    if (height > 140) throw new Error('Una fila es demasiado extensa para una página. Descarga el libro de Excel para conservar todo su contenido.');
-    if (!header && y + height > bottom) { doc.addPage(); pageHeader(); }
-    let x = left;
-    cells.forEach((cell, col) => {
-      if (total && col > 0 && col < firstMoney) return;
-      const cellWidth = total && col === 0 ? totalLabelWidth : widths[col];
-      if (header || total) { doc.setFillColor(238, 242, 246); doc.rect(x, y, cellWidth, height, 'F'); }
-      doc.setDrawColor(100, 116, 139); doc.setLineWidth(0.15); doc.rect(x, y, cellWidth, height);
-      doc.setTextColor(15, 23, 42); doc.text(lines[col], x + 1, y + 3.6);
-      x += cellWidth;
-    }); y += height;
+
+  type PdfCell = { value: string | number; width: number; align: 'left' | 'center' | 'right' };
+  const row = (cells: PdfCell[], kind: 'group' | 'header' | 'data' | 'total', reserve = 0) => {
+    const isHeading = kind === 'group' || kind === 'header';
+    const shaded = kind !== 'data';
+    const step = 3.55;
+    doc.setFont('helvetica', shaded ? 'bold' : 'normal');
+    doc.setFontSize(8);
+    const lines: string[][] = cells.map(({ value, width, align }) =>
+      doc.splitTextToSize(typeof value === 'number' && align === 'right' ? value.toFixed(2) : String(value), width - 3));
+    const height = Math.max(7, ...lines.map(text => text.length * step + 3));
+    if (!isHeading && y + height + reserve > bottom) {
+      doc.addPage();
+      pageHeader();
+      if (y + height + reserve > bottom) {
+        throw new Error('Una fila no cabe en el PDF. Descarga el libro en Excel para revisar todo su contenido.');
+      }
+    }
+    doc.setFont('helvetica', shaded ? 'bold' : 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(15, 23, 42);
+    doc.setDrawColor(148, 163, 184);
+    doc.setLineWidth(0.15);
+    let x = margin;
+    cells.forEach(({ width, align }, index) => {
+      if (shaded) {
+        doc.setFillColor(kind === 'group' ? 226 : 241, kind === 'group' ? 232 : 245, kind === 'group' ? 240 : 249);
+        doc.rect(x, y, width, height, 'FD');
+      } else {
+        doc.rect(x, y, width, height);
+      }
+      const textX = align === 'center' ? x + width / 2 : align === 'right' ? x + width - 1.5 : x + 1.5;
+      const firstBaseline = y + (height - lines[index].length * step) / 2 + 2.65;
+      lines[index].forEach((line, lineIndex) => doc.text(line, textX, firstBaseline + lineIndex * step, { align }));
+      x += width;
+    });
+    y += height;
   };
+
   const pageHeader = () => {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text(company.name, left, 13);
-    doc.setFontSize(9); doc.text(report.title, left, 19);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text(`NIT: ${company.nit}     NRC: ${company.nrc}`, left, 25);
-    doc.text(`Período: ${period}`, left, 30); doc.text('Valores expresados en USD', left, 35);
-    if (report.notice) { doc.setFont('helvetica', 'bold'); doc.setTextColor(146, 64, 14); doc.text(report.notice, left, 40); doc.setTextColor(15, 23, 42); }
-    y = report.notice ? 45 : 41; tableRow(report.columns, true);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    const name: string[] = doc.splitTextToSize(company.name, tableWidth);
+    name.forEach((line, index) => doc.text(line, center, 12 + index * 5, { align: 'center' }));
+    const titleY = 18 + (name.length - 1) * 5;
+    doc.setFontSize(10);
+    doc.text(report.title, center, titleY, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.text(`NIT: ${company.nit}     NRC: ${company.nrc}`, center, titleY + 5, { align: 'center' });
+    doc.text(`Período: ${period}`, center, titleY + 10, { align: 'center' });
+    doc.text('Valores expresados en USD', center, titleY + 14, { align: 'center' });
+    if (report.notice) {
+      doc.setTextColor(146, 64, 14);
+      doc.text(report.notice, center, titleY + 19, { align: 'center' });
+    }
+    y = titleY + (report.notice ? 24 : 20);
+    let offset = 0;
+    const groups = report.groups.map(({ label, span }): PdfCell => {
+      const width = widths.slice(offset, offset + span).reduce((sum, value) => sum + value, 0);
+      offset += span;
+      return { value: label, width, align: 'center' };
+    });
+    row(groups, 'group');
+    row(report.columns.map((value, index) => ({ value, width: widths[index], align: 'center' })), 'header');
   };
+
   pageHeader();
-  report.rows.forEach(row => tableRow(row)); tableRow(report.totals, false, true);
-  if (y + 18 > bottom) { doc.addPage(); pageHeader(); }
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text('F. _________________________', 115, y + 12); doc.text('CONTADOR', 128, y + 17);
+  report.rows.forEach((values, index) => {
+    const cells = values.map((value, column): PdfCell => ({
+      value, width: widths[column], align: column >= report.firstMoney ? 'right' : column < 2 ? 'center' : 'left',
+    }));
+    const finalRow = index === report.rows.length - 1;
+    row(cells, 'data', finalRow ? signatureSpace + 7 : 0);
+  });
+  row([
+    { value: 'TOTAL', width: identificationWidth, align: 'center' },
+    ...report.totals.slice(report.firstMoney).map((value, index): PdfCell => ({
+      value, width: widths[report.firstMoney + index], align: 'right',
+    })),
+  ], 'total', signatureSpace);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text('F. _________________________', center, y + 13, { align: 'center' });
+  doc.text('CONTADOR', center, y + 18, { align: 'center' });
   const pages = doc.getNumberOfPages();
-  for (let p = 1; p <= pages; p++) { doc.setPage(p); doc.setFontSize(7); doc.text(`Página ${p} de ${pages}`, 248, 208); }
+  for (let page = 1; page <= pages; page++) {
+    doc.setPage(page);
+    doc.setFontSize(7.5);
+    doc.text(`Página ${page} de ${pages}`, pageWidth - margin, pageHeight - 7, { align: 'right' });
+  }
+  return doc;
+}
+
+export async function exportBookPdf(report: BookReport, company: Company, period: string, filename: string) {
+  const doc = await buildBookPdf(report, company, period);
   doc.save(filename);
 }

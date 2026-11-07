@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { BookOpen, Download, Printer, Filter, Calendar, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { calculateIvaLedger } from '../../utils/ivaLedger';
-import { buildBookXlsx, downloadBlob, type ReportCell } from '../../utils/reportExport';
+import { buildBookXlsx, downloadBlob } from '../../utils/reportExport';
 import { exportBookPdf } from '../../utils/bookPdfExport';
 import { buildIvaBookReport, bookSpreadsheetRows } from '../../utils/ivaBookReport';
 import { IvaBookTable } from './IvaBookTable';
@@ -55,16 +55,19 @@ export const IvaBooksView: React.FC = () => {
   const creditoTotalPeriodo = totalCreditoFiscal;
   const ledger = calculateIvaLedger(filteredInvoices, filteredPurchases, selectedPeriod, currentCompany?.settings, filteredAnnexRecords);
   const saldoF07 = ledger.payable > 0 ? ledger.payable : -ledger.carry;
-  const bookTitle = activeTab === 'ventas_contribuyente' ? 'LIBRO DE VENTAS A CONTRIBUYENTES' : activeTab === 'ventas_consumidor' ? 'LIBRO DE VENTAS A CONSUMIDOR FINAL' : 'LIBRO DE COMPRAS';
   const report = { ...buildIvaBookReport(activeTab, periodInvoices, periodPurchases), notice: dataMode === 'local-demo' ? 'DATOS DE DEMOSTRACIÓN · SIN VALIDEZ FISCAL' : undefined };
   const exportExcel = () => {
     try {
-      const bytes = buildBookXlsx(bookSpreadsheetRows(report, currentCompany, periodLabel));
+      const bytes = buildBookXlsx(bookSpreadsheetRows(report, currentCompany, periodLabel), report.widths, report.firstMoney);
       downloadBlob(new Blob([bytes as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Libro_IVA_${activeTab}_${selectedPeriod}.xlsx`);
     } catch { toast.error('No se pudo generar el libro de Excel.'); }
   };
 
   const exportCsv = () => {
+    if (report.rows.length === 0) {
+      toast.info('El libro seleccionado no tiene movimientos en este período.');
+      return;
+    }
     // Quote text, escape embedded quotes, and prevent spreadsheet formula execution.
     // Numeric values remain numeric so credit notes retain their negative amounts.
     const csvCell = (value: string | number) => {
@@ -116,7 +119,7 @@ export const IvaBooksView: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20 md:pb-8">
-      <style media="print">{'@page { size: letter landscape; margin: 8mm; }'}</style>
+      <style media="print">{'@page { size: legal landscape; margin: 9mm; }'}</style>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm no-print">
         <div>
@@ -125,7 +128,7 @@ export const IvaBooksView: React.FC = () => {
               Libros de IVA
             </h1>
             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-50 text-brand-700 border border-brand-200/70">
-              Formato DGII El Salvador
+              Papel legal horizontal
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
@@ -134,7 +137,8 @@ export const IvaBooksView: React.FC = () => {
         </div>
 
         {/* Action buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={exportExcel} className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">Descargar Excel</button>
           <button type="button" onClick={async () => { try { await exportBookPdf(report, currentCompany, periodLabel, `Libro_IVA_${activeTab}_${selectedPeriod}.pdf`); } catch { toast.error('No se pudo generar el PDF.'); } }} className="rounded-xl bg-brand-50 px-3 py-2 text-xs font-bold text-brand-800">Descargar PDF</button>
           <button
@@ -153,6 +157,8 @@ export const IvaBooksView: React.FC = () => {
             <Printer className="w-4 h-4" />
             <span>Imprimir Libro</span>
           </button>
+          </div>
+          <p className="text-xs text-slate-600">Para ver el libro en Excel, descarga el archivo .xlsx. Para cargar datos en Hacienda, usa la sección Anexo CSV F-07.</p>
         </div>
       </div>
 
