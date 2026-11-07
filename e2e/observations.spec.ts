@@ -47,17 +47,30 @@ test('supplier can be saved independently and reused after reload with DUI', asy
   await expect(page.getByText('$103.00', { exact: true })).toBeVisible();
 });
 
-test('FSE retains only services and selects a recipient without NRC', async ({ page }) => {
+test('FSE applies the 10% only when a service is marked', async ({ page }, info) => {
   await page.goto('/#/inicio');
   await page.getByRole('button', { name: /^14 / }).click();
   await expect(page.getByLabel('Cliente Registrado', { exact: true })).toHaveValue('cli-2');
   await page.getByRole('button', { name: 'Continuar a Productos', exact: true }).click();
+  const isr = page.getByRole('checkbox', { name: 'Aplicar retención del 10% de ISR a partida 1', exact: true });
+  await expect(isr).toHaveCount(0);
+  await page.getByLabel('Producto de partida 1', { exact: true }).filter({ visible: true }).selectOption('prod-4');
+  await expect(page.getByLabel('Naturaleza de partida 1', { exact: true })).toHaveValue('SERVICIO');
+  await page.getByLabel('Precio unitario de partida 1', { exact: true }).filter({ visible: true }).fill('27.77');
+  await expect(isr).not.toBeChecked();
   await page.getByRole('button', { name: 'Continuar a Pago', exact: true }).click();
-  await expect(page.getByText(/Retienes \$0.00/)).toBeVisible();
+  await expect(page.getByText(/Retienes \$/)).toHaveCount(0);
   await page.getByRole('button', { name: 'Anterior', exact: true }).click();
-  await page.getByLabel('Naturaleza de partida 1', { exact: true }).selectOption('SERVICIO');
+  await isr.check();
+  await page.locator('.space-y-4').filter({
+    has: page.getByText('Paso 2: ¿Qué productos o servicios vas a facturar?', { exact: true }),
+  }).last().screenshot({ path: info.outputPath('fse-isr-activado.png') });
   await page.getByRole('button', { name: 'Continuar a Pago', exact: true }).click();
-  await expect(page.getByText(/Retienes \$75.00/)).toBeVisible();
+  await expect(page.getByText(/Retienes \$2.78/)).toBeVisible();
+  await page.getByRole('button', { name: 'Anterior', exact: true }).click();
+  await isr.uncheck();
+  await page.getByRole('button', { name: 'Continuar a Pago', exact: true }).click();
+  await expect(page.getByText(/Retienes \$/)).toHaveCount(0);
 });
 
 test('inclusive CCF prices split the IVA once and preserve the document tax categories', async ({ page }) => {

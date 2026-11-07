@@ -3,11 +3,13 @@ import { useApp } from '../../context/AppContext';
 import { Settings, ShieldCheck, KeyRound, Building2, Store, CheckCircle2, Copy } from 'lucide-react';
 import { NewCompanyModal } from '../companies/NewCompanyModal';
 import { DocumentSettings } from './DocumentSettings';
+import { CompanyTeamPanel } from './CompanyTeamPanel';
+import { AccountPasswordPanel } from './AccountPasswordPanel';
 import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
 
 export const SettingsView: React.FC = () => {
-  const { currentCompany } = useApp();
+  const { currentCompany, currentCompanyId, dataMode } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const safeCompany = currentCompany || {
@@ -48,6 +50,8 @@ export const SettingsView: React.FC = () => {
         </button>
       </div>
 
+      <CompanyTeamPanel companyId={currentCompanyId} cloud={dataMode === 'cloud'} />
+      {dataMode === 'cloud' && <AccountPasswordPanel />}
       <DocumentSettings />
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

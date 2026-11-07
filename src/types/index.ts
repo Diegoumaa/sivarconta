@@ -51,6 +51,7 @@ export interface InvoiceItem {
   taxType: 'GRAVADO' | 'EXENTO' | 'NO_SUJETO';
   unitOfMeasure: string;
   taxAmount: number;
+  applyIsrRetention?: boolean;
   total: number;
 }
 

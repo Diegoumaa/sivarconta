@@ -157,7 +157,9 @@ describe('Access boundary', () => {
     expect(mocks.updateUser).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText('Repite la contraseña'), { target: { value: 'synthetic-new-password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar nueva contraseña' }));
-    expect(await screen.findByLabelText('Datos de empresa')).toHaveTextContent('cloud:user-a');
+    expect(await screen.findByText('Contraseña actualizada. Inicia sesión con la nueva contraseña.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Datos de empresa')).not.toBeInTheDocument();
+    expect(mocks.signOut).toHaveBeenCalledOnce();
     expect(mocks.updateUser).toHaveBeenCalledWith({ password: 'synthetic-new-password' });
   });
 

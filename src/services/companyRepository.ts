@@ -147,6 +147,7 @@ export function mapInvoices(rows: CloudRow[]): InvoiceDocument[] {
               discount: Number(item.discount),
               taxType: item.tax_type,
               unitOfMeasure: item.unit_of_measure,
+              applyIsrRetention: typeof item.apply_isr_retention === 'boolean' ? item.apply_isr_retention : undefined,
               taxAmount: item.tax_amount != null ? Number(item.tax_amount) : item.tax_type !== 'GRAVADO' || inv.dte_type === '14' ? 0
                 : Number((Number(item.total) * (inv.dte_type === '01' ? 13 / 113 : 0.13)).toFixed(2)),
               total: Number(item.total)

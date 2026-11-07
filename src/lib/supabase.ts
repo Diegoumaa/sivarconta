@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { createClient } from '@supabase/supabase-js';
+import '../utils/authRecovery';
 
 // A checkout without explicit configuration is an isolated local demo.
 // Never silently connect a developer's browser or tests to a shared database.
@@ -25,3 +26,11 @@ export const supabase = isSupabaseConfigured
       }
     })
   : null;
+
+// Verify and set the invited account's password in an isolated session before
+// replacing any session already open in SIVAR FACT.
+export function createIsolatedAuthClient() {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'sivar-account-setup' },
+  });
+}

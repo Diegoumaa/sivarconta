@@ -1,17 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { ArrowRight, Check, LockKeyhole, Receipt, ShieldCheck, Zap } from 'lucide-react';
-import { isSupabaseConfigured, supabase } from '../../lib/supabase';
+import { createIsolatedAuthClient, isSupabaseConfigured, supabase } from '../../lib/supabase';
 
 type Access = { mode: 'demo' | 'cloud'; userId?: string };
-type AuthView = 'login' | 'register' | 'forgot' | 'new-password';
+type AuthView = 'login' | 'register' | 'forgot' | 'new-password' | 'activate-invite';
 
 /** The data provider is mounted only after authentication or an explicit demo choice. */
-export function AuthGate({ children }: { children: (access: Access) => React.ReactNode }) {
+export function AuthGate({ children, invitation }: {
+  children: (access: Access) => React.ReactNode;
+  invitation?: { activationToken?: string; onActivated: () => void };
+}) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [demo, setDemo] = useState(false);
-  const [view, setView] = useState<AuthView>('login');
+  const [view, setView] = useState<AuthView>(invitation?.activationToken ? 'activate-invite' : 'login');
+  const invitationClient = useRef<ReturnType<typeof createIsolatedAuthClient> | null>(null);
+  const activateInvite = view === 'activate-invite';
+  const setPasswordView = view === 'new-password' || activateInvite;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -20,8 +26,8 @@ export function AuthGate({ children }: { children: (access: Access) => React.Rea
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (isSupabaseConfigured && !demo && (!session || view === 'new-password')) document.title = 'Acceso · SIVAR FACT';
-  }, [demo, session, view]);
+    if (isSupabaseConfigured && !demo && (!session || setPasswordView)) document.title = 'Acceso · SIVAR FACT';
+  }, [demo, session, setPasswordView]);
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
@@ -33,7 +39,7 @@ export function AuthGate({ children }: { children: (access: Access) => React.Rea
       setSession(nextSession);
       setLoading(false);
       if (event === 'PASSWORD_RECOVERY') setView('new-password');
-      if (event === 'SIGNED_OUT') { setView('login'); setPassword(''); }
+      if (event === 'SIGNED_OUT') { setView(current => current === 'activate-invite' ? current : 'login'); setPassword(''); }
     });
     supabase.auth.getSession().then(result => {
       if (!alive || receivedEvent) return;
@@ -54,13 +60,33 @@ export function AuthGate({ children }: { children: (access: Access) => React.Rea
     if (busy || !supabase) return;
     setError('');
     setMessage('');
-    if ((view === 'new-password' || view === 'register') && (password.length < 8 || password !== confirmation)) {
+    if ((setPasswordView || view === 'register') && (password.length < 8 || password !== confirmation)) {
       setError('Usa al menos 8 caracteres y repite la misma contraseña.');
       return;
     }
     setBusy(true);
     try {
-      if (view === 'register') {
+      if (activateInvite && invitation?.activationToken) {
+        if (!invitationClient.current) {
+          const client = createIsolatedAuthClient();
+          const verified = await client.auth.verifyOtp({ type: 'invite', token_hash: invitation.activationToken });
+          if (verified.error || !verified.data.session) {
+            setError('El enlace de activación venció o ya se usó. Si ya tienes contraseña, inicia sesión. También puedes pedir que reenvíen la invitación.');
+            return;
+          }
+          invitationClient.current = client;
+        }
+        const changed = await invitationClient.current.auth.updateUser({ password });
+        if (changed.error) throw changed.error;
+        const next = (await invitationClient.current.auth.getSession()).data.session;
+        if (!next) throw new Error('No se pudo recuperar la sesión de la invitación.');
+        const signedIn = await supabase.auth.setSession({ access_token: next.access_token, refresh_token: next.refresh_token });
+        if (signedIn.error || !signedIn.data.session) throw signedIn.error || new Error('No se pudo activar la sesión.');
+        invitationClient.current = null;
+        setSession(signedIn.data.session);
+        changeView('login');
+        invitation.onActivated();
+      } else if (view === 'register') {
         const result = await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: window.location.origin } });
         if (result.error) throw result.error;
         setPassword(''); setConfirmation('');
@@ -73,8 +99,11 @@ export function AuthGate({ children }: { children: (access: Access) => React.Rea
       } else if (view === 'new-password') {
         const result = await supabase.auth.updateUser({ password });
         if (result.error) throw result.error;
+        const signedOut = await supabase.auth.signOut();
+        if (signedOut.error) throw signedOut.error;
+        setSession(null);
         setPassword(''); setConfirmation(''); setView('login');
-        setMessage('Contraseña actualizada.');
+        setMessage('Contraseña actualizada. Inicia sesión con la nueva contraseña.');
       } else {
         const result = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (result.error) throw result.error;
@@ -90,7 +119,7 @@ export function AuthGate({ children }: { children: (access: Access) => React.Rea
   };
 
   if (!isSupabaseConfigured) return <>{children({ mode: 'demo' })}</>;
-  if (demo || (session && view !== 'new-password')) {
+  if (demo || (session && !setPasswordView)) {
     const exit = async () => {
       if (busy) return;
       if (demo) { setDemo(false); return; }
@@ -125,19 +154,19 @@ export function AuthGate({ children }: { children: (access: Access) => React.Rea
         </section>
         <section aria-label="Acceso a tu cuenta" className="order-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:order-2">
           <span className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700"><LockKeyhole className="h-5 w-5" /></span>
-          <h2 className="text-xl font-bold text-slate-900">{view === 'forgot' ? 'Recupera tu acceso' : view === 'register' ? 'Crea tu cuenta' : view === 'new-password' ? 'Crea una nueva contraseña' : 'Entra a tu cuenta'}</h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">{view === 'forgot' ? 'Te enviaremos un enlace para cambiar tu contraseña.' : view === 'register' ? 'Confirma tu correo y registra tu empresa para empezar.' : view === 'new-password' ? 'Elige una contraseña de al menos 8 caracteres.' : 'Usa el correo de la cuenta registrada para tu empresa.'}</p>
+          <h2 className="text-xl font-bold text-slate-900">{activateInvite ? 'Activa tu cuenta invitada' : view === 'forgot' ? 'Recupera tu acceso' : view === 'register' ? 'Crea tu cuenta' : view === 'new-password' ? 'Crea una nueva contraseña' : 'Entra a tu cuenta'}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">{view === 'forgot' ? 'Te enviaremos un enlace para cambiar tu contraseña.' : view === 'register' ? 'Confirma tu correo y registra tu empresa para empezar.' : setPasswordView ? 'Elige una contraseña de al menos 8 caracteres.' : invitation ? 'Entra con el correo al que llegó la invitación.' : 'Usa el correo de la cuenta registrada para tu empresa.'}</p>
           {loading && <p role="status" className="mt-4 text-sm text-slate-600">Comprobando tu sesión…</p>}
           {error && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
           {message && <p role="status" className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p>}
           <form onSubmit={submit} className="mt-6 space-y-4">
-            {view !== 'new-password' && <label className="block text-sm font-semibold text-slate-700">Correo electrónico<input type="email" autoComplete="username" required value={email} onChange={event => setEmail(event.target.value)} className="mt-2 block w-full rounded-xl border border-slate-300 p-3 text-sm font-normal" placeholder="nombre@tuempresa.com" /></label>}
-            {view !== 'forgot' && <label className="block text-sm font-semibold text-slate-700">{view === 'new-password' ? 'Nueva contraseña' : 'Contraseña'}<input type="password" autoComplete={view === 'new-password' || view === 'register' ? 'new-password' : 'current-password'} required value={password} onChange={event => setPassword(event.target.value)} className="mt-2 block w-full rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label>}
-            {(view === 'new-password' || view === 'register') && <label className="block text-sm font-semibold text-slate-700">Repite la contraseña<input type="password" autoComplete="new-password" required value={confirmation} onChange={event => setConfirmation(event.target.value)} className="mt-2 block w-full rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label>}
-            <button disabled={busy || loading} type="submit" className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white hover:bg-brand-500 disabled:opacity-50">{busy ? 'Espera…' : view === 'register' ? 'Crear cuenta' : view === 'forgot' ? 'Enviar enlace de recuperación' : view === 'new-password' ? 'Guardar nueva contraseña' : 'Iniciar sesión'}<ArrowRight className="h-4 w-4" /></button>
+            {!setPasswordView && <label className="block text-sm font-semibold text-slate-700">Correo electrónico<input type="email" autoComplete="username" required value={email} onChange={event => setEmail(event.target.value)} className="mt-2 block w-full rounded-xl border border-slate-300 p-3 text-sm font-normal" placeholder="nombre@tuempresa.com" /></label>}
+            {view !== 'forgot' && <label className="block text-sm font-semibold text-slate-700">{setPasswordView ? 'Nueva contraseña' : 'Contraseña'}<input type="password" autoComplete={setPasswordView || view === 'register' ? 'new-password' : 'current-password'} required value={password} onChange={event => setPassword(event.target.value)} className="mt-2 block w-full rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label>}
+            {(setPasswordView || view === 'register') && <label className="block text-sm font-semibold text-slate-700">Repite la contraseña<input type="password" autoComplete="new-password" required value={confirmation} onChange={event => setConfirmation(event.target.value)} className="mt-2 block w-full rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label>}
+            <button disabled={busy || loading} type="submit" className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-bold text-white hover:bg-brand-500 disabled:opacity-50">{busy ? 'Espera…' : activateInvite ? 'Activar cuenta' : view === 'register' ? 'Crear cuenta' : view === 'forgot' ? 'Enviar enlace de recuperación' : view === 'new-password' ? 'Guardar nueva contraseña' : 'Iniciar sesión'}<ArrowRight className="h-4 w-4" /></button>
           </form>
-          {view === 'login' ? <div className="mt-2 flex flex-wrap justify-between gap-2"><button onClick={() => changeView('forgot')} className="min-h-11 text-sm font-semibold text-brand-700">¿Olvidaste tu contraseña?</button><button onClick={() => changeView('register')} className="min-h-11 text-sm font-semibold text-brand-700">Crear una cuenta</button></div> : view !== 'new-password' && <button onClick={() => changeView('login')} className="mt-2 min-h-11 text-sm font-semibold text-brand-700">Volver a iniciar sesión</button>}
-          {view !== 'new-password' && <div className="mt-5 border-t border-slate-200 pt-5"><p className="mb-3 text-sm text-slate-600">¿Quieres conocer el sistema primero?</p><button onClick={() => { setDemo(true); setError(''); }} className="min-h-12 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50">Explorar demostración</button><p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5" />Datos de ejemplo, sin consultar tu empresa.</p></div>}
+          {view === 'login' ? <div className="mt-2 flex flex-wrap justify-between gap-2"><button onClick={() => changeView('forgot')} className="min-h-11 text-sm font-semibold text-brand-700">¿Olvidaste tu contraseña?</button>{!invitation && <button onClick={() => changeView('register')} className="min-h-11 text-sm font-semibold text-brand-700">Crear una cuenta</button>}</div> : view !== 'new-password' && <button disabled={busy} onClick={() => changeView('login')} className="mt-2 min-h-11 text-sm font-semibold text-brand-700">{activateInvite ? 'Ya tengo una contraseña' : 'Volver a iniciar sesión'}</button>}
+          {!setPasswordView && !invitation && <div className="mt-5 border-t border-slate-200 pt-5"><p className="mb-3 text-sm text-slate-600">¿Quieres conocer el sistema primero?</p><button onClick={() => { setDemo(true); setError(''); }} className="min-h-12 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50">Explorar demostración</button><p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5" />Datos de ejemplo, sin consultar tu empresa.</p></div>}
         </section>
       </div>
     </div>

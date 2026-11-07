@@ -530,6 +530,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
           discount: item.discount,
           tax_type: item.taxType,
           unit_of_measure: item.unitOfMeasure,
+          ...(newInvoice.dteType === '14' && typeof item.applyIsrRetention === 'boolean' ? { apply_isr_retention: item.applyIsrRetention } : {}),
           total: Number(item.total.toFixed(2))
           }))
       }]);

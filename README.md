@@ -98,12 +98,12 @@ El aislamiento entre empresas debe aplicarse con usuarios autenticados, membres�
 
 ## Trabajo pendiente antes de producción
 
-1. Completar la prueba de registro, correo y recuperación con cuentas reales, y la interfaz de administración de miembros. El acceso al panel de Supabase no crea una cuenta de usuario de la aplicación.
+1. Completar la prueba de entrega de invitaciones y recuperación con un correo autorizado para QA. El acceso al panel de Supabase no crea una cuenta de usuario de la aplicación.
 2. Revisar las empresas históricas sin propietario y las facturas históricas sin partidas; no inventar ni borrar información para hacer pasar la revisión. Las pruebas API de la cuenta QA no sustituyen la asignación de esos propietarios reales.
 3. Conservar una solicitud pendiente de forma segura a través de recargas y cierres, además de los reintentos idempotentes ya implementados en el servidor.
 4. Implementar refresco/suscripciones, estados pendientes y manejo de conflictos para la sincronización entre web y móvil. La interfaz adaptable no equivale a una APP independiente ni confirma capacidades offline.
 5. Integrar firma y transmisión fiscal en un backend. Validar cada tipo de documento y las reglas de negocio contra las especificaciones vigentes de Hacienda, con respuestas reales del entorno de pruebas, antes de habilitar producción.
-6. Completar los flujos funcionales pendientes de los requisitos, incluidos edición/historial de clientes y compras, anulación/reenvío y administración de usuarios.
+6. Completar los flujos funcionales pendientes de los requisitos, incluidos edición e historial de clientes y compras y anulación de documentos.
 
 ## Envío de documentos por correo
 
@@ -137,3 +137,11 @@ supabase/schema.sql Esquema de referencia pendiente de validación integral
 - [Sitio de demostración](https://sivarconta.vercel.app)
 
 Los cambios locales solo afectan esta copia. La publicación en GitHub o Vercel se realiza mediante un proceso de despliegue separado.
+
+## Usuarios y permisos
+
+En **Configuración → Usuarios y permisos**, el propietario puede invitar administradores, contadores y facturadores. Un administrador puede gestionar los accesos de contadores y facturadores de su propia empresa. El colaborador debe abrir la invitación con la dirección invitada. Los usuarios nuevos activan la cuenta y crean su contraseña antes de aceptar.
+
+Aplica `supabase/migrations/20261106_company_team.sql` y `supabase/migrations/20261107_fse_isr_choice.sql` antes de desplegar el código. El servidor de Vercel reutiliza las variables de Supabase y Brevo ya configuradas para correo de documentos. Las invitaciones se envían por Brevo y las cuentas nuevas se activan con un enlace generado por Supabase. Los permisos de acceso siguen ligados a cada empresa y las modificaciones directas de membresías desde el navegador están bloqueadas.
+
+Verifica los permisos y el ISR con `supabase/tests/company-team.sql` y `supabase/tests/fse-isr-choice.sql`. Los casos usan datos ficticios con `ROLLBACK`. Ejecuta `npx playwright test --config playwright.team.config.ts` para probar el panel, la invitación y las contraseñas con servicios simulados.

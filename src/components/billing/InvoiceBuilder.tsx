@@ -82,6 +82,7 @@ export const InvoiceBuilder: React.FC = () => {
       taxType: filteredProducts[0]?.taxType || 'GRAVADO',
       unitOfMeasure: filteredProducts[0]?.unitOfMeasure || '59',
       taxAmount: 0,
+      applyIsrRetention: false,
       total: filteredProducts[0]?.unitPrice || 50.00
     }
   ]);
@@ -139,6 +140,7 @@ export const InvoiceBuilder: React.FC = () => {
         unitPrice: prod.unitPrice,
         taxType: prod.taxType,
         unitOfMeasure: prod.unitOfMeasure,
+        applyIsrRetention: false,
         total: updated[index].quantity * prod.unitPrice
       };
       return updated;
@@ -170,6 +172,7 @@ export const InvoiceBuilder: React.FC = () => {
       taxType: defaultProd?.taxType || 'GRAVADO',
       unitOfMeasure: defaultProd?.unitOfMeasure || '59',
       taxAmount: 0,
+      applyIsrRetention: false,
       total: defaultProd?.unitPrice || 10.00
     };
     setItems(prev => [...prev, newItem]);
@@ -561,10 +564,18 @@ export const InvoiceBuilder: React.FC = () => {
               </div>
 
               {['03', '05', '06'].includes(selectedDteType) && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pricesIncludeVat} onChange={e => setPricesIncludeVat(e.target.checked)} />Ingresar precios con IVA incluido</label>}
-              <p className="text-xs text-slate-600">{selectedDteType === '01' ? 'Los precios gravados incluyen IVA.' : selectedDteType === '14' ? 'La FSE no genera IVA. Identifica los servicios para calcular la retención de renta.' : pricesIncludeVat ? 'El documento desglosará la base y el IVA sin volver a sumarlo al precio ingresado.' : 'Los precios gravados son base sin IVA; se agregará el 13%.'}</p>
+              <p className="text-xs text-slate-600">{selectedDteType === '01' ? 'Los precios gravados incluyen IVA.' : selectedDteType === '14' ? 'La FSE no genera IVA. Marca la retención de ISR solo en las partidas de servicio en que corresponda.' : pricesIncludeVat ? 'El documento desglosará la base y el IVA sin volver a sumarlo al precio ingresado.' : 'Los precios gravados son base sin IVA; se agregará el 13%.'}</p>
               <div className="grid gap-3 sm:grid-cols-2">{items.map((item, index) => <div key={item.id} className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 p-3 text-xs">
                 <span className="w-full font-semibold">Partida {index + 1}: {item.description}</span>
-                <label>Bien o servicio<select aria-label={`Naturaleza de partida ${index + 1}`} value={item.unitOfMeasure === '99' ? 'SERVICIO' : 'BIEN'} onChange={e => handleItemChange(index, 'unitOfMeasure', e.target.value === 'SERVICIO' ? '99' : '59')} className="block rounded-lg border p-2"><option value="BIEN">Bien tangible</option><option value="SERVICIO">Servicio</option></select></label>
+                <label>Bien o servicio<select aria-label={`Naturaleza de partida ${index + 1}`} value={item.unitOfMeasure === '99' ? 'SERVICIO' : 'BIEN'} onChange={e => {
+                  handleItemChange(index, 'unitOfMeasure', e.target.value === 'SERVICIO' ? '99' : '59');
+                  if (e.target.value !== 'SERVICIO') setItems(previous => previous.map((row, i) => i === index ? { ...row, applyIsrRetention: false } : row));
+                }} className="block rounded-lg border p-2"><option value="BIEN">Bien tangible</option><option value="SERVICIO">Servicio</option></select></label>
+                {selectedDteType === '14' && item.unitOfMeasure === '99' && <label className="flex min-h-11 items-center gap-2 rounded-lg bg-brand-50 px-3 font-semibold text-brand-800">
+                  <input type="checkbox" aria-label={`Aplicar retención del 10% de ISR a partida ${index + 1}`} checked={item.applyIsrRetention === true}
+                    onChange={event => { const checked = event.target.checked; setItems(previous => previous.map((row, i) => i === index ? { ...row, applyIsrRetention: checked } : row)); }} />
+                  Aplicar retención del 10% de ISR
+                </label>}
                 {selectedDteType !== '14' && <label>Tratamiento IVA<select aria-label={`Tratamiento IVA de partida ${index + 1}`} value={item.taxType} onChange={e => handleItemChange(index, 'taxType', e.target.value)} className="block rounded-lg border p-2"><option value="GRAVADO">Gravado</option><option value="EXENTO">Exento</option><option value="NO_SUJETO">No sujeto</option></select></label>}
               </div>)}</div>
               {/* Mobile View: Clean Item Cards (No cramped table scroll!) */}
@@ -950,7 +961,7 @@ export const InvoiceBuilder: React.FC = () => {
                     </div>
                   )}
 
-                  {selectedDteType === '14' && (
+                  {selectedDteType === '14' && totals.retencionRenta10 > 0 && (
                     <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start gap-2 text-[11px]">
                       <Lightbulb className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                       <div>

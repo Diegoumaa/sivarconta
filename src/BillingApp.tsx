@@ -19,6 +19,7 @@ const ClientsView = lazy(() => import('./components/clients/ClientsView').then(m
 const PurchasesView = lazy(() => import('./components/purchases/PurchasesView').then(m => ({ default: m.PurchasesView })));
 const IvaBooksView = lazy(() => import('./components/books/IvaBooksView').then(m => ({ default: m.IvaBooksView })));
 const SettingsView = lazy(() => import('./components/settings/SettingsView').then(m => ({ default: m.SettingsView })));
+const AccountPasswordPanel = lazy(() => import('./components/settings/AccountPasswordPanel').then(m => ({ default: m.AccountPasswordPanel })));
 
 const MainLayout: React.FC = () => {
   const { currentView, currentCompanyId, activeDtePreview, setActiveDtePreview, dataMode, dataStatus, refreshData } = useApp();
@@ -89,7 +90,10 @@ const MainLayout: React.FC = () => {
             </div>
             {currentView !== 'new-invoice' && <div role="note" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><strong>Versión de evaluación.</strong> Borradores sin validez fiscal. Firma y envío a Hacienda pendientes.</div>}
             {dataStatus === 'error' ? <section role="alert" className="rounded-2xl border border-red-200 bg-white p-8"><h1 className="text-xl font-bold text-slate-900">No pudimos cargar tus datos</h1><p className="mt-3 text-slate-600">Revisa la conexión y los permisos de tu cuenta. No podemos mostrar totales hasta recuperar la información completa.</p><button onClick={refreshData} className="mt-5 min-h-11 rounded-xl bg-brand-600 px-5 font-semibold text-white">Volver a intentar</button></section> : dataStatus === 'loading' ? <ViewLoading /> :
-              dataMode === 'cloud' && !currentCompanyId ? <section className="rounded-2xl border border-slate-200 bg-white p-8"><h1 className="text-2xl font-bold">Bienvenido a SIVAR FACT</h1><p className="mt-3 max-w-xl text-slate-600">Tu cuenta todavía no tiene empresas asignadas. Registra tu empresa para empezar o pide al propietario que te agregue a su equipo.</p><button onClick={() => setIsCompanyModalOpen(true)} className="mt-5 min-h-12 rounded-xl bg-brand-600 px-5 font-semibold text-white">Registrar mi empresa</button></section> :
+              dataMode === 'cloud' && !currentCompanyId ? <div className="space-y-4">
+                <section className="rounded-2xl border border-slate-200 bg-white p-8"><h1 className="text-2xl font-bold">Bienvenido a SIVAR FACT</h1><p className="mt-3 max-w-xl text-slate-600">Tu cuenta todavía no tiene empresas asignadas. Registra tu empresa para empezar o pide al propietario que te agregue a su equipo.</p><button onClick={() => setIsCompanyModalOpen(true)} className="mt-5 min-h-12 rounded-xl bg-brand-600 px-5 font-semibold text-white">Registrar mi empresa</button></section>
+                {currentView === 'settings' && <RouteBoundary><Suspense fallback={<ViewLoading />}><AccountPasswordPanel /></Suspense></RouteBoundary>}
+              </div> :
               <RouteBoundary key={`${currentCompanyId}:${currentView}`}><Suspense fallback={<ViewLoading />}><div key={currentCompanyId}>{renderContent()}</div></Suspense></RouteBoundary>}
           </main>
         </div>

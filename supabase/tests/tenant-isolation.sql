@@ -75,13 +75,17 @@ DO $$ DECLARE affected INTEGER; BEGIN
     RAISE EXCEPTION 'RLS TEST FAILED: aceptacion fiscal falsa permitida';
   EXCEPTION WHEN insufficient_privilege THEN PERFORM pg_temp.check_rls(TRUE,'no se puede fabricar aceptacion fiscal'); END;
 END; $$;
+RESET ROLE;
 INSERT INTO public.company_members(company_id,user_id,role) VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','33333333-3333-4333-8333-333333333333','billing');
+SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','33333333-3333-4333-8333-333333333333',TRUE);
 DO $$ DECLARE affected INTEGER; BEGIN
   PERFORM pg_temp.check_rls((SELECT count(*)=2 FROM public.company_members),'miembros sin recursion');
-  UPDATE public.company_members SET role='owner' WHERE user_id=auth.uid();
-  GET DIAGNOSTICS affected=ROW_COUNT;
-  PERFORM pg_temp.check_rls(affected=0,'facturador no puede elevar su rol');
+  BEGIN
+    UPDATE public.company_members SET role='owner' WHERE user_id=auth.uid();
+    GET DIAGNOSTICS affected=ROW_COUNT;
+    PERFORM pg_temp.check_rls(affected=0,'facturador no puede elevar su rol');
+  EXCEPTION WHEN insufficient_privilege THEN PERFORM pg_temp.check_rls(TRUE,'facturador no puede elevar su rol'); END;
   BEGIN
     INSERT INTO public.purchases(company_id,control_number,generation_code,supplier_name,supplier_nit,supplier_nrc,date,total) VALUES('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','RLS-C','RLS-C','Fixture','0','0',CURRENT_DATE,1);
     RAISE EXCEPTION 'RLS TEST FAILED: facturador administra compras';

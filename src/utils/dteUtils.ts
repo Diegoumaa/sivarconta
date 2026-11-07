@@ -149,7 +149,9 @@ export function calculateInvoiceTotals(
     const factor = pricesIncludeIva && ['03', '05', '06'].includes(dteType) && item.taxType === 'GRAVADO' ? 1.13 : 1;
     const lineNet = (lineTotal - disc) / factor;
     rawDescuento += disc / factor;
-    if (item.unitOfMeasure === '99') serviceBase += lineNet;
+    if (item.unitOfMeasure === '99') {
+      if (item.applyIsrRetention !== false) serviceBase += lineNet;
+    }
     else if (item.taxType === 'GRAVADO') goodsBase += lineNet;
 
     if (item.taxType === 'GRAVADO') {
@@ -195,8 +197,8 @@ export function calculateInvoiceTotals(
     // Factura Sujeto Excluido: Retención 10% de Impuesto sobre la Renta (Art. 156 CT)
     // No causa IVA
     // A physical good does not acquire ISR retention merely because the document is an FSE.
-    // Unit 99 explicitly identifies a service; retain only its net amount.
-    retencionRenta10 = Number((serviceBase * 0.10).toFixed(2));
+    // Undefined preserves the automatic treatment of legacy service items.
+    retencionRenta10 = Math.round(serviceBase * 10 + 1e-9) / 100;
     totalPagar = Number(
       (subtotalGravado + subtotalExento + subtotalNoSujeto - retencionRenta10).toFixed(2)
     );
