@@ -79,6 +79,14 @@ describe('Anexos F07 v14', () => {
     const row = buildF07Annex('compras', [], [purchase({ supplierNit: '00000000-0' })], { operation: '1', classification: '2', sector: '2', cost: '2' }).trim().split(';');
     expect(row[4]).toBe(''); expect(row[15]).toBe('000000000');
   });
+  it('uses the NRC when a legacy supplier NIT is malformed and preserves its leading zeros', () => {
+    const row = buildF07Annex('compras', [], [purchase({ supplierNit: 'NIT PENDIENTE', supplierNrc: '00123-4' })], { operation: '1', classification: '2', sector: '2', cost: '2' }).trim().split(';');
+    expect(row[4]).toBe('001234');
+    expect(row[15]).toBe('');
+  });
+  it('blocks a purchase with no valid identification instead of downloading an invalid row', () => {
+    expect(() => buildF07Annex('compras', [], [purchase({ docNumber: 'COMPRA-42', supplierNit: '1234', supplierNrc: 'NRC PENDIENTE' })], { operation: '1', classification: '2', sector: '2', cost: '2' })).toThrow('COMPRA-42');
+  });
   it('blocks legacy purchases whose document class is unknown', () => {
     expect(() => buildF07Annex('compras', [], [purchase({ documentClass: undefined })], { operation: '1', classification: '2', sector: '2', cost: '2' })).toThrow('clase');
   });

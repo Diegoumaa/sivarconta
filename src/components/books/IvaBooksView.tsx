@@ -158,7 +158,7 @@ export const IvaBooksView: React.FC = () => {
             <span>Imprimir Libro</span>
           </button>
           </div>
-          <p className="text-xs text-slate-600">Para ver el libro en Excel, descarga el archivo .xlsx. Para cargar datos en Hacienda, usa la sección Anexo CSV F-07.</p>
+          <p className="text-xs text-slate-600">Excel, PDF y CSV del libro son para consulta. Para la declaración de IVA en Hacienda, descarga el archivo fiscal en la sección <strong>Anexo CSV F-07</strong>.</p>
         </div>
       </div>
 

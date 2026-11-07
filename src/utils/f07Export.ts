@@ -42,10 +42,13 @@ export function buildF07Annex(kind: AnnexKind, invoices: InvoiceDocument[], purc
       if (!p.documentClass) throw new Error(`Indica la clase del comprobante ${p.docNumber}; no se puede inferir de un registro antiguo.`);
       if (p.documentClass === '4' && !uuid.test(p.generationCode || '')) throw new Error(`Falta el código de generación original de ${p.docNumber}.`);
       const number = p.documentClass === '4' ? compact(p.generationCode!) : compact(p.docNumber);
-      const id = compact(p.supplierNit), dui = id.length === 9 ? id : '';
-      if (!/^\d{9}$|^\d{14}$/.test(id) && !p.supplierNrc) throw new Error(`Revisa el DUI, NIT o NRC de ${p.supplierName}.`);
+      const id = compact(p.supplierNit.trim());
+      const dui = /^\d{9}$/.test(id) ? id : '';
+      const nrc = compact(p.supplierNrc?.trim() || '');
+      const nitOrNrc = /^\d{14}$/.test(id) ? id : /^\d{2,9}$/.test(nrc) ? nrc : '';
+      if (!dui && !nitOrNrc) throw new Error(`Revisa el DUI, NIT o NRC de ${p.supplierName} en la compra ${p.docNumber}.`);
       // Total purchases is the base before IVA, retentions and perceptions (column O).
-      return [date(p.emissionDate), p.documentClass, p.docType === 'CCF' ? '03' : '05', number, dui ? '' : id || compact(p.supplierNrc || ''), p.supplierName,
+      return [date(p.emissionDate), p.documentClass, p.docType === 'CCF' ? '03' : '05', number, dui ? '' : nitOrNrc, p.supplierName,
         money(p.purchasesExentas), '0.00', '0.00', money(p.purchasesGravadas), '0.00', '0.00', '0.00', money(p.creditoFiscal),
         money(p.purchasesGravadas + p.purchasesExentas), dui, codes.operation, codes.classification!, codes.sector!, codes.cost!, '3'];
     });

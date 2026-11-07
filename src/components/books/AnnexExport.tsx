@@ -11,7 +11,9 @@ export function AnnexExport({ kind, invoices, purchases, period }: { kind: Annex
   return <details className="no-print rounded-2xl border border-slate-200 bg-white p-4">
     <summary className="cursor-pointer font-semibold">Anexo CSV F-07 del libro seleccionado</summary>
     <div className="mt-4 space-y-3">
-      <p className="text-sm text-slate-600">Formato F-07 v14: separado por punto y coma, sin encabezados. Las ventas usan documentos aceptados; el consumidor final se agrupa por día. Compras incluye CCF y notas de crédito, y excluye facturas y FSE.</p>
+      {kind === 'compras'
+        ? <p className="text-sm text-slate-600"><strong>Anexo 3 · Detalle de Compras.</strong> El CSV para Hacienda contiene 21 columnas, separadas por punto y coma y sin encabezados. Incluye CCF y notas de crédito. Carga el archivo descargado directamente en el portal para conservar el formato.</p>
+        : <p className="text-sm text-slate-600">Formato F-07 v14: separado por punto y coma, sin encabezados. Las ventas usan documentos aceptados; el consumidor final se agrupa por día.</p>}
       <p className="text-xs text-slate-600">Los códigos siguientes se aplicarán a todos los registros de este archivo. Si requieren clasificaciones diferentes, prepara el anexo con tu contador; esta exportación admite una clasificación común por archivo. No incluye exportaciones ni importaciones. Las casillas especiales se registran y descargan en la sección correspondiente de esta página.</p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {select('operation', 'Tipo de operación de renta', [['1', 'Gravada'], ['2', 'No gravada o exenta'], ['3', 'Excluido o no constituye renta'], ['4', 'Mixta'], ...(kind === 'compras' ? [['8', 'Informada en más de un anexo'], ['9', 'Excepciones']] as [string, string][] : [['12', 'Ingresos sujetos a retención informados'], ['13', 'Sujetos pasivos excluidos']] as [string, string][])])}

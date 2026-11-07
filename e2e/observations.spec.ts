@@ -165,3 +165,58 @@ test('F07 export requires classification review and downloads semicolon data', a
     expect(line.split(';')).toHaveLength(20);
   }
 });
+
+test('October purchase downloads the fiscal Annex 3 separately from the IVA book', async ({ page }, info) => {
+  await page.goto('/#/compras');
+  await page.getByRole('button', { name: 'Registrar Compra', exact: true }).click();
+  await page.getByLabel('Nombre del Proveedor', { exact: true }).fill('Proveedor ficticio E2E');
+  await page.getByLabel('NIT Proveedor', { exact: true }).fill('0000-000000-000-0');
+  await page.getByLabel('Clase del comprobante', { exact: true }).selectOption('4');
+  await page.getByLabel('Código de generación del proveedor', { exact: true }).fill('12345678-1234-4234-8234-123456789ABC');
+  await page.getByLabel('Número de Documento', { exact: true }).fill('DTE-03-M001P001-000000000000027');
+  await page.getByLabel('Fecha de compra', { exact: true }).fill('2026-10-27');
+  await page.getByLabel('Concepto del Gasto', { exact: true }).fill('Suministros de oficina');
+  await page.getByLabel('Monto Gravado ($)', { exact: true }).fill('100');
+  await page.getByRole('button', { name: 'Guardar Compra', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  await page.goto('/#/libros-iva');
+  await page.getByLabel('Período', { exact: true }).fill('2026-10');
+  await page.getByRole('button', { name: '3. Libro de Compras', exact: true }).click();
+  const bookView = page.getByRole('region', { name: /Libro de Compras/i });
+  await bookView.screenshot({ path: info.outputPath('libro-de-compras.png') });
+
+  let pending = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar Excel', exact: true }).click();
+  const excel = await pending;
+  expect(excel.suggestedFilename()).toBe('Libro_IVA_compras_2026-10.xlsx');
+  const excelPath = info.outputPath(excel.suggestedFilename());
+  await excel.saveAs(excelPath);
+  const sheet = strFromU8(unzipSync(await readFile(excelPath))['xl/worksheets/sheet1.xml']);
+  expect(sheet).toContain('Proveedor ficticio E2E');
+  expect(sheet).toContain('SIN VALIDEZ FISCAL');
+
+  pending = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Exportar CSV del libro', exact: true }).click();
+  const book = await pending;
+  expect(book.suggestedFilename()).toBe('Libro_IVA_compras_10_2026.csv');
+  const bookPath = info.outputPath(book.suggestedFilename());
+  await book.saveAs(bookPath);
+  expect(await readFile(bookPath, 'utf8')).toMatch(/^\uFEFF"Fecha","Tipo_Doc","Numero_Documento"/);
+
+  await page.getByText('Anexo CSV F-07 del libro seleccionado', { exact: true }).click();
+  await page.getByLabel('Tipo de operación de renta', { exact: true }).selectOption('1');
+  await page.getByLabel('Clasificación de renta', { exact: true }).selectOption('2');
+  await page.getByLabel('Sector de renta', { exact: true }).selectOption('2');
+  await page.getByLabel('Tipo de costo o gasto', { exact: true }).selectOption('2');
+  await page.getByLabel('Revisé que todos los registros comparten estos códigos y corresponden al período.', { exact: true }).check();
+  await page.locator('details', { hasText: 'Anexo CSV F-07 del libro seleccionado' }).screenshot({ path: info.outputPath('anexo-f07-compras.png') });
+  pending = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar anexo F-07 CSV', exact: true }).click();
+  const annex = await pending;
+  expect(annex.suggestedFilename()).toBe('F07_A3_202610.csv');
+  const annexPath = info.outputPath(annex.suggestedFilename());
+  await annex.saveAs(annexPath);
+  const data = await readFile(annexPath, 'utf8');
+  expect(data).toBe('27/10/2026;4;03;12345678123442348234123456789ABC;00000000000000;Proveedor ficticio E2E;0.00;0.00;0.00;100.00;0.00;0.00;0.00;13.00;100.00;;1;2;2;2;3\r\n');
+});
