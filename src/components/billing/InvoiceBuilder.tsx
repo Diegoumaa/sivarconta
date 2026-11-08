@@ -40,6 +40,7 @@ export const InvoiceBuilder: React.FC = () => {
   // Form State
   const [selectedDteType, setSelectedDteType] = useState<DteType>(selectedDteTypeForNew || '01');
   const [selectedClientId, setSelectedClientId] = useState<string>(filteredClients[0]?.id || '');
+  const [forTaxDeduction, setForTaxDeduction] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>('01');
   const [condition, setCondition] = useState<'CONTADO' | 'CREDITO'>('CONTADO');
   const [creditDays, setCreditDays] = useState<number>(30);
@@ -94,11 +95,11 @@ export const InvoiceBuilder: React.FC = () => {
   const clientIsGranContribuyente = currentClient?.taxpayerType === 'GRAN_CONTRIBUYENTE';
   const companyIsGranContribuyente = currentCompany?.taxpayerType === 'GRAN_CONTRIBUYENTE';
   useEffect(() => {
-    if (selectedDteType === '14' && currentClient?.nrc) {
-      const excluded = filteredClients.find(client => !client.nrc?.trim());
+    if (selectedDteType === '14' && (currentClient?.nrc || !currentClient?.docNumber)) {
+      const excluded = filteredClients.find(client => !client.nrc?.trim() && client.docNumber.trim());
       if (excluded) setSelectedClientId(excluded.id);
     }
-  }, [selectedDteType, currentClient?.nrc, filteredClients]);
+  }, [selectedDteType, currentClient?.nrc, currentClient?.docNumber, filteredClients]);
 
   const totals = calculateInvoiceTotals(
     selectedDteType,
@@ -115,7 +116,8 @@ export const InvoiceBuilder: React.FC = () => {
     totals.totalPagar, 
     currentClient?.docNumber, 
     currentClient?.nrc,
-    Boolean(currentClient)
+    Boolean(currentClient),
+    forTaxDeduction
   );
   const invalidItems = items.length === 0 || items.some(item =>
     !item.description.trim() || !Number.isFinite(item.quantity) || item.quantity <= 0 ||
@@ -448,7 +450,7 @@ export const InvoiceBuilder: React.FC = () => {
                     >
                       {filteredClients.map(c => (
                         <option key={c.id} value={c.id}>
-                          {c.name} • {c.docType}: {c.docNumber} {c.nrc ? `• NRC: ${c.nrc}` : ''}
+                          {c.name} • {c.docNumber ? `${c.docType}: ${c.docNumber}` : 'Consumidor final sin documento'} {c.nrc ? `• NRC: ${c.nrc}` : ''}
                         </option>
                       ))}
                     </select>
@@ -459,13 +461,13 @@ export const InvoiceBuilder: React.FC = () => {
                   <>
                     <div>
                       <label className="text-xs font-semibold text-slate-700 block mb-1">
-                        Documento ({currentClient.docType})
+                        Documento{currentClient.docNumber ? ` (${currentClient.docType})` : ''}
                       </label>
                       <input
                         type="text"
                         disabled
                         aria-label="Documento del cliente"
-                        value={currentClient.docNumber}
+                        value={currentClient.docNumber || 'Sin documento'}
                         className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-600"
                       />
                     </div>
@@ -493,13 +495,20 @@ export const InvoiceBuilder: React.FC = () => {
                         type="text"
                         disabled
                         aria-label="Ubicación del cliente"
-                        value={`${currentClient.address}, ${currentClient.municipality}`}
+                        value={currentClient.address ? `${currentClient.address}, ${currentClient.municipality}` : 'Sin dirección registrada'}
                         className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 truncate"
                       />
                     </div>
                   </>
                 )}
               </div>
+
+              {selectedDteType === '01' && (
+                <label className="flex items-start gap-2 text-xs text-slate-700">
+                  <input type="checkbox" checked={forTaxDeduction} onChange={e => setForTaxDeduction(e.target.checked)} />
+                  Esta factura se usará para deducir costos o gastos
+                </label>
+              )}
 
               {/* Assisted Check / Tutor Fiscal for DTE-03 without NRC */}
               {selectedDteType === '03' && !currentClient?.nrc && (

@@ -82,19 +82,16 @@ describe('svTaxValidators - DTE Business Rules (checkDteRules)', () => {
     expect(res.blockers).toContain('El monto total a pagar debe ser mayor a $0.00 USD.');
   });
 
-  it('enforces DUI/NIT in DTE-01 when total is >= $200 (Art. 119-B Código Tributario)', () => {
-    // Under 200: doc number is optional in DTE-01
-    const resUnder200 = checkDteRules('01', 199.99, '', '', true);
-    expect(resUnder200.isReady).toBe(true);
+  it('requires identification in DTE-01 from $25,000 or for deductions', () => {
+    expect(checkDteRules('01', 24_999.99, '').isReady).toBe(true);
+    expect(checkDteRules('01', 25_000, '').blockers[0]).toContain('$25,000.00 USD');
+    expect(checkDteRules('01', 25_000, '02345678-3').isReady).toBe(true);
+    expect(checkDteRules('01', 10, '', '', true, true).isReady).toBe(false);
+    expect(checkDteRules('01', 10, '02345678-3', '', true, true).isReady).toBe(true);
+  });
 
-    // At or above 200: doc number is mandatory
-    const resOver200 = checkDteRules('01', 200.00, '', '', true);
-    expect(resOver200.isReady).toBe(false);
-    expect(resOver200.blockers[0]).toContain('$200.00 USD');
-
-    // Passing doc number satisfies rule
-    const resValidOver200 = checkDteRules('01', 250.00, '02345678-3', '', true);
-    expect(resValidOver200.isReady).toBe(true);
+  it.each(['03', '05', '06', '14'])('requires identification in DTE-%s', type => {
+    expect(checkDteRules(type, 10, '').isReady).toBe(false);
   });
 
   it('enforces client NRC on DTE-03 (Comprobante de Crédito Fiscal)', () => {

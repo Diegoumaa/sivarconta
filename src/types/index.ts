@@ -75,7 +75,7 @@ export interface InvoiceDocument {
   posCode: string;
   clientId: string;
   clientName: string;
-  clientDocType: 'DUI' | 'NIT' | 'PASAPORTE';
+  clientDocType: 'DUI' | 'NIT' | 'PASAPORTE' | 'OTRO';
   clientDocNumber: string;
   clientNrc?: string;
   clientAddress: string;
@@ -127,7 +127,7 @@ export interface Client {
   companyId: string;
   name: string;
   commercialName?: string;
-  docType: 'DUI' | 'NIT';
+  docType: 'DUI' | 'NIT' | 'OTRO';
   docNumber: string;
   nrc?: string;
   taxpayerType: 'GRAN_CONTRIBUYENTE' | 'MEDIANO' | 'PEQUENO' | 'OTRO';

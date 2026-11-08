@@ -17,7 +17,8 @@ export const ClientsView: React.FC = () => {
   // Form state
   const [name, setName] = useState('');
   const [commercialName, setCommercialName] = useState('');
-  const [docType, setDocType] = useState<'DUI' | 'NIT'>('NIT');
+  const [docType, setDocType] = useState<Client['docType']>('NIT');
+  const withoutDocument = docType === 'OTRO';
   const [docNumber, setDocNumber] = useState('');
   const [nrc, setNrc] = useState('');
   const [taxpayerType, setTaxpayerType] = useState<'GRAN_CONTRIBUYENTE' | 'MEDIANO' | 'PEQUENO' | 'OTRO'>('PEQUENO');
@@ -61,8 +62,8 @@ export const ClientsView: React.FC = () => {
     e.preventDefault();
     if (savingRef.current) return;
     setErrorMessage('');
-    if (!name.trim() || !docNumber.trim()) {
-      setErrorMessage('Por favor complete el nombre y número de documento.');
+    if (!name.trim() || (!withoutDocument && !docNumber.trim())) {
+      setErrorMessage(withoutDocument ? 'Por favor complete el nombre.' : 'Por favor complete el nombre y número de documento.');
       return;
     }
 
@@ -80,7 +81,7 @@ export const ClientsView: React.FC = () => {
       }
     }
 
-    if (nrc.trim()) {
+    if (!withoutDocument && nrc.trim()) {
       const nrcRes = validateNrc(nrc.trim());
       if (!nrcRes.isValid) {
         setErrorMessage(nrcRes.error || 'NRC inválido.');
@@ -95,13 +96,13 @@ export const ClientsView: React.FC = () => {
       name: name.trim(),
       commercialName: commercialName.trim() || undefined,
       docType,
-      docNumber: docNumber.trim(),
-      nrc: nrc.trim() || undefined,
-      taxpayerType,
+      docNumber: withoutDocument ? '' : docNumber.trim(),
+      nrc: withoutDocument ? undefined : nrc.trim() || undefined,
+      taxpayerType: withoutDocument ? 'OTRO' : taxpayerType,
       economicActivity: economicActivity.trim() || undefined,
       department,
       municipality: municipality.trim() || 'San Salvador Centro',
-      address: address.trim() || 'San Salvador, El Salvador',
+      address: address.trim() || (withoutDocument ? '' : 'San Salvador, El Salvador'),
       phone: phone.trim(),
       email: email.trim()
       });
@@ -109,6 +110,7 @@ export const ClientsView: React.FC = () => {
     // Reset & close
     setName('');
     setCommercialName('');
+    setDocType('NIT');
     setDocNumber('');
     setNrc('');
     setAddress('');
@@ -226,16 +228,16 @@ export const ClientsView: React.FC = () => {
                 <div className="pt-2 text-xs space-y-1 font-mono text-slate-600">
                   <div className="flex items-center justify-between">
                     <p>
-                      <span className="text-slate-400 font-sans">{c.docType}:</span> {c.docNumber}
+                      {c.docNumber ? <><span className="text-slate-400 font-sans">{c.docType}:</span> {c.docNumber}</> : 'Consumidor final sin documento'}
                     </p>
-                    <button
+                    {c.docNumber && <button
                       type="button"
                       onClick={() => copyToClipboard(c.docNumber, `${c.docType} copiado`, c.docNumber)}
                       className="p-1 rounded text-slate-400 hover:text-slate-700 transition-colors btn-tactile"
                       title={`Copiar ${c.docType}`}
                     >
                       <Copy className="w-3 h-3" />
-                    </button>
+                    </button>}
                   </div>
                   {c.nrc && (
                     <div className="flex items-center justify-between">
@@ -360,7 +362,8 @@ export const ClientsView: React.FC = () => {
                   <label htmlFor="client-taxpayer" className="text-xs font-semibold text-slate-700 block mb-1">Tipo de Contribuyente</label>
                   <select
                     id="client-taxpayer"
-                    value={taxpayerType}
+                    value={withoutDocument ? 'OTRO' : taxpayerType}
+                    disabled={withoutDocument}
                     onChange={e => setTaxpayerType(e.target.value as any)}
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
@@ -378,11 +381,12 @@ export const ClientsView: React.FC = () => {
                   <select
                     id="client-doctype"
                     value={docType}
-                    onChange={e => setDocType(e.target.value as any)}
+                    onChange={e => setDocType(e.target.value as Client['docType'])}
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     <option value="NIT">NIT</option>
                     <option value="DUI">DUI</option>
+                    <option value="OTRO">Sin documento</option>
                   </select>
                 </div>
                 <div>
@@ -390,9 +394,10 @@ export const ClientsView: React.FC = () => {
                   <input
                     id="client-docnumber"
                     type="text"
-                    required
+                    required={!withoutDocument}
+                    disabled={withoutDocument}
                     placeholder="0614-XXXXXX-XXX-X"
-                    value={docNumber}
+                    value={withoutDocument ? '' : docNumber}
                     onChange={e => setDocNumber(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
@@ -403,12 +408,15 @@ export const ClientsView: React.FC = () => {
                     id="client-nrc"
                     type="text"
                     placeholder="Ej. 123456-7"
-                    value={nrc}
+                    value={withoutDocument ? '' : nrc}
+                    disabled={withoutDocument}
                     onChange={e => setNrc(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
               </div>
+
+              {withoutDocument && <p className="text-xs text-slate-600">Puedes usar un nombre como «Clientes varios» para ventas a personas naturales cuando no sea obligatorio identificar al comprador.</p>}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -445,7 +453,7 @@ export const ClientsView: React.FC = () => {
                 <input
                   id="client-address"
                   type="text"
-                  required
+                  required={!withoutDocument}
                   placeholder="Calle, avenida, número de local..."
                   value={address}
                   onChange={e => setAddress(e.target.value)}
@@ -470,7 +478,7 @@ export const ClientsView: React.FC = () => {
                   <input
                     id="client-email"
                     type="email"
-                    required
+                    required={!withoutDocument}
                     placeholder="facturacion@cliente.com"
                     value={email}
                     onChange={e => setEmail(e.target.value)}

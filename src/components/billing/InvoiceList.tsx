@@ -199,7 +199,7 @@ export const InvoiceList: React.FC = () => {
                       <td className="py-3 px-4">
                         <p className="font-bold text-slate-800">{inv.clientName}</p>
                         <p className="text-[10px] text-slate-400 font-mono">
-                          {inv.clientDocType}: {inv.clientDocNumber} {inv.clientNrc ? `| NRC: ${inv.clientNrc}` : ''}
+                          {inv.clientDocNumber ? `${inv.clientDocType}: ${inv.clientDocNumber}` : 'Consumidor final sin documento'} {inv.clientNrc ? `| NRC: ${inv.clientNrc}` : ''}
                         </p>
                       </td>
                       <td className="py-3 px-4 font-mono text-slate-600 whitespace-nowrap">

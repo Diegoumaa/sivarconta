@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { unzipSync, strFromU8 } from 'fflate';
+import { INITIAL_INVOICES } from '../src/data/mockData';
 
 test('department updates municipality options without guessing a municipality', async ({ page }) => {
   await page.goto('/#/clientes');
@@ -258,4 +259,68 @@ test('October purchase downloads the fiscal Annex 3 separately from the IVA book
     '28/10/2026;1;03;CCFE2ECOSTO;00000000000000;Proveedor de materiales E2E;0.00;0.00;0.00;50.00;0.00;0.00;0.00;6.50;50.00;;1;1;4;5;3',
   ]));
   expect(data.trim().split('\r\n')).toHaveLength(2);
+});
+
+test('consumer final without identification can be registered and used in a draft', async ({ page }) => {
+  await page.goto('/#/clientes');
+  await page.getByRole('button', { name: 'Nuevo Cliente', exact: true }).click();
+  await page.getByLabel('Nombre o Razón Social', { exact: true }).fill('Clientes varios E2E');
+  await page.getByLabel('Tipo Doc.', { exact: true }).selectOption('OTRO');
+  await expect(page.getByLabel('Número de Doc.', { exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Guardar Cliente', exact: true }).click();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Clientes varios E2E' })).toBeVisible();
+
+  await page.goto('/#/inicio');
+  await page.getByRole('button', { name: /^01 / }).click();
+  await page.getByLabel('Cliente Registrado', { exact: true }).selectOption({ label: 'Clientes varios E2E • Consumidor final sin documento' });
+  await page.getByRole('button', { name: 'Continuar a Productos', exact: true }).click();
+  await page.getByLabel('Precio unitario de partida 1', { exact: true }).filter({ visible: true }).fill('250');
+  await page.getByRole('button', { name: 'Continuar a Pago', exact: true }).click();
+  await page.getByRole('button', { name: 'Revisar borrador', exact: true }).click();
+  await page.getByRole('button', { name: 'Guardar borrador de prueba', exact: true }).click();
+  const preview = page.getByRole('dialog', { name: 'Vista previa del documento' });
+  await expect(preview).toContainText('Clientes varios E2E');
+  await expect(preview).toContainText('Sin documento');
+});
+
+test('accepted FSE appears in the purchase book and can be exported in Annex 5 only', async ({ page }, info) => {
+  const fse = {
+    ...INITIAL_INVOICES[0], id: 'fse-book-e2e', dteType: '14', clientName: 'Sujeto excluido E2E',
+    clientDocType: 'DUI', clientDocNumber: '00000000-0', clientNrc: undefined, emissionDate: '2026-11-03',
+    generationCode: '12345678-1234-4234-8234-123456789ABC', controlNumber: 'DTE-14-M001P001-000000000000907',
+    mhReceptionStamp: 'A'.repeat(40), subtotalGravado: 275, subtotalExento: 0, subtotalNoSujeto: 0,
+    totalPagar: 247.5, retencionRenta10: 27.5, iva13: 0, retencion1: 0,
+  };
+  await page.addInitScript(invoice => {
+    localStorage.setItem('sivarconta_demo_v2_invoices', JSON.stringify([invoice]));
+    localStorage.setItem('sivarconta_demo_v2_purchases', '[]');
+  }, fse);
+  await page.goto('/#/libros-iva');
+  await page.getByLabel('Período', { exact: true }).fill('2026-11');
+  await page.getByRole('button', { name: /3\. Libro de Compras/ }).click();
+  const row = page.getByRole('row').filter({ hasText: fse.clientName });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText('$275.00');
+  await expect(row).toContainText('$27.50');
+  await page.getByText('Anexo CSV F-07 del libro seleccionado', { exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Descargar anexo F-07 CSV', exact: true })).toBeDisabled();
+
+  await page.getByText('Casillas especiales F-07 · Retenciones y percepciones', { exact: true }).click();
+  await page.getByLabel('Anexo de casilla especial', { exact: true }).selectOption('66');
+  await page.getByRole('button', { name: 'Registrar comprobante de anexo', exact: true }).click();
+  await page.getByLabel('Preparar desde documento existente', { exact: true }).selectOption(`invoice:${fse.id}`);
+  await page.getByLabel('Operación de renta', { exact: true }).selectOption('1');
+  await page.getByLabel('Clasificación de la compra', { exact: true }).selectOption('2');
+  await page.getByLabel('Sector de la compra', { exact: true }).selectOption('4');
+  await page.getByLabel('Costo o gasto de la compra', { exact: true }).selectOption('2');
+  await page.getByRole('button', { name: 'Guardar comprobante de anexo', exact: true }).click();
+  await page.getByLabel('Revisé los comprobantes, sus vínculos y el período antes de exportar.', { exact: true }).check();
+  const pending = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar CSV de casilla especial', exact: true }).click();
+  const download = await pending;
+  expect(download.suggestedFilename()).toBe('F07_A5_202611.csv');
+  const path = info.outputPath(download.suggestedFilename());
+  await download.saveAs(path);
+  expect(await readFile(path, 'utf8')).toContain(';275.00;0.00;1;2;4;2;5');
 });

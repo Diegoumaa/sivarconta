@@ -94,7 +94,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
       telefono: safeCompany.phone,
       correo: safeCompany.email
     },
-    receptor: {
+    receptor: invoice.dteType === '01' && !invoice.clientDocNumber ? null : {
       tipoDocumento: invoice.clientDocType === 'NIT' ? '36' : '13',
       numDocumento: invoice.clientDocNumber,
       nrc: invoice.clientNrc || null,
@@ -376,8 +376,8 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                   <p className="font-bold text-slate-900 text-xs mt-0.5">{invoice.clientName}</p>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px]">{invoice.clientDocType}:</span>
-                  <p className="font-mono font-bold text-slate-800 mt-0.5">{invoice.clientDocNumber}</p>
+                  <span className="text-slate-500 block text-[10px]">{invoice.clientDocNumber ? invoice.clientDocType : 'Documento'}</span>
+                  <p className="font-mono font-bold text-slate-800 mt-0.5">{invoice.clientDocNumber || 'Sin documento'}</p>
                 </div>
                 <div><span className="text-slate-500 block text-[10px]">Correo electrónico:</span><p className="break-words">{invoice.clientEmail || 'Sin registrar'}</p></div>
                 <div><span className="text-slate-500 block text-[10px]">Teléfono:</span><p>{invoice.clientPhone || 'Sin registrar'}</p></div>
@@ -390,7 +390,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                 )}
                 <div className={invoice.clientNrc ? 'sm:col-span-2 print:col-span-2' : 'sm:col-span-2 print:col-span-2'}>
                   <span className="text-slate-500 block text-[10px]">Dirección:</span>
-                  <p className="text-slate-800 leading-normal break-words mt-0.5">{invoice.clientAddress}, {invoice.clientMunicipality}, {invoice.clientDepartment}</p>
+                  <p className="text-slate-800 leading-normal break-words mt-0.5">{invoice.clientAddress ? [invoice.clientAddress, invoice.clientMunicipality, invoice.clientDepartment].filter(Boolean).join(', ') : 'Sin registrar'}</p>
                 </div>
                 <div>
                   <span className="text-slate-500 block text-[10px]">{['05', '06'].includes(invoice.dteType) ? 'Ajuste del comprobante:' : 'Condición / Pago:'}</span>

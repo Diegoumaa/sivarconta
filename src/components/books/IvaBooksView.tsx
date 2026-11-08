@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { calculateIvaLedger } from '../../utils/ivaLedger';
 import { buildBookXlsx, downloadBlob } from '../../utils/reportExport';
 import { exportBookPdf } from '../../utils/bookPdfExport';
-import { buildIvaBookReport, bookSpreadsheetRows } from '../../utils/ivaBookReport';
+import { buildIvaBookReport, bookSpreadsheetRows, includeIssuedFse } from '../../utils/ivaBookReport';
 import { IvaBookTable } from './IvaBookTable';
 import { SpecialAnnexes } from './SpecialAnnexes';
 import { AnnexExport } from './AnnexExport';
@@ -26,7 +26,8 @@ export const IvaBooksView: React.FC = () => {
   });
   const periodInvoices = filteredInvoices.filter(invoice =>
     invoice.emissionDate.startsWith(`${selectedPeriod}-`) && invoice.status === 'PROCESADO_MH');
-  const periodPurchases = filteredPurchases.filter(purchase => purchase.emissionDate.startsWith(`${selectedPeriod}-`));
+  const periodPurchases = includeIssuedFse(filteredPurchases, periodInvoices)
+    .filter(purchase => purchase.emissionDate.startsWith(`${selectedPeriod}-`));
 
   // Filter invoices for DTE-03 (Ventas a Contribuyente)
   const ventasContribuyente = periodInvoices.filter(i => i.dteType === '03' || i.dteType === '05' || i.dteType === '06');
@@ -88,10 +89,11 @@ export const IvaBooksView: React.FC = () => {
         rows.push([v.emissionDate, v.controlNumber, v.clientName, v.subtotalGravado, v.subtotalExento, v.iva13, v.totalPagar]);
       });
     } else {
-      rows = [['Fecha', 'Tipo_Doc', 'Numero_Documento', 'Proveedor', 'NRC', 'Compra_Gravada', 'Compra_Exenta', 'Credito_Fiscal_13', 'IVA_Retenido_1', 'Renta_Retenida_10', 'Total']];
+      rows = [['Fecha', 'Tipo_Doc', 'Numero_Documento', 'Proveedor', 'NRC', 'Compra_Gravada', 'Compra_Exenta', 'Credito_Fiscal_13', 'IVA_Retenido_1', 'Renta_Retenida_10', 'Total', 'Sujeto_Excluido']];
       periodPurchases.forEach(p => {
         const sign = p.docType === 'NOTA_CREDITO' ? -1 : 1;
-        rows.push([p.emissionDate, p.docType, p.docNumber, p.supplierName, p.supplierNrc || '', p.purchasesGravadas * sign, p.purchasesExentas * sign, p.creditoFiscal * sign, p.retencion1 * sign, (p.retencionRenta10 || 0) * sign, p.totalPagar * sign]);
+        const fse = p.docType === 'SUJETO_EXCLUIDO';
+        rows.push([p.emissionDate, p.docType, p.docNumber, p.supplierName, p.supplierNrc || '', fse ? 0 : p.purchasesGravadas * sign, fse ? 0 : p.purchasesExentas * sign, p.creditoFiscal * sign, p.retencion1 * sign, (p.retencionRenta10 || 0) * sign, p.totalPagar * sign, fse ? p.purchasesGravadas + p.purchasesExentas : 0]);
       });
     }
     const csvContent = rows.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';

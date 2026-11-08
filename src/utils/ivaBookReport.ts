@@ -12,6 +12,35 @@ export interface BookReport {
   groups: { label: string; span: number }[];
   notice?: string;
 }
+export function includeIssuedFse(purchases: PurchaseDocument[], invoices: InvoiceDocument[]): PurchaseDocument[] {
+  const documentKey = (companyId: string, number: string) => `${companyId}:${number.replace(/[-\s]/g, '').toUpperCase()}`;
+  const registered = new Set(purchases.filter(p => p.docType === 'SUJETO_EXCLUIDO')
+    .flatMap(p => [p.docNumber, p.generationCode].filter((number): number is string => Boolean(number?.trim()))
+      .map(number => documentKey(p.companyId, number))));
+  const issued = invoices.filter(invoice => invoice.dteType === '14' && invoice.status === 'PROCESADO_MH')
+    .filter(invoice => ![invoice.controlNumber, invoice.generationCode].some(number => registered.has(documentKey(invoice.companyId, number))))
+    .map((invoice): PurchaseDocument => ({
+      id: invoice.id,
+      companyId: invoice.companyId,
+      docType: 'SUJETO_EXCLUIDO',
+      documentClass: '4',
+      docNumber: invoice.controlNumber,
+      generationCode: invoice.generationCode,
+      emissionDate: invoice.emissionDate,
+      supplierName: invoice.clientName,
+      supplierNit: invoice.clientDocNumber,
+      concept: invoice.items.map(item => item.description).join(', '),
+      purchasesGravadas: 0,
+      purchasesExentas: invoice.subtotalGravado + invoice.subtotalExento + invoice.subtotalNoSujeto,
+      creditoFiscal: 0,
+      retencion1: 0,
+      retencionRenta10: invoice.retencionRenta10,
+      totalPagar: invoice.totalPagar,
+      paymentMethod: invoice.paymentMethod
+    }));
+  return [...purchases, ...issued];
+}
+
 export function buildIvaBookReport(kind: AnnexKind, invoices: InvoiceDocument[], purchases: PurchaseDocument[]): BookReport {
   const sales = invoices.filter(i => i.status === 'PROCESADO_MH').sort((a, b) => `${a.emissionDate}${a.emissionTime}${a.controlNumber}`.localeCompare(`${b.emissionDate}${b.emissionTime}${b.controlNumber}`));
   let title: string, columns: string[], rows: ReportCell[][], groups: BookReport['groups'];

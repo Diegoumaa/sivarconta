@@ -80,7 +80,7 @@ export function mapClients(rows: CloudRow[]): Client[] {
             companyId: c.company_id,
             name: c.name,
             commercialName: c.commercial_name || undefined,
-            docType: c.doc_type === 'NIT' ? 'NIT' : 'DUI',
+            docType: c.doc_type === 'OTRO' && !c.doc_number ? 'OTRO' : c.doc_type === 'NIT' ? 'NIT' : 'DUI',
             docNumber: c.doc_number,
             nrc: c.nrc || undefined,
             economicActivity: c.economic_activity || undefined,

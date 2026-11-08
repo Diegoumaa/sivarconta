@@ -100,7 +100,8 @@ export function checkDteRules(
   totalPagar: number,
   clientDocNumber?: string,
   clientNrc?: string,
-  hasClient: boolean = true
+  hasClient: boolean = true,
+  forTaxDeduction: boolean = false
 ): { isReady: boolean; warnings: string[]; blockers: string[] } {
   const blockers: string[] = [];
   const warnings: string[] = [];
@@ -118,11 +119,10 @@ export function checkDteRules(
     blockers.push('El monto total a pagar debe ser mayor a $0.00 USD.');
   }
 
-  // Regla $200 USD en DTE-01 (Factura Consumidor Final) - Art. 119-B Código Tributario
-  if (dteType === '01' && totalPagar >= 200) {
-    if (!clientDocNumber || clientDocNumber.trim() === '') {
-      blockers.push('En ventas mayores o iguales a $200.00 USD, Hacienda exige obligatoriamente registrar el DUI o NIT del cliente.');
-    }
+  const hasDocument = Boolean(clientDocNumber?.trim());
+  // Art. 119-G del Código Tributario, reformado por el Decreto Legislativo 94.
+  if (dteType === '01' && !hasDocument && (totalPagar >= 25_000 || forTaxDeduction)) {
+    blockers.push('Identifica al comprador en operaciones desde $25,000.00 USD o cuando la factura respalde una deducción de costos o gastos.');
   }
 
   // Regla NRC obligatorio en DTE-03 (Crédito Fiscal)
@@ -132,10 +132,14 @@ export function checkDteRules(
     }
   }
 
+  if (['03', '05', '06'].includes(dteType) && !hasDocument) {
+    blockers.push('Selecciona un cliente con número de identificación para este documento.');
+  }
+
   // Regla Sujeto Excluido DTE-14
   if (dteType === '14') {
     if (clientNrc?.trim()) blockers.push('La FSE corresponde a un proveedor no inscrito en IVA. Selecciona un receptor sin NRC.');
-    if (!clientDocNumber || clientDocNumber.trim() === '') {
+    if (!hasDocument) {
       blockers.push('Para compras a Sujetos Excluidos (DTE-14), el documento (DUI/NIT) del proveedor es obligatorio.');
     }
   }

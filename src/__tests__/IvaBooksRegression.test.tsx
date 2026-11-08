@@ -72,6 +72,26 @@ describe('IVA books acceptance regressions', () => {
     expect(within(row).getByText('$-56.50')).toBeInTheDocument();
   });
 
+  it('shows accepted FSE once, in its own purchase column and without a fiscal credit', () => {
+    state.filteredInvoices = [
+      invoice({ id: 'fse', dteType: '14', generationCode: 'FSE-ACCEPTED', clientName: 'Sujeto excluido aceptado', subtotalExento: 20, subtotalNoSujeto: 10, retencionRenta10: 10, totalPagar: 120 }),
+      invoice({ id: 'duplicate', dteType: '14', generationCode: 'FSE-DUPLICATE', clientName: 'Sujeto excluido automático' }),
+      invoice({ id: 'fse-draft', dteType: '14', clientName: 'Sujeto excluido en borrador', status: 'BORRADOR' }),
+      invoice({ id: 'fse-invalid', dteType: '14', clientName: 'Sujeto excluido invalidado', status: 'INVALIDADO' })
+    ];
+    state.filteredPurchases = [purchase({ docType: 'SUJETO_EXCLUIDO', generationCode: 'fse-duplicate', supplierName: 'Sujeto excluido registrado', creditoFiscal: 0 })];
+    render(<IvaBooksView />);
+    fireEvent.click(screen.getByRole('button', { name: /3. Libro de Compras/ }));
+    const cells = within(screen.getByText('Sujeto excluido aceptado').closest('tr')!).getAllByRole('cell');
+    expect(cells[9]).toHaveTextContent('$0.00');
+    expect(cells[12]).toHaveTextContent('$130.00');
+    expect(cells[14]).toHaveTextContent('$10.00');
+    expect(screen.getByText('Sujeto excluido registrado')).toBeInTheDocument();
+    expect(screen.queryByText('Sujeto excluido automático')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sujeto excluido en borrador')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sujeto excluido invalidado')).not.toBeInTheDocument();
+  });
+
   it('downloads the selected records with CSV escaping and formula protection', async () => {
     state.filteredInvoices = [
       invoice({ id: 'quoted', clientName: 'Comercial "Sol", S.A.\nSucursal', controlNumber: 'QUOTED' }),

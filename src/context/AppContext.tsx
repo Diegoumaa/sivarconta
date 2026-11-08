@@ -352,7 +352,7 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
     setClients(prev => [newCli, ...prev]);
 
     toast.success('Cliente registrado exitosamente', {
-      description: `${newCli.name} • ${newCli.docType}: ${newCli.docNumber}`
+      description: `${newCli.name} • ${newCli.docNumber ? `${newCli.docType}: ${newCli.docNumber}` : 'Consumidor final sin documento'}`
     });
   };
 
