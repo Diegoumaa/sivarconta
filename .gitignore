@@ -32,3 +32,5 @@ playwright-report
 
 # Scripts with credentials
 *.cjs
+.vercel
+.env*
