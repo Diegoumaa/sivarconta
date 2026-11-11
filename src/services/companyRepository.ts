@@ -84,6 +84,7 @@ export function mapClients(rows: CloudRow[]): Client[] {
             docNumber: c.doc_number,
             nrc: c.nrc || undefined,
             economicActivity: c.economic_activity || undefined,
+            districtCode: c.district_code || undefined,
             taxpayerType: c.is_gran_contribuyente ? 'GRAN_CONTRIBUYENTE' : (c.taxpayer_type || 'PEQUENO'),
             email: c.email,
             phone: c.phone,
@@ -114,7 +115,7 @@ export function mapInvoices(rows: CloudRow[]): InvoiceDocument[] {
             companyId: inv.company_id,
             dteType: inv.dte_type as any,
             pricesIncludeIva: Boolean(inv.prices_include_iva),
-            generationCode: inv.generation_code,
+            generationCode: String(inv.generation_code || '').toUpperCase(),
             controlNumber: inv.control_number,
             emissionDate: inv.emission_date,
             emissionTime: inv.emission_time,
@@ -171,7 +172,16 @@ export function mapInvoices(rows: CloudRow[]): InvoiceDocument[] {
               typeof inv.mh_response_json?.codigoGeneracion === 'string' &&
               inv.mh_response_json.codigoGeneracion.toUpperCase() === String(inv.generation_code).toUpperCase() &&
               inv.mh_response_json?.selloRecibido === inv.mh_reception_stamp,
-            mhResponseDate: inv.mh_reception_stamp ? inv.created_at : undefined
+            mhEnvironment: inv.mh_environment || inv.mh_response_json?.ambienteReportado || inv.mh_response_json?.ambiente || undefined,
+            mhEmissionState: inv.mh_emission_state || undefined,
+            mhDocument: inv.mh_response_json?.documento || undefined,
+            mhMessageCode: inv.mh_message_code || inv.mh_response_json?.codigoMsg || undefined,
+            mhMessage: [inv.mh_response_json?.descripcionMsg, inv.mh_response_json?.pista].filter(Boolean).join(' ') || undefined,
+            mhObservations: inv.mh_response_json?.observaciones || undefined,
+            mhInvalidationStamp: inv.status === 'ANULADO' && typeof inv.mh_response_json?.invalidacion?.selloRecibido === 'string'
+              ? inv.mh_response_json.invalidacion.selloRecibido : undefined,
+            mhQrUrl: inv.mh_environment ? `https://admin.factura.gob.sv/consultaPublica?ambiente=${inv.mh_environment}&codGen=${String(inv.generation_code).toUpperCase()}&fechaEmi=${inv.emission_date}` : undefined,
+            mhResponseDate: inv.mh_processed_at || undefined
           }));
 }
 

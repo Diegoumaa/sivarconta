@@ -201,6 +201,16 @@ describe('InvoicePreview Component', () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
+  it('represents the saved DTE issuer and anonymous receiver instead of current mutable contact data', () => {
+    renderPreview({ ...mockInvoice01, mhEnvironment: '00', mhDocument: {
+      emisor: { nombre: 'EMISOR DEL JSON ACEPTADO', telefono: '00000000', correo: 'qa@example.invalid' }, receptor: null,
+    } });
+    expect(screen.getByRole('heading', { name: 'EMISOR DEL JSON ACEPTADO' })).toBeVisible();
+    expect(screen.queryByText(mockInvoice01.clientEmail)).not.toBeInTheDocument();
+    expect(screen.getByText('Consulta pública de pruebas')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Consultar este documento en Hacienda' })).toHaveAttribute('href', expect.stringContaining('ambiente=00'));
+  });
+
   it('recovers after a rejected PDF export without reporting success', async () => {
     vi.mocked(exportElementToPdf).mockRejectedValueOnce(new Error('PDF unavailable'));
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});

@@ -4,20 +4,29 @@ import { InvoiceDocument, DTE_NAMES } from '../../types';
 import { Printer, Download, X, Code2, QrCode, CheckCircle2, ShieldCheck, Loader2, Copy } from 'lucide-react';
 import { exportElementToPdf } from '../../utils/pdfExport';
 import { copyToClipboard } from '../../utils/clipboard';
+import { downloadBlob } from '../../utils/reportExport';
 import { toast } from 'sonner';
 import { DocumentStatusBadge } from '../ui/DocumentStatusBadge';
+import { MhTestEmission } from './MhTestEmission';
+import { HaciendaQr } from './HaciendaQr';
 
 interface InvoicePreviewProps {
   invoice: InvoiceDocument;
   onClose: () => void;
 }
 
-export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose }) => {
-  const { currentCompany, companies, filteredClients = [] } = useApp();
+export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice: initialInvoice, onClose }) => {
+  const [invoice, setInvoice] = useState(initialInvoice);
+  useEffect(() => setInvoice(initialInvoice), [initialInvoice]);
+  const { currentCompany, companies, filteredClients = [], dataMode, refreshData } = useApp();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [showJson, setShowJson] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const hasMissingItems = invoice.items.length === 0;
+  const canExportTestDraft = dataMode === 'local-demo' && invoice.status === 'BORRADOR'
+    && invoice.dteType === '01' && !invoice.clientDocNumber && !hasMissingItems
+    && invoice.condition === 'CONTADO' && invoice.paymentMethod === '01'
+    && invoice.items.every(item => item.taxType === 'GRAVADO' && item.discount === 0);
   const displayItems = invoice.items.map(item => {
     const factor = invoice.pricesIncludeIva && ['03', '05', '06'].includes(invoice.dteType) && item.taxType === 'GRAVADO' ? 1.13 : 1;
     return { ...item, unitPrice: item.unitPrice / factor, discount: item.discount / factor, total: Number((item.total / factor).toFixed(2)) };
@@ -54,7 +63,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
 
   const meta = DTE_NAMES[invoice.dteType];
 
-  const safeCompany = companies.find(company => company.id === invoice.companyId) || currentCompany || {
+  const companyDetails = companies.find(company => company.id === invoice.companyId) || currentCompany || {
     name: 'Empresa Emisora',
     tradeName: '',
     nit: '0614-000000-000-0',
@@ -66,6 +75,16 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
     email: 'facturacion@empresa.sv',
     mhEnvironment: 'PRUEBAS' as const
   };
+  const storedIssuer = invoice.mhDocument?.emisor as Record<string, any> | undefined;
+  const issuerText = (key: string, fallback: string) => typeof storedIssuer?.[key] === 'string' ? storedIssuer[key] : fallback;
+  const safeCompany = { ...companyDetails,
+    name: issuerText('nombre', companyDetails.name), nit: issuerText('nit', companyDetails.nit), nrc: issuerText('nrc', companyDetails.nrc),
+    tradeName: storedIssuer ? storedIssuer.nombreComercial || '' : companyDetails.tradeName,
+    economicActivity: issuerText('descActividad', companyDetails.economicActivity),
+    phone: issuerText('telefono', companyDetails.phone), email: issuerText('correo', companyDetails.email),
+    address: typeof storedIssuer?.direccion?.complemento === 'string' ? storedIssuer.direccion.complemento : companyDetails.address,
+  };
+  const anonymousOfficial = Boolean(invoice.mhDocument && invoice.mhDocument.receptor === null);
 
   const mhJsonPayload = {
     identificacion: {
@@ -170,6 +189,17 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
     }
   };
 
+  const downloadTestDraft = () => {
+    const { generationCode, totalPagar, totalLetras } = invoice;
+    const items = invoice.items.map(({ description, unitOfMeasure, quantity, unitPrice }) => ({
+      description, unitOfMeasure, quantity, unitPrice,
+    }));
+    const file = new Blob([JSON.stringify({ generationCode, items, totalPagar, totalLetras }, null, 2)], {
+      type: 'application/json',
+    });
+    downloadBlob(file, `borrador-prueba-${generationCode}.json`);
+  };
+
 
   return (
     <div 
@@ -206,10 +236,12 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             <button
               type="button"
               onClick={() => setShowJson(!showJson)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition-colors btn-tactile cursor-pointer"
+              aria-label={showJson ? 'Ver Factura' : 'Ver JSON MH'}
+              className={`${canExportTestDraft ? 'flex' : 'hidden sm:flex'} items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition-colors btn-tactile cursor-pointer`}
             >
               <Code2 className="w-4 h-4 text-brand-600" />
-              <span>{showJson ? 'Ver Factura' : 'Ver JSON MH'}</span>
+              <span className="hidden sm:inline">{showJson ? 'Ver Factura' : 'Ver JSON MH'}</span>
+              <span className="sm:hidden">{showJson ? 'Factura' : 'JSON'}</span>
             </button>
 
             {/* Direct High-Resolution PDF Download */}
@@ -254,6 +286,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
           </div>
         </div>
 
+        <MhTestEmission invoice={invoice} cloud={dataMode === 'cloud' && safeCompany.mhEnvironment === 'PRUEBAS'} onSaved={saved => { setInvoice(saved); refreshData(); }} />
         {hasMissingItems && (
           <div role="alert" className="border-b border-amber-300 bg-amber-50 px-6 py-4 text-sm text-amber-950">
             <p className="font-bold">Documento incompleto · faltan las partidas originales</p>
@@ -264,26 +297,31 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
         {/* Modal Body */}
         {showJson ? (
           <div className="p-6 bg-slate-900 text-slate-200 font-mono text-xs overflow-x-auto max-h-[75vh]">
-            <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-2">
-              <span className="text-slate-400">JSON orientativo · no firmado ni transmitido</span>
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4 border-b border-slate-800 pb-2">
+              <span className="text-slate-400">{invoice.mhDocument ? 'DTE 01 v2 guardado por el servidor · sin claves ni firma' : 'JSON orientativo · no firmado ni transmitido'}</span>
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   disabled={hasMissingItems}
-                  onClick={() => copyToClipboard(JSON.stringify(mhJsonPayload, null, 2), 'Payload JSON copiado al portapapeles')}
+                  onClick={() => copyToClipboard(JSON.stringify(invoice.mhDocument || mhJsonPayload, null, 2), 'Payload JSON copiado al portapapeles')}
                   className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer btn-tactile"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>Copiar JSON</span>
                 </button>
-                <span className="text-amber-300 font-bold">Estado: SIN_FIRMA</span>
+                {canExportTestDraft && (
+                  <button type="button" onClick={downloadTestDraft} className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold btn-tactile">
+                    Descargar borrador de pruebas
+                  </button>
+                )}
+                <span className="text-amber-300 font-bold">Estado: {invoice.mhDocument ? invoice.status : 'SIN_FIRMA'}</span>
               </div>
             </div>
-            <pre>{JSON.stringify(mhJsonPayload, null, 2)}</pre>
+            <pre>{JSON.stringify(invoice.mhDocument || mhJsonPayload, null, 2)}</pre>
           </div>
         ) : (
           <div id="printable-dte-area" className="p-6 sm:p-10 text-slate-900 max-h-[85vh] overflow-y-auto print:max-h-none print:p-0 print:overflow-visible print:text-black bg-white">
-            <p className="mb-5 border-2 border-amber-600 p-3 text-center text-sm font-bold text-amber-900">DOCUMENTO DE DEMOSTRACIÓN · SIN VALIDEZ FISCAL</p>
+            <p className="mb-5 border-2 border-amber-600 p-3 text-center text-sm font-bold text-amber-900">{invoice.mhEnvironment === '00' ? 'DOCUMENTO DE PRUEBAS · AMBIENTE 00 · SIN VALIDEZ FISCAL' : 'DOCUMENTO DE DEMOSTRACIÓN · SIN VALIDEZ FISCAL'}</p>
             {/* Header: Emisor (Left) & Official DTE Box (Right) */}
             <div className="grid grid-cols-1 sm:grid-cols-12 print:grid-cols-12 gap-6 pb-5 border-b-2 border-slate-900 items-start">
               {/* Emisor Info */}
@@ -354,7 +392,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                     </div>
                   </div>
                   <div className="pb-0.5">
-                    <span className="text-slate-500 font-sans font-bold text-[8px] uppercase block">Referencia de recepción almacenada sin verificar:</span>
+                    <span className="text-slate-500 font-sans font-bold text-[8px] uppercase block">{invoice.mhEnvironment === '00' && invoice.mhReceptionStamp ? 'Sello de recepción confirmado · pruebas 00:' : 'Referencia de recepción almacenada sin verificar:'}</span>
                     <span className="text-slate-700 break-all text-[9.5px] block font-bold leading-normal mt-0.5">{invoice.mhReceptionStamp || 'No disponible · sin transmitir'}</span>
                   </div>
                   <div className="pt-1.5 border-t border-slate-200 text-slate-600 font-sans text-[10px] flex justify-between items-center">
@@ -379,9 +417,9 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                   <span className="text-slate-500 block text-[10px]">{invoice.clientDocNumber ? invoice.clientDocType : 'Documento'}</span>
                   <p className="font-mono font-bold text-slate-800 mt-0.5">{invoice.clientDocNumber || 'Sin documento'}</p>
                 </div>
-                <div><span className="text-slate-500 block text-[10px]">Correo electrónico:</span><p className="break-words">{invoice.clientEmail || 'Sin registrar'}</p></div>
-                <div><span className="text-slate-500 block text-[10px]">Teléfono:</span><p>{invoice.clientPhone || 'Sin registrar'}</p></div>
-                <div><span className="text-slate-500 block text-[10px]">Actividad económica:</span><p>{filteredClients.find(client => client.id === invoice.clientId)?.economicActivity || 'Sin registrar'}</p></div>
+                <div><span className="text-slate-500 block text-[10px]">Correo electrónico:</span><p className="break-words">{anonymousOfficial ? 'Sin datos de receptor en el DTE' : invoice.clientEmail || 'Sin registrar'}</p></div>
+                <div><span className="text-slate-500 block text-[10px]">Teléfono:</span><p>{anonymousOfficial ? 'Sin datos de receptor en el DTE' : invoice.clientPhone || 'Sin registrar'}</p></div>
+                <div><span className="text-slate-500 block text-[10px]">Actividad económica:</span><p>{anonymousOfficial ? 'Sin datos de receptor en el DTE' : filteredClients.find(client => client.id === invoice.clientId)?.economicActivity || 'Sin registrar'}</p></div>
                 {invoice.clientNrc && (
                   <div>
                     <span className="text-slate-500 block text-[10px]">NRC:</span>
@@ -390,7 +428,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                 )}
                 <div className={invoice.clientNrc ? 'sm:col-span-2 print:col-span-2' : 'sm:col-span-2 print:col-span-2'}>
                   <span className="text-slate-500 block text-[10px]">Dirección:</span>
-                  <p className="text-slate-800 leading-normal break-words mt-0.5">{invoice.clientAddress ? [invoice.clientAddress, invoice.clientMunicipality, invoice.clientDepartment].filter(Boolean).join(', ') : 'Sin registrar'}</p>
+                  <p className="text-slate-800 leading-normal break-words mt-0.5">{anonymousOfficial ? 'Consumidor final sin identificación' : invoice.clientAddress ? [invoice.clientAddress, invoice.clientMunicipality, invoice.clientDepartment].filter(Boolean).join(', ') : 'Sin registrar'}</p>
                 </div>
                 <div>
                   <span className="text-slate-500 block text-[10px]">{['05', '06'].includes(invoice.dteType) ? 'Ajuste del comprobante:' : 'Condición / Pago:'}</span>
@@ -444,8 +482,11 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
             {/* Bottom Summary: QR Code + Totals Box */}
             <div className="grid grid-cols-1 sm:grid-cols-12 print:grid-cols-12 gap-6 items-start">
               <div className="sm:col-span-6 print:col-span-6 bg-amber-50 p-3.5 rounded-xl border border-amber-200 text-sm text-amber-900 space-y-2">
-                <p className="font-bold">Consulta fiscal no disponible</p>
-                <p>Este documento de demostración no incluye un QR fiscal verificable. La firma y la recepción oficial requieren una integración con Hacienda.</p>
+                <p className="font-bold">{invoice.mhEnvironment === '00' && invoice.mhReceptionStamp ? 'Consulta pública de pruebas' : 'Consulta fiscal no disponible'}</p>
+                {invoice.mhEnvironment === '00' && invoice.mhReceptionStamp && invoice.mhQrUrl
+                  ? <HaciendaQr url={invoice.mhQrUrl} />
+                  : <p>Este documento de demostración no incluye un QR fiscal verificable. La firma y la recepción oficial requieren una integración con Hacienda.</p>}
+                {invoice.mhResponseDate && <p className="mt-2">Procesado por Hacienda: {invoice.mhResponseDate}</p>}
                 <div className="mt-4 border-t border-slate-300 pt-3 text-xs text-slate-800"><p className="font-bold">EXTENSIÓN</p><p className="mt-2">Nombre entrega: __________________</p><p>Documento: ______________________</p><p className="mt-2">Nombre recibe: ___________________</p><p>Documento: ______________________</p></div>
               </div>
 
@@ -531,7 +572,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ invoice, onClose
                 Representación de prueba de documento tributario electrónico
               </p>
               <p className="text-[8px] text-slate-400 font-mono">
-                Documento generado para revisión. Requiere integración y validación fiscal antes de su emisión real.
+                {invoice.mhEnvironment === '00' && invoice.mhReceptionStamp ? 'Recibido por Hacienda en pruebas. Este documento no tiene validez fiscal.' : 'Documento generado para revisión. Requiere integración y validación fiscal antes de su emisión real.'}
               </p>
               <p className="text-[8px] text-slate-400">
                 SIVAR FACT · Documento de prueba

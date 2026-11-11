@@ -1,5 +1,5 @@
 {
-  "functions": { "api/invoice-email.ts": { "maxDuration": 60 } },
+  "functions": { "api/invoice-email.ts": { "maxDuration": 60 }, "api/mh-test-emission.ts": { "maxDuration": 180, "includeFiles": "server/mh-schemas/**" } },
   "rewrites": [
     {
       "source": "/((?!api/).*)",

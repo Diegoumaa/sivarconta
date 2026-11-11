@@ -339,6 +339,8 @@ const AppDataProvider: React.FC<{ children: React.ReactNode; demo?: boolean; use
           doc_number: clientData.docNumber,
           nrc: clientData.nrc || null,
           economic_activity: clientData.economicActivity || null,
+          // Solo se envía si se eligió: así el alta funciona aunque la columna aún no exista en otra base.
+          ...(clientData.districtCode ? { district_code: clientData.districtCode } : {}),
           is_gran_contribuyente: clientData.taxpayerType === 'GRAN_CONTRIBUYENTE',
           email: clientData.email,
           phone: clientData.phone,

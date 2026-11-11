@@ -6,6 +6,8 @@ import { Client } from '../../types';
 import { SALVADOR_DEPARTMENTS } from '../../data/mockData';
 import { Users, Plus, Search, Building, Phone, Mail, MapPin, X, AlertCircle, Copy } from 'lucide-react';
 import { validateDui, validateNit, validateNrc } from '../../utils/svTaxValidators';
+import { MH_DISTRITOS, codigoDepartamento } from '../../data/mhCatalogos';
+import { ActividadEconomicaInput, actividadNormalizada, codigoActividad, useActividades } from '../billing/ActividadEconomicaInput';
 import { copyToClipboard } from '../../utils/clipboard';
 import { toast } from 'sonner';
 
@@ -25,6 +27,9 @@ export const ClientsView: React.FC = () => {
   const [economicActivity, setEconomicActivity] = useState('');
   const [department, setDepartment] = useState('San Salvador');
   const [municipality, setMunicipality] = useState('San Salvador Centro');
+  const [districtCode, setDistrictCode] = useState('');
+  const actividades = useActividades();
+  const distritos = MH_DISTRITOS[codigoDepartamento(department) || ''] || [];
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -89,6 +94,14 @@ export const ClientsView: React.FC = () => {
       }
     }
 
+    if (economicActivity.trim()) {
+      const code = codigoActividad(economicActivity);
+      if (!code || (actividades && !actividades[code])) {
+        setErrorMessage('La actividad económica debe ser un código del catálogo CAT-019 de Hacienda (por ejemplo 62010).');
+        return;
+      }
+    }
+
     savingRef.current = true;
     setIsSaving(true);
     try {
@@ -99,7 +112,8 @@ export const ClientsView: React.FC = () => {
       docNumber: withoutDocument ? '' : docNumber.trim(),
       nrc: withoutDocument ? undefined : nrc.trim() || undefined,
       taxpayerType: withoutDocument ? 'OTRO' : taxpayerType,
-      economicActivity: economicActivity.trim() || undefined,
+      economicActivity: economicActivity.trim() ? actividadNormalizada(economicActivity, actividades) : undefined,
+      districtCode: districtCode || undefined,
       department,
       municipality: municipality.trim() || 'San Salvador Centro',
       address: address.trim() || (withoutDocument ? '' : 'San Salvador, El Salvador'),
@@ -113,6 +127,8 @@ export const ClientsView: React.FC = () => {
     setDocType('NIT');
     setDocNumber('');
     setNrc('');
+    setEconomicActivity('');
+    setDistrictCode('');
     setAddress('');
     setPhone('');
     setEmail('');
@@ -424,7 +440,7 @@ export const ClientsView: React.FC = () => {
                   <select
                     id="client-dept"
                     value={department}
-                    onChange={e => { setDepartment(e.target.value); setMunicipality(''); }}
+                    onChange={e => { setDepartment(e.target.value); setMunicipality(''); setDistrictCode(''); }}
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
                     {SALVADOR_DEPARTMENTS.map(d => (
@@ -447,6 +463,31 @@ export const ClientsView: React.FC = () => {
                   </select>
                 </div>
               </div>
+
+              {!withoutDocument && <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="client-district" className="text-xs font-semibold text-slate-700 block mb-1">Distrito (catálogo de Hacienda)</label>
+                  <select
+                    id="client-district"
+                    value={districtCode}
+                    onChange={e => setDistrictCode(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  >
+                    <option value="">Selecciona el distrito</option>
+                    {distritos.map(d => <option key={d.codigo} value={d.codigo}>{d.nombre}</option>)}
+                  </select>
+                  <p className="mt-1 text-[11px] text-slate-500">Antiguo municipio de la dirección. Hacienda lo exige en CCF, notas y FSE.</p>
+                </div>
+                <div>
+                  <label htmlFor="client-activity" className="text-xs font-semibold text-slate-700 block mb-1">Actividad económica</label>
+                  <ActividadEconomicaInput
+                    id="client-activity"
+                    value={economicActivity}
+                    onChange={setEconomicActivity}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                  />
+                </div>
+              </div>}
 
               <div>
                 <label htmlFor="client-address" className="text-xs font-semibold text-slate-700 block mb-1">Dirección Completa</label>

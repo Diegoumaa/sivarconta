@@ -18,7 +18,7 @@ export default defineConfig({
   // Compile with empty Supabase variables: fixtures are synthetic browser data.
   webServer: {
     command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4173 --strictPort',
-    url: 'http://127.0.0.1:4173', reuseExistingServer: false, timeout: 120_000,
+    url: 'http://127.0.0.1:4173', reuseExistingServer: process.env.SIVAR_E2E_REUSE_SERVER === '1', timeout: 120_000,
     env: { VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' },
   },
 });

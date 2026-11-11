@@ -72,7 +72,7 @@ export const Sidebar: React.FC = () => {
             <span>Normativa DGII El Salvador</span>
           </div>
           <p className="text-xs text-slate-500 leading-relaxed">
-            Preparación de documentos de prueba. Firma digital, envío y certificación fiscal pendientes de integración.
+            Factura 01 con transmisión en pruebas para la empresa habilitada. Documentos sin validez fiscal.
           </p>
         </div>
       </div>

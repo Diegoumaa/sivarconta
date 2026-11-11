@@ -150,7 +150,7 @@ export function AuthGate({ children, invitation }: {
           <h1 className="max-w-lg text-3xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-4xl">Facturas claras.<br />Menos trabajo al cerrar el mes.</h1>
           <p className="max-w-md text-base leading-relaxed text-slate-600">Reúne tus clientes, ventas y compras en un solo lugar. Revisa cada documento paso a paso antes de guardarlo.</p>
           <ul className="space-y-3 text-sm text-slate-700">{['Crea un comprobante con un asistente de cuatro pasos.', 'Encuentra tus documentos por cliente, fecha o estado.', 'Consulta tus ventas, compras e IVA del período.'].map(text => <li key={text} className="flex items-start gap-3"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" /><span>{text}</span></li>)}</ul>
-          <p className="max-w-md rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900"><strong>Versión de evaluación.</strong> La emisión real a Hacienda está pendiente. Los documentos nuevos son borradores sin validez fiscal.</p>
+          <p className="max-w-md rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900"><strong>Versión de evaluación.</strong> Transmisión de Factura 01 en ambiente de pruebas para la empresa habilitada. Los documentos no tienen validez fiscal.</p>
         </section>
         <section aria-label="Acceso a tu cuenta" className="order-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:order-2">
           <span className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700"><LockKeyhole className="h-5 w-5" /></span>

@@ -9,6 +9,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: false
+    open: false,
+    proxy: { '/api/mh-test-emission': 'http://127.0.0.1:3001' }
   }
 });

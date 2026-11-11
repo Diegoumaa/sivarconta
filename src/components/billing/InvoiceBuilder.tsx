@@ -1078,7 +1078,7 @@ export const InvoiceBuilder: React.FC = () => {
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <div>
                     <span className="font-bold text-slate-800 block text-[11px]">Firma Criptográfica:</span>
-                    <span className="text-amber-800 text-xs">Pendiente de integración</span>
+                    <span className="text-amber-800 text-xs">Se verifica al transmitir desde el borrador</span>
                   </div>
                 </div>
 
@@ -1086,7 +1086,7 @@ export const InvoiceBuilder: React.FC = () => {
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <div>
                     <span className="font-bold text-slate-800 block text-[11px]">Servidor Hacienda:</span>
-                    <span className="text-amber-800 text-xs">Sin conexión de emisión</span>
+                    <span className="text-amber-800 text-xs">Guardar no transmite; Factura 01 admite envío posterior en pruebas</span>
                   </div>
                 </div>
               </div>

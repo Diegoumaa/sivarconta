@@ -22,7 +22,7 @@ function rentaColumns(kind: 'purchase' | 'sale', day: string, reference: string,
 /** MH F07 v14 (manual revised July 2025). Amounts on NC are positive: type 05 defines the sign. */
 export function buildF07Annex(kind: AnnexKind, invoices: InvoiceDocument[], purchases: PurchaseDocument[]): string {
   let rows: string[][] = [];
-  const sales = invoices.filter(i => i.status === 'PROCESADO_MH' && f07SaleKind(i.dteType) === kind)
+  const sales = invoices.filter(i => i.mhEnvironment !== '00' && i.status === 'PROCESADO_MH' && f07SaleKind(i.dteType) === kind)
     .sort((a, b) => `${a.emissionDate}${a.emissionTime}${a.controlNumber}`.localeCompare(`${b.emissionDate}${b.emissionTime}${b.controlNumber}`));
   if (kind === 'ventas_contribuyente') {
     rows = sales.map(i => {

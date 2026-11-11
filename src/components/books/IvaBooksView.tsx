@@ -25,7 +25,7 @@ export const IvaBooksView: React.FC = () => {
     timeZone: 'America/El_Salvador', month: 'long', year: 'numeric'
   });
   const periodInvoices = filteredInvoices.filter(invoice =>
-    invoice.emissionDate.startsWith(`${selectedPeriod}-`) && invoice.status === 'PROCESADO_MH');
+    invoice.mhEnvironment !== '00' && invoice.emissionDate.startsWith(`${selectedPeriod}-`) && invoice.status === 'PROCESADO_MH');
   const periodPurchases = includeIssuedFse(filteredPurchases, periodInvoices)
     .filter(purchase => purchase.emissionDate.startsWith(`${selectedPeriod}-`));
 

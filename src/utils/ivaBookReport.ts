@@ -17,7 +17,7 @@ export function includeIssuedFse(purchases: PurchaseDocument[], invoices: Invoic
   const registered = new Set(purchases.filter(p => p.docType === 'SUJETO_EXCLUIDO')
     .flatMap(p => [p.docNumber, p.generationCode].filter((number): number is string => Boolean(number?.trim()))
       .map(number => documentKey(p.companyId, number))));
-  const issued = invoices.filter(invoice => invoice.dteType === '14' && invoice.status === 'PROCESADO_MH')
+  const issued = invoices.filter(invoice => invoice.mhEnvironment !== '00' && invoice.dteType === '14' && invoice.status === 'PROCESADO_MH')
     .filter(invoice => ![invoice.controlNumber, invoice.generationCode].some(number => registered.has(documentKey(invoice.companyId, number))))
     .map((invoice): PurchaseDocument => ({
       id: invoice.id,
@@ -42,7 +42,7 @@ export function includeIssuedFse(purchases: PurchaseDocument[], invoices: Invoic
 }
 
 export function buildIvaBookReport(kind: AnnexKind, invoices: InvoiceDocument[], purchases: PurchaseDocument[]): BookReport {
-  const sales = invoices.filter(i => i.status === 'PROCESADO_MH').sort((a, b) => `${a.emissionDate}${a.emissionTime}${a.controlNumber}`.localeCompare(`${b.emissionDate}${b.emissionTime}${b.controlNumber}`));
+  const sales = invoices.filter(i => i.mhEnvironment !== '00' && i.status === 'PROCESADO_MH').sort((a, b) => `${a.emissionDate}${a.emissionTime}${a.controlNumber}`.localeCompare(`${b.emissionDate}${b.emissionTime}${b.controlNumber}`));
   let title: string, columns: string[], rows: ReportCell[][], groups: BookReport['groups'];
   if (kind === 'ventas_contribuyente') {
     title = 'LIBRO DE VENTAS A CONTRIBUYENTES';

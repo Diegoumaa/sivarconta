@@ -7,7 +7,7 @@ const sign = (type: string) => type === '05' || type === 'NOTA_CREDITO' ? -1 : 1
 
 /** Calculate chronologically. Payments due in a previous month never become a credit. */
 export function calculateIvaLedger(invoices: InvoiceDocument[], purchases: PurchaseDocument[], period: string, settings: CompanySettings = {}, annexRecords: IvaAnnexRecord[] = []) {
-  const accepted = invoices.filter(i => i.status === 'PROCESADO_MH' && i.dteType !== '14');
+  const accepted = invoices.filter(i => i.mhEnvironment !== '00' && i.status === 'PROCESADO_MH' && i.dteType !== '14');
   const records = annexRecords.filter(r => !r.voided);
   const linkedInvoices = (annex: SpecialAnnex) => new Set(records.filter(r => r.annex === annex).flatMap(r => r.relatedInvoiceIds));
   const linkedPurchases = (annex: SpecialAnnex) => new Set(records.filter(r => r.annex === annex).flatMap(r => r.relatedPurchaseIds));

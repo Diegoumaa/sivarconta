@@ -261,7 +261,7 @@ test('October purchase downloads the fiscal Annex 3 separately from the IVA book
   expect(data.trim().split('\r\n')).toHaveLength(2);
 });
 
-test('consumer final without identification can be registered and used in a draft', async ({ page }) => {
+test('consumer final without identification can be used in a draft and exported for Hacienda testing', async ({ page }, info) => {
   await page.goto('/#/clientes');
   await page.getByRole('button', { name: 'Nuevo Cliente', exact: true }).click();
   await page.getByLabel('Nombre o Razón Social', { exact: true }).fill('Clientes varios E2E');
@@ -282,6 +282,20 @@ test('consumer final without identification can be registered and used in a draf
   const preview = page.getByRole('dialog', { name: 'Vista previa del documento' });
   await expect(preview).toContainText('Clientes varios E2E');
   await expect(preview).toContainText('Sin documento');
+  await preview.getByRole('button', { name: 'Ver JSON MH' }).click();
+  const exportButton = preview.getByRole('button', { name: 'Descargar borrador de pruebas' });
+  await expect(exportButton).toBeVisible();
+  await preview.screenshot({ path: info.outputPath('exportacion-borrador-hacienda.png') });
+  const pending = page.waitForEvent('download');
+  await exportButton.click();
+  const download = await pending;
+  expect(download.suggestedFilename()).toMatch(/^borrador-prueba-[A-F0-9-]{36}\.json$/);
+  const path = info.outputPath('borrador-prueba.json');
+  await download.saveAs(path);
+  const draft = JSON.parse(await readFile(path, 'utf8'));
+  expect(Object.keys(draft).sort()).toEqual(['generationCode', 'items', 'totalLetras', 'totalPagar']);
+  expect(draft.totalPagar).toBe(250);
+  expect(draft.items[0].unitPrice).toBe(250);
 });
 
 test('accepted FSE appears in the purchase book and can be exported in Annex 5 only', async ({ page }, info) => {

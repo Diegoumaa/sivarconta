@@ -46,6 +46,27 @@ La configuración `playwright.config.ts` inicia su servidor en el puerto 4173 y 
 
 El paisaje de `public/images/suite-landscape.webp` fue generado para este proyecto y optimizado a WebP. Las ilustraciones de módulos son SVG editables en `ModuleArtwork.tsx`; los textos y controles son componentes HTML accesibles.
 
+### Prueba de transmisión de factura 01
+
+En la demostración, crea una factura de consumidor final sin identificación, al contado en efectivo y con partidas gravadas sin descuento. Guarda el borrador y abre **Ver JSON MH → Descargar borrador de pruebas**. Ese archivo contiene las partidas de ejemplo y el código de generación.
+
+Prepara aparte un JSON con `emisor` según el esquema oficial de factura v2, más `establecimientoControl`, `puntoVentaControl` y `correlativo` (cadena de hasta 15 dígitos). Usa la ficha del contribuyente y un correlativo disponible en pruebas. El preparador genera la fecha y hora de El Salvador y valida el resultado con el esquema publicado por el [Ministerio de Hacienda](https://factura.gob.sv/informacion-tecnica-y-funcional/).
+
+```sh
+npm run dte:pruebas -- preparar borrador.json emisor-prueba.json factura-prueba.json
+npm run dte:pruebas -- validar factura-prueba.json
+npm run dte:pruebas -- firmar factura-prueba.json
+npm run dte:pruebas -- enviar factura-prueba.json
+```
+
+Configura `MH_TEST_CERTIFICATE` (ruta local al certificado de pruebas fuera del repositorio), `MH_TEST_SIGNING_PASSWORD` y `MH_TEST_API_PASSWORD` en el entorno del proceso. `autenticar` permite comprobar solo el acceso y usa también `MH_TEST_NIT`. Las contraseñas, el token y el JWS se mantienen en memoria. `enviar` consulta el mismo código de generación antes de transmitir: recupera un sello ya confirmado sin reenviar, solo transmite cuando la consulta confirma que el documento no existe, y se detiene ante una consulta ambigua o un fallo de red. Después muestra el resultado de Hacienda sin reintentos automáticos. Ante un error de red después del envío, ejecuta `consultar factura-prueba.json` con el mismo archivo. El flujo se ejecuta por consola y conserva el estado del borrador en SIVAR FACT.
+
+La validación del esquema y la verificación local de la firma no confirman aceptación fiscal. En la comprobación del 10 de noviembre de 2026, el portal confirmó Factura autorizada en pruebas y el certificado vigente, pero recepción devolvió HTTP 400 / código 094, sin código de generación reportado ni sello; la consulta posterior devolvió 999 (sin registro). El piloto conservó esos resultados como `SIN_CONFIRMAR`. El 11/11/2026, después de que Hacienda asignara el rol `USER_API` (ver abajo), la misma factura piloto se transmitió con la hora actual. Recepción devolvió `PROCESADO`, ambiente 00, código 001 «RECIBIDO» y sello de 40 caracteres. Una consulta independiente (HTTP 202) y la consulta pública lo corroboraron. La integración de la emisión en la aplicación sigue pendiente. Las variantes de diagnóstico ajenas al formato publicado no forman parte del adaptador.
+
+**Credencial del usuario API.** `MH_TEST_API_PASSWORD` debe ser la contraseña de **Gestión de Usuario API** del Sitio de Emisores DTE (ambiente para pruebas, plataforma Sistema de Transmisión). El token de ese usuario incluye la autoridad `USER_API`, como el ejemplo del Manual Tecnológico V2.0. La clave usada el 10/11/2026 autenticaba con autoridades `USER, USER`, y `/fesv/recepciondte` respondía 094 de forma idéntica incluso con un cuerpo `{}` vacío. El portal asigna `USER_API` en el último paso de la acreditación inicial, después de fijar la contraseña API. Si ese paso no termina, el menú «Gestión de Usuario API» no aparece y Hacienda debe asignar el rol. Por eso `autenticar` y `diagnosticar` muestran `usuarioApi` y `autoridades`; sin `USER_API`, `autenticar` termina con código 3. `enviar` no transmite en dos casos: si falta `USER_API`, salvo `MH_TEST_PERMITIR_SIN_USER_API=1` para un experimento controlado, o si la hora de emisión difiere más de 25 minutos de la actual. En el segundo caso, ejecuta `preparar` justo antes de enviar. El 094 es «PARÁMETROS NO SON VÁLIDOS» en la tabla de códigos del manual; el resultado incluye una `pista` con esa referencia.
+
+Para registrar el diagnóstico, define `MH_TEST_LOG_PATH` con una ruta local fuera del repositorio y ejecuta `npm run dte:pruebas -- diagnosticar factura-prueba.json`. Comprueba esquema, firma, autenticación y consulta sin transmitir. La misma variable habilita registros al usar `enviar` o `consultar`. El archivo JSONL acumula eventos por `traceId`: etapas, rutas fijas de pruebas, tipos de campos, tamaños y huellas SHA-256 del contenido no autenticador, duración HTTP, códigos y cabeceras de correlación que proporcione el servicio. Enmascara el NIT y no registra contraseñas, cuerpos de autenticación, tokens, certificados, JWS completos ni datos comerciales de las partidas. Los fallos de red se registran sin el texto bruto de la excepción. `fin.errorLocal: false` describe la ejecución del comando; no significa aceptación fiscal. Estos son registros de nuestro proceso, no acceso a los registros internos de Hacienda.
+
 ## Supabase opcional para desarrollo
 
 Para evaluar la persistencia remota, copia `.env.example` a `.env` y completa exclusivamente los datos de un proyecto de pruebas propio:

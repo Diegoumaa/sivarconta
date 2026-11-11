@@ -107,6 +107,14 @@ export interface InvoiceDocument {
   mhProductionReception?: boolean;
   mhResponseDate?: string;
   mhQrUrl?: string;
+  mhEnvironment?: '00' | '01';
+  mhEmissionState?: 'PREPARADO' | 'ENVIO_INCIERTO' | 'PROCESADO' | 'RECHAZADO';
+  mhMessageCode?: string;
+  mhMessage?: string;
+  mhObservations?: string[];
+  mhDocument?: Record<string, unknown>;
+  /** Sello del Evento de Invalidación aceptado por Hacienda (ambiente 00). */
+  mhInvalidationStamp?: string;
 }
 
 export interface Product {
@@ -132,6 +140,8 @@ export interface Client {
   nrc?: string;
   taxpayerType: 'GRAN_CONTRIBUYENTE' | 'MEDIANO' | 'PEQUENO' | 'OTRO';
   economicActivity?: string;
+  /** Distrito del catálogo de Hacienda (CAT-008, dos dígitos dentro del departamento). */
+  districtCode?: string;
   department: string;
   municipality: string;
   address: string;
